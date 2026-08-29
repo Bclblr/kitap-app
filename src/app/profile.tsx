@@ -36,6 +36,7 @@ type Comment = {
 };
 
 type ProfileData = {
+  id: string;
   username: string;
   bio: string;
   profileImage: string | null;
@@ -86,6 +87,7 @@ type FeedItem = {
 };
 
 const DEFAULT_PROFILE: ProfileData = {
+  id: '',
   username: 'Kitap Okuru',
   bio: 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚',
   profileImage: null,
@@ -2428,33 +2430,61 @@ export default function ProfileScreen() {
                 </Text>
               </Pressable>
             ) : (
-              <Pressable
-                onPress={
-                  toggleFollow
-                }
-                disabled={
-                  followLoading
-                }
-                style={[
-                  styles.followButton,
-                  isFollowing &&
-                    styles.followingButton,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.followButtonText,
-                    isFollowing &&
-                      styles.followingButtonText,
-                  ]}
-                >
-                  {followLoading
-                    ? '...'
-                    : isFollowing
-                    ? 'Takipten Çık'
-                    : 'Takip Et'}
-                </Text>
-              </Pressable>
+              
+<View style={styles.profileActions}>
+  <Pressable
+    onPress={toggleFollow}
+    disabled={followLoading}
+    style={[
+      styles.followButton,
+      isFollowing &&
+        styles.followingButton,
+    ]}
+  >
+    <Text
+      style={[
+        styles.followButtonText,
+        isFollowing &&
+          styles.followingButtonText,
+      ]}
+    >
+      {followLoading
+        ? '...'
+        : isFollowing
+        ? 'Takipten Çık'
+        : 'Takip Et'}
+    </Text>
+  </Pressable>
+
+  <Pressable
+    onPress={() => {
+      if (!profile?.id) {
+        Alert.alert(
+          'Hata',
+          'Kullanıcı bulunamadı.'
+        );
+        return;
+      }
+
+      router.push({
+        pathname: '/chat',
+        params: {
+          userId: profile.id,
+          username:
+            profile.username ||
+            'Kitap Okuru',
+        },
+      });
+    }}
+    style={styles.messageButton}
+  >
+    <Text style={styles.messageButtonText}>
+      💬 Mesaj Gönder
+    </Text>
+  </Pressable>
+</View>
+
+
             )}
           </>
         )}
@@ -3459,6 +3489,29 @@ const styles = StyleSheet.create({
   cameraText: {
     fontSize: 18,
   },
+
+
+  profileActions: {
+  flexDirection: 'row',
+  gap: 8,
+  marginTop: 10,
+},
+
+messageButton: {
+  flex: 1,
+  minHeight: 44,
+  borderRadius: 10,
+  backgroundColor: '#222',
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingHorizontal: 12,
+},
+
+messageButtonText: {
+  color: '#FFF',
+  fontSize: 14,
+  fontWeight: '600',
+},
 
   profileImageContainer: {
     width: 125,
