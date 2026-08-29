@@ -711,21 +711,7 @@ export default function ChatScreen() {
           }
         />
 
-        <Pressable
-          onPress={
-            sendMessage
-          }
-          disabled={
-            sending ||
-            !text.trim()
-          }
-          style={[
-            styles.sendButton,
-            (!text.trim() ||
-              sending) &&
-              styles.sendButtonDisabled,
-          ]}
-        >
+        <Pressable onPress={sendMessage} style={styles.sendButton} >
           <Text
             style={
               styles.sendButtonText

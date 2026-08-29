@@ -101,6 +101,9 @@ export default function HomeScreen() {
   const [currentUserId, setCurrentUserId] =
     useState<string | null>(null);
 
+    const [currentUser, setCurrentUser] =
+  useState<any>(null);
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
 
@@ -140,9 +143,14 @@ export default function HomeScreen() {
     } = await supabase.auth.getUser();
 
     if (error) {
-      console.error('Kullanıcı alınamadı:', error);
+      
       return null;
     }
+
+    async function checkAuth() {
+  const user = await getCurrentUser();
+  setCurrentUser(user);
+}
 
     return user;
   }
@@ -151,6 +159,8 @@ export default function HomeScreen() {
     const user = await getCurrentUser();
     return user?.id ?? null;
   }
+
+  
 
   /*
    * =====================================================
@@ -711,6 +721,13 @@ setPosts(allFeedItems);
 
         const userId =
           await getCurrentUserId();
+
+          const user =
+  await getCurrentUser();
+
+setCurrentUser(user);
+
+          
 
         if (active) {
           setCurrentUserId(userId);
@@ -2579,22 +2596,39 @@ async function deletePostComment(
           geldin
         </Text>
 
-        <Pressable
-          onPress={() =>
-            router.push('/login')
-          }
-          style={
-            styles.loginButton
-          }
-        >
-          <Text
-            style={
-              styles.loginButtonText
-            }
-          >
-            Giriş Yap / Kayıt Ol
-          </Text>
-        </Pressable>
+        
+<Pressable
+  onPress={async () => {
+    if (currentUser) {
+      const { error } =
+        await supabase.auth.signOut();
+
+      if (error) {
+        Alert.alert(
+          'Hata',
+          'Çıkış yapılırken bir hata oluştu.'
+        );
+        return;
+      }
+
+      setCurrentUser(null);
+      setCurrentUserId(null);
+
+      router.replace('/login');
+    } else {
+      router.push('/login');
+    }
+  }}
+  style={styles.loginButton}
+>
+  <Text style={styles.loginButtonText}>
+    {currentUser
+      ? 'Çıkış Yap'
+      : 'Giriş Yap / Kayıt Ol'}
+  </Text>
+</Pressable>
+
+
 
         <Pressable
           onPress={() =>
@@ -3420,6 +3454,8 @@ async function deletePostComment(
                       const isOwnComment =
                         comment.user_id ===
                         currentUserId;
+
+                        
 
                       return (
                         <View

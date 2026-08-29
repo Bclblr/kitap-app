@@ -39,6 +39,9 @@ type ConversationItem = {
 export default function MessagesScreen() {
   const router = useRouter();
 
+    const [conversations, setConversations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [conversations, setConversations] =
     useState<ConversationItem[]>([]);
 
@@ -50,6 +53,67 @@ export default function MessagesScreen() {
     } = await supabase.auth.getUser();
 
     return user?.id ?? null;
+  }
+
+    async function loadConversations() {
+    try {
+      setLoading(true);
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setConversations([]);
+        return;
+      }
+
+        useFocusEffect(
+    useCallback(() => {
+      loadConversations();
+    }, [])
+  );
+
+      const { data, error } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          user1_id,
+          user2_id,
+          created_at,
+          updated_at
+        `)
+        .or(
+          `user1_id.eq.${user.id},user2_id.eq.${user.id}`
+        )
+        .order('updated_at', {
+          ascending: false,
+        });
+
+      if (error) {
+        console.error(
+          'Konuşmalar yüklenemedi:',
+          error
+        );
+
+        Alert.alert(
+          'Hata',
+          'Konuşmalar yüklenemedi.'
+        );
+
+        return;
+      }
+
+      setConversations(data ?? []);
+    } catch (error) {
+      console.error(
+        'Konuşmalar yüklenirken hata:',
+        error
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   const loadConversations = useCallback(async () => {
