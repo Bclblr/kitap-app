@@ -233,20 +233,22 @@ export default function ProfileScreen() {
       }
 
       setProfile({
-        username:
-          data.username ||
-          DEFAULT_PROFILE.username,
+  id: data.id,
 
-        bio:
-          data.bio ??
-          DEFAULT_PROFILE.bio,
+  username:
+    data.username ||
+    DEFAULT_PROFILE.username,
 
-        profileImage:
-          data.profile_image || null,
+  bio:
+    data.bio ??
+    DEFAULT_PROFILE.bio,
 
-        coverImage:
-          data.cover_image || null,
-      });
+  profileImage:
+    data.profile_image || null,
+
+  coverImage:
+    data.cover_image || null,
+});
     } catch (error) {
       console.error(
         'Profil yükleme hatası:',

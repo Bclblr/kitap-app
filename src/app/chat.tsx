@@ -221,8 +221,8 @@ export default function ChatScreen() {
           await supabase
             .from('messages')
             .select(
-              'id, conversation_id, sender_id, content, created_at'
-            )
+  'id, conversation_id, sender_id, content, created_at, is_read'
+)
             .eq(
               'conversation_id',
               activeConversationId
@@ -248,12 +248,115 @@ export default function ChatScreen() {
           return;
         }
 
+        if (currentUserId) {
+  const { error: readError } = await supabase
+    .from('messages')
+    .update({
+      is_read: true,
+    })
+    .eq(
+      'conversation_id',
+      activeConversationId
+    )
+    .neq(
+      'sender_id',
+      currentUserId
+    )
+    .eq(
+      'is_read',
+      false
+    );
+
+  if (readError) {
+    console.error(
+      'Mesajlar okundu olarak işaretlenemedi:',
+      readError
+    );
+  }
+}
+
         setMessages(
           (data as Message[]) || []
         );
       },
-      []
+      [currentUserId]
     );
+      useEffect(() => {
+    if (
+      !conversationId ||
+      !currentUserId
+    ) {
+      return;
+    }
+
+    const channel = supabase
+      .channel(
+        `conversation-${conversationId}`
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          const newMessage =
+            payload.new as Message;
+
+          setMessages((previous) => {
+            if (
+              previous.some(
+                (message) =>
+                  message.id ===
+                  newMessage.id
+              )
+            ) {
+              return previous;
+            }
+
+            return [
+              ...previous,
+              newMessage,
+            ];
+          });
+
+          if (
+            newMessage.sender_id !==
+            currentUserId
+          ) {
+            supabase
+              .from('messages')
+              .update({
+                is_read: true,
+              })
+              .eq(
+                'id',
+                newMessage.id
+              )
+              .then(({ error }) => {
+                if (error) {
+                  console.error(
+                    'Yeni mesaj okundu olarak işaretlenemedi:',
+                    error
+                  );
+                }
+              });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(
+        channel
+      );
+    };
+  }, [
+    conversationId,
+    currentUserId,
+  ]);
 
   /*
    * =====================================================
