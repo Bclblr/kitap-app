@@ -1,3 +1,4 @@
+
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -34,6 +35,7 @@ type ConversationItem = {
   profileImage: string | null;
   lastMessage: string;
   updatedAt: string;
+  unreadCount: number;
 };
 
 export default function MessagesScreen() {
@@ -42,7 +44,8 @@ export default function MessagesScreen() {
   const [conversations, setConversations] =
     useState<ConversationItem[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] =
+    useState(true);
 
   async function getCurrentUserId() {
     const {
@@ -52,23 +55,23 @@ export default function MessagesScreen() {
     return user?.id ?? null;
   }
 
-  const loadConversations = useCallback(async () => {
-    try {
-      setLoading(true);
+  const loadConversations =
+    useCallback(async () => {
+      try {
+        setLoading(true);
 
-      const currentUserId =
-        await getCurrentUserId();
+        const currentUserId =
+          await getCurrentUserId();
 
-      if (!currentUserId) {
-        setConversations([]);
-        return;
-      }
+        if (!currentUserId) {
+          setConversations([]);
+          return;
+        }
 
-      /*
-       * Kullanıcının dahil olduğu konuşmaları getir.
-       */
-      const { data: conversationData, error } =
-        await supabase
+        const {
+          data: conversationData,
+          error,
+        } = await supabase
           .from('conversations')
           .select(
             'id, user1_id, user2_id, created_at, updated_at'
@@ -80,53 +83,62 @@ export default function MessagesScreen() {
             ascending: false,
           });
 
-      if (error) {
-        console.error(
-          'Konuşmalar yüklenemedi:',
-          error
-        );
+        if (error) {
+          console.error(
+            'Konuşmalar yüklenemedi:',
+            error
+          );
 
-        Alert.alert(
-          'Hata',
-          'Mesajlar yüklenemedi.'
-        );
+          Alert.alert(
+            'Hata',
+            'Mesajlar yüklenemedi.'
+          );
 
-        return;
-      }
+          return;
+        }
 
-      if (!conversationData) {
-        setConversations([]);
-        return;
-      }
+        if (!conversationData) {
+          setConversations([]);
+          return;
+        }
 
-      const typedConversations =
-        conversationData as Conversation[];
+        const typedConversations =
+          conversationData as Conversation[];
 
-      const items: ConversationItem[] = [];
+        const items: ConversationItem[] =
+          [];
 
-      for (const conversation of typedConversations) {
-        const otherUserId =
-          conversation.user1_id === currentUserId
-            ? conversation.user2_id
-            : conversation.user1_id;
+        for (
+          const conversation of typedConversations
+        ) {
+          const otherUserId =
+            conversation.user1_id ===
+            currentUserId
+              ? conversation.user2_id
+              : conversation.user1_id;
 
-        /*
-         * Karşı kullanıcının profilini getir.
-         */
-        const { data: profileData } =
-          await supabase
+          /*
+           * Karşı kullanıcının profilini getir.
+           */
+          const {
+            data: profileData,
+          } = await supabase
             .from('profiles')
             .select(
               'id, username, profile_image'
             )
-            .eq('id', otherUserId)
+            .eq(
+              'id',
+              otherUserId
+            )
             .maybeSingle();
 
-        /*
-         * Konuşmadaki son mesajı getir.
-         */
-        const { data: lastMessageData } =
-          await supabase
+          /*
+           * Konuşmadaki son mesajı getir.
+           */
+          const {
+            data: lastMessageData,
+          } = await supabase
             .from('messages')
             .select(
               'content, created_at'
@@ -141,39 +153,77 @@ export default function MessagesScreen() {
             .limit(1)
             .maybeSingle();
 
-        items.push({
-          id: conversation.id,
+          /*
+           * Okunmamış mesajları getir.
+           */
+          const {
+            count: unreadCount,
+            error: unreadError,
+          } = await supabase
+            .from('messages')
+            .select(
+              'id',
+              {
+                count: 'exact',
+                head: true,
+              }
+            )
+            .eq(
+              'conversation_id',
+              conversation.id
+            )
+            .eq(
+              'is_read',
+              false
+            )
+            .neq(
+              'sender_id',
+              currentUserId
+            );
 
-          otherUserId,
+          if (unreadError) {
+            console.error(
+              'Okunmamış mesajlar alınamadı:',
+              unreadError
+            );
+          }
 
-          username:
-            profileData?.username ||
-            'Kitap Okuru',
+          items.push({
+            id: conversation.id,
 
-          profileImage:
-            profileData?.profile_image ||
-            null,
+            otherUserId,
 
-          lastMessage:
-            lastMessageData?.content ||
-            'Henüz mesaj yok',
+            username:
+              profileData?.username ||
+              'Kitap Okuru',
 
-          updatedAt:
-            lastMessageData?.created_at ||
-            conversation.updated_at,
-        });
+            profileImage:
+              profileData?.profile_image ||
+              null,
+
+            lastMessage:
+              lastMessageData?.content ||
+              'Henüz mesaj yok',
+
+            updatedAt:
+              lastMessageData?.created_at ||
+              conversation.updated_at,
+
+            unreadCount:
+              unreadCount ?? 0,
+          });
+        }
+
+        setConversations(items);
+      } catch (error) {
+        console.error(
+          'Konuşmalar yüklenirken hata:',
+          error
+        );
+      } finally {
+        setLoading(false);
       }
-
-      setConversations(items);
-    } catch (error) {
-      console.error(
-        'Konuşmalar yüklenirken hata:',
-        error
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -199,19 +249,55 @@ export default function MessagesScreen() {
     });
   }
 
+  function formatMessageDate(
+    dateString: string
+  ) {
+    const date =
+      new Date(dateString);
+
+    const now = new Date();
+
+    const isToday =
+      date.toDateString() ===
+      now.toDateString();
+
+    if (isToday) {
+      return date.toLocaleTimeString(
+        'tr-TR',
+        {
+          hour: '2-digit',
+          minute: '2-digit',
+        }
+      );
+    }
+
+    return date.toLocaleDateString(
+      'tr-TR',
+      {
+        day: '2-digit',
+        month: '2-digit',
+      }
+    );
+  }
+
   function renderConversation({
     item,
   }: {
     item: ConversationItem;
   }) {
+    const hasUnread =
+      item.unreadCount > 0;
+
     return (
       <Pressable
         onPress={() =>
           openChat(item)
         }
-        style={
-          styles.conversationItem
-        }
+        style={[
+          styles.conversationItem,
+          hasUnread &&
+            styles.unreadConversationItem,
+        ]}
       >
         <View
           style={
@@ -233,22 +319,62 @@ export default function MessagesScreen() {
           }
         >
           <Text
-            style={
-              styles.username
-            }
+            style={[
+              styles.username,
+              hasUnread &&
+                styles.unreadUsername,
+            ]}
             numberOfLines={1}
           >
             {item.username}
           </Text>
 
           <Text
-            style={
-              styles.lastMessage
-            }
+            style={[
+              styles.lastMessage,
+              hasUnread &&
+                styles.unreadLastMessage,
+            ]}
             numberOfLines={1}
           >
             {item.lastMessage}
           </Text>
+        </View>
+
+        <View
+          style={
+            styles.rightContent
+          }
+        >
+          <Text
+            style={[
+              styles.messageDate,
+              hasUnread &&
+                styles.unreadMessageDate,
+            ]}
+          >
+            {formatMessageDate(
+              item.updatedAt
+            )}
+          </Text>
+
+          {hasUnread && (
+            <View
+              style={
+                styles.unreadBadge
+              }
+            >
+              <Text
+                style={
+                  styles.unreadBadgeText
+                }
+              >
+                {item.unreadCount > 99
+                  ? '99+'
+                  : item.unreadCount}
+              </Text>
+            </View>
+          )}
         </View>
 
         <Text
@@ -392,6 +518,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
+  unreadConversationItem: {
+    backgroundColor: '#F0F0EC',
+  },
+
   avatar: {
     width: 52,
     height: 52,
@@ -408,6 +538,7 @@ const styles = StyleSheet.create({
   conversationContent: {
     flex: 1,
     marginLeft: 13,
+    marginRight: 8,
   },
 
   username: {
@@ -416,16 +547,58 @@ const styles = StyleSheet.create({
     color: '#222',
   },
 
+  unreadUsername: {
+    fontWeight: '800',
+  },
+
   lastMessage: {
     marginTop: 5,
     fontSize: 14,
     color: '#777',
   },
 
+  unreadLastMessage: {
+    color: '#333',
+    fontWeight: '600',
+  },
+
+  rightContent: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginRight: 5,
+  },
+
+  messageDate: {
+    fontSize: 11,
+    color: '#999',
+  },
+
+  unreadMessageDate: {
+    color: '#222',
+    fontWeight: '700',
+  },
+
+  unreadBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#222',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    paddingHorizontal: 6,
+  },
+
+  unreadBadgeText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
   arrow: {
     fontSize: 28,
     color: '#999',
-    marginLeft: 8,
+    marginLeft: 5,
   },
 
   emptyContainer: {
