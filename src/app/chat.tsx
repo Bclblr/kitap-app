@@ -22,6 +22,7 @@ type Message = {
   sender_id: string;
   content: string;
   created_at: string;
+    is_read: boolean;
 };
 
 export default function ChatScreen() {
@@ -346,6 +347,28 @@ export default function ChatScreen() {
           }
         }
       )
+      .on(
+  'postgres_changes',
+  {
+    event: 'UPDATE',
+    schema: 'public',
+    table: 'messages',
+    filter: `conversation_id=eq.${conversationId}`,
+  },
+  (payload) => {
+    const updatedMessage =
+      payload.new as Message;
+
+    setMessages((previous) =>
+      previous.map((message) =>
+        message.id === updatedMessage.id
+          ? updatedMessage
+          : message
+      )
+    );
+  }
+)
+
       .subscribe();
 
     return () => {
@@ -578,10 +601,13 @@ export default function ChatScreen() {
    * =====================================================
    */
 
-  function goBack() {
+ function goBack() {
+  if (router.canGoBack()) {
     router.back();
+  } else {
+    router.replace('/messages');
   }
-
+}
   /*
    * =====================================================
    * MESAJ RENDER
@@ -625,24 +651,38 @@ export default function ChatScreen() {
             {item.content}
           </Text>
 
-          <Text
-            style={[
-              styles.messageTime,
-              isMine
-                ? styles.myMessageTime
-                : styles.otherMessageTime,
-            ]}
-          >
-            {new Date(
-              item.created_at
-            ).toLocaleTimeString(
-              'tr-TR',
-              {
-                hour: '2-digit',
-                minute: '2-digit',
-              }
-            )}
-          </Text>
+          <View style={styles.messageMeta}>
+  <Text
+    style={[
+      styles.messageTime,
+      isMine
+        ? styles.myMessageTime
+        : styles.otherMessageTime,
+    ]}
+  >
+    {new Date(
+      item.created_at
+    ).toLocaleTimeString(
+      'tr-TR',
+      {
+        hour: '2-digit',
+        minute: '2-digit',
+      }
+    )}
+  </Text>
+
+  {isMine && (
+    <Text
+      style={[
+        styles.readStatus,
+        item.is_read &&
+          styles.readStatusRead,
+      ]}
+    >
+      {item.is_read ? '✓✓' : '✓'}
+    </Text>
+  )}
+</View>
         </View>
       </View>
     );
@@ -952,6 +992,24 @@ const styles =
         '700',
       color: '#222',
     },
+
+    messageMeta: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  marginTop: 3,
+},
+
+readStatus: {
+  marginLeft: 4,
+  fontSize: 12,
+  color: '#999',
+  fontWeight: '700',
+},
+
+readStatusRead: {
+  color: '#4A90E2',
+},
 
     emptyText: {
       marginTop: 6,
