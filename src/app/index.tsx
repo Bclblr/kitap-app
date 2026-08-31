@@ -2626,7 +2626,7 @@ async function deletePostComment(
       ? 'Çıkış Yap'
       : 'Giriş Yap / Kayıt Ol'}
   </Text>
-</Pressable>
+</Pressable>      
 
 
 
