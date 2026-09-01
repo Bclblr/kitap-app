@@ -22,19 +22,10 @@ type NavItemProps = {
 
 function NavItem({ href, pathname, icon, onPress }: NavItemProps) {
   const active = pathname === href;
-
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.tab, pressed && styles.pressedTab]}
-      hitSlop={8}
-    >
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.tab, pressed && styles.pressedTab]} hitSlop={8}>
       <View style={[styles.iconWrap, active && styles.activeIconWrap]}>
-        <Feather
-          name={icon}
-          size={23}
-          color={active ? '#A985FF' : '#85858F'}
-        />
+        <Feather name={icon} size={23} color={active ? '#A985FF' : '#85858F'} />
       </View>
     </Pressable>
   );
@@ -43,7 +34,6 @@ function NavItem({ href, pathname, icon, onPress }: NavItemProps) {
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-
   const go = (href: NavRoute) => router.push(href);
 
   return (
@@ -66,7 +56,6 @@ const styles = StyleSheet.create({
     borderTopColor: '#222229',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 0,
     paddingBottom: 8,
   },
@@ -76,9 +65,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressedTab: {
-    opacity: 0.65,
-  },
+  pressedTab: { opacity: 0.65 },
   iconWrap: {
     width: 40,
     height: 38,
@@ -99,70 +86,76 @@ fs.writeFileSync(navPath, navContent, 'utf8');
 let home = fs.readFileSync(homePath, 'utf8');
 let changes = 0;
 
-function removeExactSectionByText(source, markerText) {
+function removeContainingBlock(source, markerText) {
   const marker = source.indexOf(markerText);
   if (marker === -1) return source;
 
-  // Önce marker'ın bulunduğu en yakın JSX View/Pressable başlangıcını bul.
-  const candidates = [source.lastIndexOf('<View', marker), source.lastIndexOf('<Pressable', marker)].filter(i => i >= 0);
-  if (!candidates.length) return source;
-  const start = Math.max(...candidates);
+  const viewStart = source.lastIndexOf('<View', marker);
+  const pressStart = source.lastIndexOf('<Pressable', marker);
+  const start = Math.max(viewStart, pressStart);
+  if (start < 0) return source;
 
-  const openTag = source.startsWith('<Pressable', start) ? 'Pressable' : 'View';
-  const tokenRe = new RegExp(`<${openTag}\\b|</${openTag}>`, 'g');
-  tokenRe.lastIndex = start;
+  const tag = source.startsWith('<Pressable', start) ? 'Pressable' : 'View';
+  const openToken = '<' + tag;
+  const closeToken = '</' + tag + '>';
+  let pos = start;
   let depth = 0;
-  let match;
 
-  while ((match = tokenRe.exec(source))) {
-    if (match[0].startsWith(`</`)) depth--;
-    else depth++;
+  while (pos < source.length) {
+    const nextOpen = source.indexOf(openToken, pos);
+    const nextClose = source.indexOf(closeToken, pos);
+    if (nextClose === -1) return source;
 
-    if (depth === 0) {
-      changes++;
-      return source.slice(0, start) + source.slice(match.index + match[0].length);
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++;
+      pos = nextOpen + openToken.length;
+    } else {
+      depth--;
+      pos = nextClose + closeToken.length;
+      if (depth === 0) {
+        changes++;
+        return source.slice(0, start) + source.slice(pos);
+      }
     }
   }
-
   return source;
 }
 
-// Ana sayfa sağ üstteki mesaj butonunu kaldır; bildirim butonuna dokunma.
-const messageButtonPatterns = [
-  /<Pressable[\\s\\S]{0,700}?router\\.(?:push|navigate)\\(\\s*['\"]\\/messages['\"]\\s*\\)[\\s\\S]{0,500}?<\\/Pressable>/,
-  /<Pressable[\\s\\S]{0,700}?href\s*[:=]\s*['\"]\\/messages['\"][\\s\\S]{0,500}?<\\/Pressable>/,
-];
-
-for (const re of messageButtonPatterns) {
-  if (re.test(home)) {
-    home = home.replace(re, '');
-    changes++;
-    break;
+function removePressableContaining(source, needle) {
+  let searchFrom = 0;
+  while (true) {
+    const hit = source.indexOf(needle, searchFrom);
+    if (hit === -1) return source;
+    const start = source.lastIndexOf('<Pressable', hit);
+    const end = source.indexOf('</Pressable>', hit);
+    if (start !== -1 && end !== -1) {
+      changes++;
+      return source.slice(0, start) + source.slice(end + '</Pressable>'.length);
+    }
+    searchFrom = hit + needle.length;
   }
 }
 
-// İstenen geçici ana sayfa bloklarını kaldır.
-home = removeExactSectionByText(home, 'ŞU AN AKTİF OKURLAR');
-home = removeExactSectionByText(home, 'Okuma Kültürünü Keşfedin');
-home = removeExactSectionByText(home, 'AYNI KİTABI OKUYANLAR');
-home = removeExactSectionByText(home, 'Birlikte hazır');
+// Sağ üst mesaj butonunu kaldır; bildirim butonuna dokunma.
+home = removePressableContaining(home, "'/messages'");
+if (home.includes('"/messages"')) home = removePressableContaining(home, '"/messages"');
 
-// Arama alanını kaldır. Sadece üst bölümdeki search TextInput/Pressable bloğunu hedefle.
-const searchPatterns = [
-  /<View[^>]*style=\{styles\.(?:searchContainer|searchBox|searchBar|searchSection)\}[^>]*>[\\s\\S]{0,1200}?<\\/View>/,
-  /<Pressable[^>]*[\\s\\S]{0,300}?(?:Ara|arama|search)[\\s\\S]{0,700}?<\\/Pressable>/i,
-];
+// Geçici ana sayfa bölümlerini kaldır.
+home = removeContainingBlock(home, 'ŞU AN AKTİF OKURLAR');
+home = removeContainingBlock(home, 'Okuma Kültürünü Keşfedin');
+home = removeContainingBlock(home, 'AYNI KİTABI OKUYANLAR');
+home = removeContainingBlock(home, 'Birlikte hazır');
 
-for (const re of searchPatterns) {
-  if (re.test(home)) {
-    home = home.replace(re, '');
-    changes++;
+// Üst arama alanını, yaygın style adlarından biri mevcutsa kaldır.
+for (const styleName of ['searchContainer', 'searchBox', 'searchBar', 'searchSection']) {
+  const marker = 'styles.' + styleName;
+  if (home.includes(marker)) {
+    home = removeContainingBlock(home, marker);
     break;
   }
 }
 
 fs.writeFileSync(homePath, home, 'utf8');
-
 console.log('BottomNav eşit hizalandı ve bildirim ikonu eklendi.');
-console.log('Ana sayfa mesaj ikonu ile istenen arama/keşif geçici blokları temizlendi.');
-console.log('Ana sayfada yapılan eşleşme sayısı:', changes);
+console.log('Ana sayfa mesaj ikonu ile istenen geçici bölümler temizlendi.');
+console.log('Ana sayfada yapılan değişiklik sayısı:', changes);
