@@ -596,6 +596,7 @@ const reviewPosts: Post[] = (reviewData ?? []).map(
     comments: [],
     reposts: 0,
     reposted: false,
+    isReview: true,
   })
 );
 
@@ -2566,86 +2567,119 @@ async function deletePostComment(
           styles.content
         }
       >
-       <View style={styles.homeHeader}>
-  <View style={styles.homeHeaderText}>
-    <Text style={styles.greeting}>
-      Merhaba 👋
-    </Text>
-
-    <Text style={styles.title}>
-      Kitap dünyasına hoş
-      geldin
-    </Text>
-  </View>
-
-  <Pressable
-    onPress={() =>
-      router.push('/messages')
-    }
-    style={styles.messageButton}
-  >
-    <Text style={styles.messageIcon}>
-      💬
-    </Text>
-  </Pressable>
-</View>
-        <Text
-          style={styles.title}
-        >
-          Kitap dünyasına hoş
-          geldin
-        </Text>
-
-        
-<Pressable
-  onPress={async () => {
-    if (currentUser) {
-      const { error } =
-        await supabase.auth.signOut();
-
-      if (error) {
-        Alert.alert(
-          'Hata',
-          'Çıkış yapılırken bir hata oluştu.'
-        );
-        return;
-      }
-
-      setCurrentUser(null);
-      setCurrentUserId(null);
-
-      router.replace('/login');
-    } else {
-      router.push('/login');
-    }
-  }}
-  style={styles.loginButton}
->
-  <Text style={styles.loginButtonText}>
-    {currentUser
-      ? 'Çıkış Yap'
-      : 'Giriş Yap / Kayıt Ol'}
-  </Text>
-</Pressable>      
-
-
-
-        <Pressable
-          onPress={() =>
-            router.push('/explore')
-          }
-          style={
-            styles.exploreButton
-          }
-        >
-          <Text
-            style={
-              styles.exploreButtonText
-            }
+        <View style={styles.homeHeader}>
+          <Pressable
+            onPress={() => router.push('/explore')}
+            style={styles.headerIconButton}
+            accessibilityLabel="Ara"
           >
-            🔎 Kitap Keşfet
+            <Text style={styles.headerIcon}>⌕</Text>
+          </Pressable>
+
+          <Text style={styles.brandTitle}>
+            1000<Text style={styles.brandAccent}>Kitap</Text>
           </Text>
-        </Pressable>
+
+          <View style={styles.headerRightActions}>
+            <Pressable
+              onPress={() => router.push('/messages')}
+              style={styles.headerIconButton}
+              accessibilityLabel="Mesajlar"
+            >
+              <Text style={styles.headerSmallIcon}>✉</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push('/notifications')}
+              style={styles.headerIconButton}
+              accessibilityLabel="Bildirimler"
+            >
+              <Text style={styles.headerSmallIcon}>♧</Text>
+            </Pressable>
+          </View>
+        </View>
+        <View style={styles.topTabs}>
+          <Pressable style={styles.topTabActive}>
+            <Text style={styles.topTabActiveText}>Keşfet</Text>
+          </Pressable>
+          <Pressable style={styles.topTab}>
+            <Text style={styles.topTabText}>Takip</Text>
+          </Pressable>
+          <Pressable style={styles.topTab}>
+            <Text style={styles.topTabText}>Senin İçin</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.headerDivider} />
+
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() =>
+              router.push('/explore')
+            }
+            style={styles.exploreButton}
+          >
+            <Text style={styles.exploreIcon}>⌕</Text>
+            <Text style={styles.exploreButtonText}>
+              Kitap, yazar veya kullanıcı ara
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={async () => {
+              if (currentUser) {
+                const { error } =
+                  await supabase.auth.signOut();
+
+                if (error) {
+                  Alert.alert(
+                    'Hata',
+                    'Çıkış yapılırken bir hata oluştu.'
+                  );
+                  return;
+                }
+
+                setCurrentUser(null);
+                setCurrentUserId(null);
+                router.replace('/login');
+              } else {
+                router.push('/login');
+              }
+            }}
+            style={styles.loginButton}
+          >
+            <Text style={styles.loginButtonText}>
+              {currentUser ? 'Çıkış' : 'Giriş'}
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.readerHighlights}>
+          <View style={styles.readerHighlightCard}>
+            <Text style={styles.readerHighlightEyebrow}>
+              ŞU AN AKTİF OKURLAR
+            </Text>
+            <Text style={styles.readerHighlightTitle}>
+              Okuma topluluğunu keşfet
+            </Text>
+            <Text style={styles.readerHighlightText}>
+              Aktif okuyucu verisi bağlandığında burada gösterilecek.
+            </Text>
+          </View>
+
+          <View style={styles.readerHighlightCard}>
+            <Text style={styles.readerHighlightEyebrow}>
+              AYNI KİTABI OKUYANLAR
+            </Text>
+            <Text style={styles.readerHighlightTitle}>
+              Birlikte okumaya hazır
+            </Text>
+            <Text style={styles.readerHighlightText}>
+              {/* Gerçek okuyucu verisi sonraki aşamada bağlanacak. */}
+              Kitap eşleşme verisi henüz bağlı değil.
+            </Text>
+          </View>
+        </View>
 
         {/* HİKÂYELER */}
 
@@ -2735,7 +2769,7 @@ async function deletePostComment(
                     styles.secondaryButton
                   }
                 >
-                  <Text>
+                  <Text style={styles.secondaryButtonText}>
                     📷 Fotoğraf
                   </Text>
                 </Pressable>
@@ -2970,7 +3004,7 @@ async function deletePostComment(
                     styles.secondaryButton
                   }
                 >
-                  <Text>
+                  <Text style={styles.secondaryButtonText}>
                     📷 Fotoğraf
                   </Text>
                 </Pressable>
@@ -3136,12 +3170,36 @@ async function deletePostComment(
             </Pressable>
           </View>
         ) : (
-          posts.map((post) => (
+          posts.map((post) => {
+            const reviewForPost = post.isReview
+              ? reviews.find((review) => review.id === post.id)
+              : undefined;
+
+            const feedComments = post.isReview
+              ? reviewForPost?.comments
+              : post.comments;
+
+            const feedLiked = post.isReview
+              ? reviewForPost?.liked
+              : post.liked;
+            const feedLikes = post.isReview
+              ? reviewForPost?.likes
+              : post.likes;
+            const feedReposted = post.isReview
+              ? reviewForPost?.reposted
+              : post.reposted;
+            const feedReposts = post.isReview
+              ? reviewForPost?.reposts
+              : post.reposts;
+
+            return (
             <View
               key={post.id}
-              style={
-                styles.postCard
-              }
+              style={[
+                styles.postCard,
+                post.isQuote && styles.quotePostCard,
+                post.rating > 0 && styles.reviewPostCard,
+              ]}
             >
               <View
                 style={
@@ -3153,13 +3211,16 @@ async function deletePostComment(
                     styles.avatar
                   }
                 >
-                  <Text
-                    style={
-                      styles.avatarText
-                    }
-                  >
-                    👤
-                  </Text>
+                    <Text
+                      style={
+                        styles.avatarText
+                      }
+                    >
+                      {post.username
+                        ?.trim()
+                        .charAt(0)
+                        .toUpperCase() || 'K'}
+                    </Text>
                 </View>
 
                 <View
@@ -3177,17 +3238,25 @@ async function deletePostComment(
                     }
                   </Text>
 
-                  <Text
-                    style={
-                      styles.date
-                    }
+                    <Text
+                      style={
+                        styles.date
+                      }
                   >
                     {formatDate(
                       post.created_at
                     )}
-                  </Text>
-                </View>
+                    </Text>
+                  </View>
+
+                  <Text style={styles.moreButton}>•••</Text>
               </View>
+
+              {(post.isQuote || post.rating > 0) && (
+                <Text style={styles.feedTypeLabel}>
+                  {post.isQuote ? 'ALINTI' : 'KİTAP İNCELEMESİ'}
+                </Text>
+              )}
 
               {post.image_url && (
                 <Image
@@ -3202,11 +3271,12 @@ async function deletePostComment(
 
               {post.text && (
                 <Text
-                  style={
-                    styles.postText
-                  }
+                  style={[
+                    styles.postText,
+                    post.isQuote && styles.quotePostText,
+                  ]}
                 >
-                  {post.text}
+                  {post.isQuote ? `“${post.text}”` : post.text}
                 </Text>
               )}
 
@@ -3221,17 +3291,18 @@ async function deletePostComment(
                       );
                     }
                   }}
+                  style={styles.bookAttachment}
                 >
-                  <Text
-                    style={
-                      styles.bookTitle
-                    }
-                  >
-                    📖{' '}
-                    {
-                      post.book_title
-                    }
-                  </Text>
+                  <View style={styles.bookAttachmentIcon}>
+                    <Text style={styles.bookAttachmentEmoji}>▥</Text>
+                  </View>
+                  <View style={styles.bookAttachmentInfo}>
+                    <Text style={styles.bookAttachmentLabel}>KİTAP</Text>
+                    <Text style={styles.bookTitle} numberOfLines={2}>
+                      {post.book_title}
+                    </Text>
+                  </View>
+                  <Text style={styles.bookAttachmentArrow}>›</Text>
                 </Pressable>
               )}
 
@@ -3252,136 +3323,97 @@ async function deletePostComment(
 
               {/* AKSİYONLAR */}
 
-              <View
-                style={
-                  styles.postActions
-                }
-              >
-                <Pressable
-                  onPress={() =>
-                    toggleSavePost(
-                      post
-                    )
-                  }
-                  style={
-                    styles.postAction
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.postActionText,
-                      post.saved &&
-                        styles.savedText,
-                    ]}
-                  >
-                    {post.saved
-                      ? '🔖 Kaydedildi'
-                      : '🔖 Kaydet'}
-                  </Text>
-                </Pressable>
+              {!post.isQuote && (
+                <View style={styles.postActions}>
+                  {!post.isReview && (
+                    <Pressable
+                      onPress={() => toggleSavePost(post)}
+                      style={styles.postAction}
+                    >
+                      <Text
+                        style={[
+                          styles.postActionText,
+                          post.saved && styles.savedText,
+                        ]}
+                      >
+                        {post.saved ? '🔖 Kaydedildi' : '🔖 Kaydet'}
+                      </Text>
+                    </Pressable>
+                  )}
 
-                <Pressable
-                  onPress={() =>
-                    openPostCommentBox(
-                      post.id
-                    )
-                  }
-                  style={
-                    styles.postAction
-                  }
-                >
-                  <Text
-                    style={
-                      styles.postActionText
+                  <Pressable
+                    onPress={() =>
+                      post.isReview
+                        ? openCommentBox(post.id)
+                        : openPostCommentBox(post.id)
                     }
+                    style={styles.postAction}
                   >
-                    💬 Yorum
-                    {(post.comments
-                      ?.length ??
-                      0) > 0
-                      ? ` ${post.comments?.length}`
-                      : ''}
-                  </Text>
-                </Pressable>
+                    <Text style={styles.postActionText}>
+                      💬 Yorum
+                      {(feedComments?.length ?? 0) > 0
+                        ? ` ${feedComments?.length}`
+                        : ''}
+                    </Text>
+                  </Pressable>
 
-                <Pressable
-                  onPress={() =>
-                    togglePostLike(
-                      post
-                    )
-                  }
-                  style={
-                    styles.postAction
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.postActionText,
-                      post.liked &&
-                        styles.likedPostAction,
-                    ]}
+                  <Pressable
+                    onPress={() =>
+                      post.isReview
+                        ? toggleLike(post.id)
+                        : togglePostLike(post)
+                    }
+                    style={styles.postAction}
                   >
-                    {post.liked
-                      ? `♥ Beğenildi${
-                          post.likes
-                            ? ` ${post.likes}`
-                            : ''
-                        }`
-                      : `♡ Beğen${
-                          post.likes
-                            ? ` ${post.likes}`
-                            : ''
-                        }`}
-                  </Text>
-                </Pressable>
+                    <Text
+                      style={[
+                        styles.postActionText,
+                        feedLiked && styles.likedPostAction,
+                      ]}
+                    >
+                      {feedLiked
+                        ? `♥ Beğenildi${feedLikes ? ` ${feedLikes}` : ''}`
+                        : `♡ Beğen${feedLikes ? ` ${feedLikes}` : ''}`}
+                    </Text>
+                  </Pressable>
 
-                <Pressable
-                  onPress={() =>
-                    togglePostRepost(
-                      post
-                    )
-                  }
-                  style={
-                    styles.postAction
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.postActionText,
-                      post.reposted &&
-                        styles.repostedPostAction,
-                    ]}
+                  <Pressable
+                    onPress={() =>
+                      post.isReview
+                        ? toggleRepost(post.id)
+                        : togglePostRepost(post)
+                    }
+                    style={styles.postAction}
                   >
-                    {post.reposted
-                      ? `✓ Repostlandı${
-                          post.reposts
-                            ? ` ${post.reposts}`
-                            : ''
-                        }`
-                      : `↻ Repost${
-                          post.reposts
-                            ? ` ${post.reposts}`
-                            : ''
-                        }`}
-                  </Text>
-                </Pressable>
-              </View>
+                    <Text
+                      style={[
+                        styles.postActionText,
+                        feedReposted && styles.repostedPostAction,
+                      ]}
+                    >
+                      {feedReposted
+                        ? `✓ Repostlandı${feedReposts ? ` ${feedReposts}` : ''}`
+                        : `↻ Repost${feedReposts ? ` ${feedReposts}` : ''}`}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
 
               {/* POST YORUM KUTUSU */}
 
-              {commentingPostId ===
-                post.id && (
+              {!post.isQuote &&
+                (post.isReview
+                  ? commentingReviewId === post.id
+                  : commentingPostId === post.id) && (
                 <View
                   style={
                     styles.commentBox
                   }
                 >
                   <TextInput
-                    value={
-                      postCommentText
-                    }
+                    value={post.isReview ? commentText : postCommentText}
                     onChangeText={
-                      setPostCommentText
+                      post.isReview ? setCommentText : setPostCommentText
                     }
                     placeholder="Yorumunu yaz..."
                     placeholderTextColor="#999"
@@ -3398,12 +3430,13 @@ async function deletePostComment(
                   >
                     <Pressable
                       onPress={() => {
-                        setCommentingPostId(
-                          null
-                        );
-                        setPostCommentText(
-                          ''
-                        );
+                        if (post.isReview) {
+                          setCommentingReviewId(null);
+                          setCommentText('');
+                        } else {
+                          setCommentingPostId(null);
+                          setPostCommentText('');
+                        }
                       }}
                       style={
                         styles.cancelButton
@@ -3420,9 +3453,9 @@ async function deletePostComment(
 
                     <Pressable
                       onPress={() =>
-                        submitPostComment(
-                          post.id
-                        )
+                        post.isReview
+                          ? submitComment(post.id)
+                          : submitPostComment(post.id)
                       }
                       style={
                         styles.sendButton
@@ -3442,14 +3475,13 @@ async function deletePostComment(
 
               {/* POST YORUMLARI */}
 
-              {(post.comments
-                ?.length ?? 0) > 0 && (
+              {!post.isQuote && (feedComments?.length ?? 0) > 0 && (
                 <View
                   style={
                     styles.comments
                   }
                 >
-                  {post.comments?.map(
+                  {feedComments?.map(
                     (comment) => {
                       const isOwnComment =
                         comment.user_id ===
@@ -3484,10 +3516,9 @@ async function deletePostComment(
                             {isOwnComment && (
                               <Pressable
                                 onPress={() =>
-                                  deletePostComment(
-                                    post.id,
-                                    comment.id
-                                  )
+                                  post.isReview
+                                    ? deleteComment(post.id, comment.id)
+                                    : deletePostComment(post.id, comment.id)
                                 }
                               >
                                 <Text
@@ -3527,7 +3558,8 @@ async function deletePostComment(
                 </View>
               )}
             </View>
-          ))
+            );
+          })
         )}
 
         {/* ESKİ REVIEWS */}
@@ -3543,9 +3575,6 @@ async function deletePostComment(
         ) : reviews.length > 0 ? (
           
           <>
-          <Text style={{ color: 'red', fontSize: 20 }}>
-  TEST: {reviews.length}
-</Text>
             <View
               style={
                 styles.sectionHeader
@@ -3585,7 +3614,10 @@ async function deletePostComment(
                           styles.avatarText
                         }
                       >
-                        👤
+                        {(review.username || CURRENT_USERNAME)
+                          .trim()
+                          .charAt(0)
+                          .toUpperCase()}
                       </Text>
                     </View>
 
@@ -3613,7 +3645,12 @@ async function deletePostComment(
                         )}
                       </Text>
                     </View>
+                    <Text style={styles.moreButton}>•••</Text>
                   </View>
+
+                  <Text style={styles.feedTypeLabel}>
+                    KİTAP İNCELEMESİ
+                  </Text>
 
                   <Pressable
                     onPress={() =>
@@ -3621,17 +3658,18 @@ async function deletePostComment(
                         review.bookKey
                       )
                     }
+                    style={styles.bookAttachment}
                   >
-                    <Text
-                      style={
-                        styles.bookTitle
-                      }
-                    >
-                      📖{' '}
-                      {
-                        review.bookTitle
-                      }
-                    </Text>
+                    <View style={styles.bookAttachmentIcon}>
+                      <Text style={styles.bookAttachmentEmoji}>▥</Text>
+                    </View>
+                    <View style={styles.bookAttachmentInfo}>
+                      <Text style={styles.bookAttachmentLabel}>KİTAP</Text>
+                      <Text style={styles.bookTitle} numberOfLines={2}>
+                        {review.bookTitle}
+                      </Text>
+                    </View>
+                    <Text style={styles.bookAttachmentArrow}>›</Text>
                   </Pressable>
 
                   <View
@@ -3952,6 +3990,15 @@ async function deletePostComment(
         ) : null}
       </ScrollView>
 
+      <Pressable
+        onPress={() => setShowPostBox(true)}
+        style={styles.floatingCreateButton}
+        accessibilityRole="button"
+        accessibilityLabel="Yeni gönderi oluştur"
+      >
+        <Text style={styles.floatingCreateIcon}>+</Text>
+      </Pressable>
+
       <BottomNav />
     </View>
   );
@@ -3966,147 +4013,285 @@ async function deletePostComment(
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#08090D',
   },
 
   content: {
-    padding: 20,
-    paddingBottom: 110,
+    paddingTop: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 132,
   },
 
   homeHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  marginBottom: 5,
-},
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 48,
+    marginBottom: 6,
+  },
 
-homeHeaderText: {
-  flex: 1,
-},
+  brandTitle: {
+    position: 'absolute',
+    left: 70,
+    right: 70,
+    textAlign: 'center',
+    color: '#F8F8FA',
+    fontSize: 21,
+    fontWeight: '900',
+    letterSpacing: -0.6,
+  },
 
-messageButton: {
-  width: 44,
-  height: 44,
-  borderRadius: 22,
-  backgroundColor: '#FFF',
-  borderWidth: 1,
-  borderColor: '#E5E5E5',
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginLeft: 12,
-},
+  brandAccent: { color: '#F28A2E' },
 
-messageIcon: {
-  fontSize: 22,
-},
+  headerRightActions: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    gap: 7,
+  },
+
+  headerIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  headerIcon: {
+    color: '#F6F6F8',
+    fontSize: 29,
+    lineHeight: 31,
+    transform: [{ rotate: '-15deg' }],
+  },
+
+  headerSmallIcon: {
+    color: '#F6F6F8',
+    fontSize: 20,
+  },
+
+  homeHeaderText: {
+    flex: 1,
+  },
 
   greeting: {
-    fontSize: 16,
-    color: '#777',
+    fontSize: 14,
+    color: '#8F96A3',
+    letterSpacing: 0.2,
   },
 
   title: {
-    marginTop: 5,
-    fontSize: 27,
-    fontWeight: '700',
-    color: '#222',
+    marginTop: 4,
+    fontSize: 25,
+    fontWeight: '800',
+    color: '#F7F8FA',
+    letterSpacing: -0.5,
+  },
+
+  messageButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#171A22',
+    borderWidth: 1,
+    borderColor: '#292E39',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+
+  messageIcon: {
+    fontSize: 20,
+    color: '#F7F8FA',
+  },
+
+  topTabs: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginTop: 2,
+    gap: 25,
+  },
+
+  topTab: {
+    paddingVertical: 10,
+  },
+
+  topTabText: {
+    color: '#777E8A',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  topTabActive: {
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: '#8D65F2',
+  },
+
+  topTabActiveText: {
+    color: '#F5F6F8',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+
+  headerDivider: {
+    height: 1,
+    backgroundColor: '#1B1F28',
+    marginHorizontal: -16,
+  },
+
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    gap: 10,
   },
 
   loginButton: {
-    marginTop: 15,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: '#222',
+    minWidth: 58,
+    height: 42,
+    paddingHorizontal: 12,
+    borderRadius: 21,
+    backgroundColor: '#171A22',
+    borderWidth: 1,
+    borderColor: '#303542',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   loginButtonText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '700',
+    color: '#E9EBEF',
+    fontSize: 12,
+    fontWeight: '800',
   },
 
   exploreButton: {
-    marginTop: 12,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: '#222',
+    flex: 1,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#171A22',
+    borderWidth: 1,
+    borderColor: '#292E39',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+  },
+
+  exploreIcon: {
+    color: '#A7ADB8',
+    fontSize: 24,
+    lineHeight: 24,
+    marginRight: 7,
+  },
+
+  exploreButtonText: {
+    color: '#8F96A3',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  readerHighlights: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+
+  readerHighlightCard: {
+    flex: 1,
+    minHeight: 116,
+    padding: 13,
+    borderRadius: 16,
+    backgroundColor: '#111219',
+    borderWidth: 1,
+    borderColor: '#252631',
+  },
+
+  readerHighlightEyebrow: {
+    color: '#A985FF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+
+  readerHighlightTitle: {
+    color: '#F3F3F6',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 8,
+  },
+
+  readerHighlightText: {
+    color: '#747681',
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 6,
+  },
+
+  storyModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.97)',
+    justifyContent: 'flex-end',
+  },
+
+  storyModalCloseArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+
+  storyViewer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#08090D',
+    paddingHorizontal: 16,
+    paddingTop: 54,
+    paddingBottom: 28,
+    alignItems: 'center',
+    position: 'relative',
+  },
+
+  storyCloseButton: {
+    position: 'absolute',
+    top: 48,
+    right: 16,
+    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#191A22',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
-  storyModalOverlay: {
-  flex: 1,
-  backgroundColor: 'rgba(0,0,0,0.85)',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
+  storyCloseText: {
+    color: '#fff',
+    fontSize: 28,
+    lineHeight: 30,
+  },
 
-storyModalCloseArea: {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-},
+  storyViewerUsername: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 14,
+    alignSelf: 'flex-start',
+    paddingRight: 48,
+  },
 
-storyViewer: {
-  width: '92%',
-  maxHeight: '85%',
-  backgroundColor: '#111',
-  borderRadius: 20,
-  padding: 20,
-  alignItems: 'center',
-  position: 'relative',
-},
+  storyViewerImage: {
+    width: '100%',
+    flex: 1,
+    borderRadius: 18,
+    backgroundColor: '#101117',
+  },
 
-storyCloseButton: {
-  position: 'absolute',
-  top: 10,
-  right: 12,
-  zIndex: 10,
-  width: 36,
-  height: 36,
-  borderRadius: 18,
-  backgroundColor: 'rgba(255,255,255,0.15)',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-
-storyCloseText: {
-  color: '#fff',
-  fontSize: 28,
-  lineHeight: 30,
-},
-
-storyViewerUsername: {
-  color: '#fff',
-  fontSize: 17,
-  fontWeight: '700',
-  marginBottom: 18,
-  alignSelf: 'flex-start',
-},
-
-storyViewerImage: {
-  width: '100%',
-  height: 500,
-  borderRadius: 12,
-},
-
-storyViewerText: {
-  color: '#fff',
-  fontSize: 20,
-  lineHeight: 30,
-  textAlign: 'center',
-  marginTop: 15,
-},
-
-  exploreButtonText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '700',
+  storyViewerText: {
+    color: '#F4F5F7',
+    fontSize: 17,
+    lineHeight: 25,
+    textAlign: 'center',
+    marginTop: 15,
   },
 
   sectionHeader: {
@@ -4118,53 +4303,56 @@ storyViewerText: {
   },
 
   sectionTitle: {
-    fontSize: 21,
-    fontWeight: '700',
-    color: '#222',
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#F2F3F5',
+    letterSpacing: -0.2,
   },
 
   storySection: {
-    marginTop: 5,
+    marginTop: 8,
   },
 
   addStoryText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#222',
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#A985FF',
   },
 
   storyList: {
-    gap: 14,
-    paddingBottom: 5,
+    gap: 12,
+    paddingBottom: 4,
   },
 
   storyItem: {
-    width: 65,
+    width: 70,
     alignItems: 'center',
   },
 
   addStoryCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     borderWidth: 2,
-    borderColor: '#222',
+    borderColor: '#F28A2E',
+    backgroundColor: '#14151C',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   addStoryIcon: {
-    fontSize: 25,
+    fontSize: 26,
     fontWeight: '300',
+    color: '#F28A2E',
   },
 
   storyCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#EEEEEA',
-    borderWidth: 2,
-    borderColor: '#222',
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#171820',
+    borderWidth: 3,
+    borderColor: '#8755E8',
   },
 
   storyTextCircle: {
@@ -4173,43 +4361,44 @@ storyViewerText: {
   },
 
   storyName: {
-    marginTop: 5,
+    marginTop: 6,
     fontSize: 10,
-    color: '#555',
-    maxWidth: 65,
+    color: '#B5B5BD',
+    fontWeight: '600',
+    maxWidth: 68,
     textAlign: 'center',
   },
 
   storyCreateBox: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#101117',
     borderRadius: 16,
-    padding: 15,
-    marginBottom: 15,
+    padding: 12,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#292A33',
   },
 
   storyPreview: {
     width: '100%',
-    height: 180,
+    height: 145,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   createTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#222',
-    marginBottom: 10,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#F3F4F6',
+    marginBottom: 8,
   },
 
   createPostCard: {
-    marginTop: 25,
-    backgroundColor: '#FFF',
+    marginTop: 22,
+    backgroundColor: '#101117',
     borderRadius: 16,
-    padding: 15,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#292A33',
   },
 
   createPostHeader: {
@@ -4218,54 +4407,62 @@ storyViewerText: {
   },
 
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#EEEEEA',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#302447',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#6E4FA9',
   },
 
   avatarText: {
-    fontSize: 20,
+    fontSize: 16,
+    color: '#F1EAFE',
+    fontWeight: '900',
   },
 
   postPrompt: {
     flex: 1,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#F7F7F5',
+    minHeight: 44,
+    borderRadius: 22,
+    backgroundColor: '#1A1E27',
     justifyContent: 'center',
     paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#292E39',
   },
 
   postPromptText: {
-    color: '#888',
+    color: '#858C99',
     fontSize: 13,
   },
 
   postCreateBox: {
-    marginTop: 14,
+    marginTop: 10,
   },
 
   postInput: {
-    minHeight: 90,
-    borderRadius: 12,
-    backgroundColor: '#F7F7F5',
+    minHeight: 72,
+    maxHeight: 130,
+    borderRadius: 13,
+    backgroundColor: '#0A0B10',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    padding: 12,
+    borderColor: '#292E39',
+    paddingHorizontal: 13,
+    paddingVertical: 11,
     fontSize: 14,
-    color: '#333',
+    color: '#F1F3F5',
     textAlignVertical: 'top',
   },
 
   postPreview: {
     width: '100%',
-    height: 230,
-    borderRadius: 14,
-    marginBottom: 10,
+    height: 190,
+    borderRadius: 13,
+    marginBottom: 8,
   },
 
   removeImageButton: {
@@ -4275,98 +4472,145 @@ storyViewerText: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(11,13,18,0.86)',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   removeImageText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
+    color: '#FFF',
   },
 
   createActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
-    gap: 10,
+    marginTop: 9,
+    gap: 8,
   },
 
   secondaryButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#EEEEEA',
+    paddingVertical: 10,
+    borderRadius: 11,
+    backgroundColor: '#191A22',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#30313B',
+  },
+
+  secondaryButtonText: {
+    color: '#D3D3DA',
+    fontSize: 12,
+    fontWeight: '800',
   },
 
   primarySmallButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#222',
+    paddingVertical: 10,
+    borderRadius: 11,
+    backgroundColor: '#F28A2E',
     alignItems: 'center',
   },
 
   primarySmallText: {
-    color: '#FFF',
-    fontWeight: '700',
+    color: '#15110A',
+    fontWeight: '900',
   },
 
   postCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 14,
+    backgroundColor: '#0F1016',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#24252D',
+  },
+
+  reviewPostCard: {
+    borderColor: '#34284F',
+    backgroundColor: '#111018',
+  },
+
+  quotePostCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#8D65F2',
+    backgroundColor: '#111017',
   },
 
   postImage: {
     width: '100%',
-    height: 300,
-    borderRadius: 14,
+    height: 292,
+    borderRadius: 13,
     marginTop: 14,
   },
 
   postText: {
     marginTop: 14,
     fontSize: 15,
-    lineHeight: 22,
-    color: '#333',
+    lineHeight: 23,
+    color: '#ECECF0',
+  },
+
+  quotePostText: {
+    fontSize: 18,
+    lineHeight: 28,
+    color: '#F3EFFB',
+    fontStyle: 'italic',
+  },
+
+  feedTypeLabel: {
+    alignSelf: 'flex-start',
+    marginTop: 14,
+    color: '#A985FF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+  },
+
+  moreButton: {
+    color: '#747680',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 1,
+    paddingHorizontal: 4,
   },
 
   postActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 18,
+    gap: 9,
     marginTop: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
+    borderTopColor: '#252A34',
   },
 
   postAction: {
-    paddingVertical: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 5,
   },
 
   postActionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#9EA5B1',
   },
 
   likedPostAction: {
-    color: '#C0392B',
-    fontWeight: '700',
+    color: '#FF6B7A',
+    fontWeight: '800',
   },
 
   repostedPostAction: {
-    color: '#4A7C59',
-    fontWeight: '700',
+    color: '#66D19E',
+    fontWeight: '800',
   },
 
   savedText: {
-    color: '#222',
-    fontWeight: '700',
+    color: '#F5A623',
+    fontWeight: '800',
   },
 
   loadingBox: {
@@ -4377,13 +4621,17 @@ storyViewerText: {
   info: {
     marginTop: 8,
     textAlign: 'center',
-    color: '#777',
+    color: '#858C99',
   },
 
   empty: {
     alignItems: 'center',
     marginTop: 35,
     padding: 20,
+    backgroundColor: '#12151C',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#242934',
   },
 
   emptyIcon: {
@@ -4393,14 +4641,14 @@ storyViewerText: {
   emptyTitle: {
     marginTop: 12,
     fontSize: 19,
-    fontWeight: '700',
-    color: '#222',
+    fontWeight: '800',
+    color: '#F2F3F5',
   },
 
   emptyText: {
     marginTop: 8,
     textAlign: 'center',
-    color: '#777',
+    color: '#858C99',
     lineHeight: 21,
   },
 
@@ -4409,19 +4657,21 @@ storyViewerText: {
     paddingHorizontal: 20,
     paddingVertical: 13,
     borderRadius: 12,
-    backgroundColor: '#222',
+    backgroundColor: '#F5A623',
   },
 
   emptyButtonText: {
-    color: '#FFF',
-    fontWeight: '700',
+    color: '#17120A',
+    fontWeight: '900',
   },
 
   reviewCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#111018',
     borderRadius: 18,
-    padding: 16,
+    padding: 15,
     marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#34284F',
   },
 
   userRow: {
@@ -4435,21 +4685,62 @@ storyViewerText: {
 
   username: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#222',
+    fontWeight: '800',
+    color: '#F2F3F5',
   },
 
   date: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 11,
-    color: '#999',
+    color: '#737A87',
   },
 
   bookTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#F2F2F5',
+  },
+
+  bookAttachment: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 14,
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#222',
+    padding: 11,
+    borderRadius: 13,
+    backgroundColor: '#171820',
+    borderWidth: 1,
+    borderColor: '#2B2C36',
+  },
+
+  bookAttachmentIcon: {
+    width: 38,
+    height: 48,
+    borderRadius: 7,
+    backgroundColor: '#382651',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 11,
+  },
+
+  bookAttachmentEmoji: {
+    color: '#C7A9FF',
+    fontSize: 22,
+  },
+
+  bookAttachmentInfo: { flex: 1 },
+
+  bookAttachmentLabel: {
+    color: '#8D65F2',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+    marginBottom: 4,
+  },
+
+  bookAttachmentArrow: {
+    color: '#777985',
+    fontSize: 28,
+    marginLeft: 8,
   },
 
   rating: {
@@ -4459,21 +4750,22 @@ storyViewerText: {
   },
 
   stars: {
-    fontSize: 18,
+    fontSize: 17,
     letterSpacing: 1,
+    color: '#F28A2E',
   },
 
   ratingNumber: {
     marginLeft: 8,
     fontSize: 12,
-    color: '#777',
+    color: '#9299A5',
   },
 
   reviewText: {
     marginTop: 12,
     fontSize: 15,
     lineHeight: 22,
-    color: '#444',
+    color: '#D9DCE2',
   },
 
   actions: {
@@ -4482,98 +4774,107 @@ storyViewerText: {
     marginTop: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-    gap: 16,
+    borderTopColor: '#252A34',
+    gap: 9,
   },
 
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingVertical: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+    borderRadius: 14,
+    backgroundColor: '#191D26',
   },
 
   action: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '600',
+    fontSize: 12,
+    color: '#9EA5B1',
+    fontWeight: '700',
   },
 
   likedAction: {
-    color: '#C0392B',
+    color: '#FF6B7A',
   },
 
   repostedAction: {
-    color: '#4A7C59',
+    color: '#66D19E',
   },
 
   count: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: 11,
+    color: '#777F8C',
   },
 
   commentBox: {
-    marginTop: 14,
-    paddingTop: 14,
+    marginTop: 11,
+    paddingTop: 11,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
+    borderTopColor: '#25262E',
   },
 
   commentInput: {
-    minHeight: 80,
-    backgroundColor: '#F7F7F5',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 14,
-    color: '#333',
+    minHeight: 44,
+    maxHeight: 96,
+    backgroundColor: '#0A0B10',
+    borderRadius: 22,
+    paddingHorizontal: 15,
+    paddingVertical: 11,
+    fontSize: 13,
+    color: '#F1F3F5',
     textAlignVertical: 'top',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#30313A',
   },
 
   commentButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 10,
+    gap: 8,
+    marginTop: 8,
   },
 
   cancelButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#EEEEEA',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#191A22',
+    borderWidth: 1,
+    borderColor: '#2B303C',
   },
 
   cancelText: {
-    color: '#555',
-    fontWeight: '600',
-  },
-
-  sendButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#222',
-  },
-
-  sendText: {
-    color: '#FFF',
+    color: '#A9AFB9',
     fontWeight: '700',
   },
 
+  sendButton: {
+    paddingHorizontal: 17,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#7B55D9',
+  },
+
+  sendText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 12,
+  },
+
   comments: {
-    marginTop: 14,
-    paddingTop: 12,
+    marginTop: 11,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
+    borderTopColor: '#252A34',
   },
 
   comment: {
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: '#F7F7F5',
+    marginBottom: 7,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderRadius: 13,
+    backgroundColor: '#17181F',
   },
 
   commentHeader: {
@@ -4584,26 +4885,53 @@ storyViewerText: {
 
   commentUser: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#333',
+    fontWeight: '800',
+    color: '#E7E9ED',
   },
 
   deleteComment: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#C0392B',
+    fontWeight: '700',
+    color: '#FF6B7A',
   },
 
   commentText: {
     marginTop: 4,
     fontSize: 13,
-    color: '#555',
+    color: '#C4C8D0',
     lineHeight: 19,
   },
 
   commentDate: {
     marginTop: 5,
     fontSize: 10,
-    color: '#999',
+    color: '#737A87',
+  },
+
+  floatingCreateButton: {
+    position: 'absolute',
+    right: 18,
+    bottom: 103,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#F28A2E',
+    borderWidth: 2,
+    borderColor: '#FFB15C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+
+  floatingCreateIcon: {
+    color: '#17100A',
+    fontSize: 34,
+    lineHeight: 36,
+    fontWeight: '400',
   },
 });

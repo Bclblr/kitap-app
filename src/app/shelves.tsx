@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import BottomNav from '@/components/BottomNav';
+import { supabase } from '@/lib/supabase';
 
 type Author = string | { name?: string };
 
@@ -25,6 +26,50 @@ type Book = {
 };
 
 type Filter = 'all' | 'reading' | 'read' | 'want';
+
+async function syncBookStatusToSupabase(
+  bookKey: string,
+  bookTitle: string,
+  status: NonNullable<Book['status']>
+) {
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error(
+        'Kitap durumu kullanıcı kontrolü başarısız:',
+        userError
+      );
+      return;
+    }
+
+    if (!user) return;
+
+    const { error } = await supabase.rpc(
+      'set_user_book_status',
+      {
+        p_book_key: bookKey,
+        p_book_title: bookTitle,
+        p_status: status,
+      }
+    );
+
+    if (error) {
+      console.error(
+        'Kitap durumu Supabase ile eşitlenemedi:',
+        error
+      );
+    }
+  } catch (error) {
+    console.error(
+      'Kitap durumu senkronizasyon hatası:',
+      error
+    );
+  }
+}
 
 export default function ShelvesScreen() {
   const router = useRouter();
@@ -98,6 +143,18 @@ export default function ShelvesScreen() {
       );
 
       setBooks(updatedBooks);
+
+      const updatedBook = updatedBooks.find(
+        (book) => book.key === key
+      );
+
+      if (newStatus && updatedBook) {
+        void syncBookStatusToSupabase(
+          key,
+          updatedBook.title ?? '',
+          newStatus
+        );
+      }
     } catch (error) {
       console.error(
         'Kitap durumu değiştirilemedi:',

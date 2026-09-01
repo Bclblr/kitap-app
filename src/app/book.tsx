@@ -12,6 +12,8 @@ import {
     View,
 } from 'react-native';
 
+import { supabase } from '@/lib/supabase';
+
 type Author = string | { name?: string };
 
 type Book = {
@@ -23,6 +25,40 @@ type Book = {
   first_publish_year?: number;
   status?: 'reading' | 'read' | 'want';
 };
+
+async function syncBookStatusToSupabase(
+  bookKey: string,
+  bookTitle: string,
+  status: NonNullable<Book['status']>
+) {
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error('Kitap durumu kullanıcı kontrolü başarısız:', userError);
+      return;
+    }
+
+    if (!user) {
+      return;
+    }
+
+    const { error } = await supabase.rpc('set_user_book_status', {
+      p_book_key: bookKey,
+      p_book_title: bookTitle,
+      p_status: status,
+    });
+
+    if (error) {
+      console.error('Kitap durumu Supabase ile eşitlenemedi:', error);
+    }
+  } catch (error) {
+    console.error('Kitap durumu senkronizasyon hatası:', error);
+  }
+}
 
 type Quote = {
   id: string;
@@ -155,6 +191,11 @@ export default function BookScreen() {
       );
 
       setAdded(true);
+      void syncBookStatusToSupabase(
+        key,
+        book.title ?? '',
+        status ?? 'want'
+      );
     } catch (error) {
       console.error(
         'Rafa ekleme hatası:',
@@ -210,6 +251,14 @@ export default function BookScreen() {
       );
 
       setAdded(true);
+
+      if (newStatus) {
+        void syncBookStatusToSupabase(
+          key,
+          book.title ?? '',
+          newStatus
+        );
+      }
     } catch (error) {
       console.error(
         'Durum kaydetme hatası:',
