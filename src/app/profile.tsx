@@ -3420,7 +3420,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#090A0F',
   },
 
   scrollContent: {
@@ -3434,7 +3434,7 @@ const styles = StyleSheet.create({
   },
 
   loadingText: {
-    color: '#777',
+    color: '#8E8E98',
   },
 
   pageTitle: {
@@ -3448,7 +3448,7 @@ const styles = StyleSheet.create({
 
   coverContainer: {
     width: '100%',
-    height: 190,
+    height: 210,
     position: 'relative',
   },
 
@@ -3460,7 +3460,7 @@ const styles = StyleSheet.create({
   coverPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#DDD9D0',
+    backgroundColor: '#14151C',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -3472,7 +3472,7 @@ const styles = StyleSheet.create({
   coverText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#666',
+    color: '#8E8E98',
     fontWeight: '600',
   },
 
@@ -3524,7 +3524,7 @@ messageButtonText: {
     marginLeft: 'auto',
     marginRight: 'auto',
     borderWidth: 5,
-    borderColor: '#F7F7F5',
+    borderColor: '#090A0F',
     overflow: 'visible',
   },
 
@@ -3538,7 +3538,7 @@ messageButtonText: {
     width: 115,
     height: 115,
     borderRadius: 58,
-    backgroundColor: '#E5E5E0',
+    backgroundColor: '#1A1B23',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -3558,7 +3558,7 @@ messageButtonText: {
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#F7F7F5',
+    borderColor: '#090A0F',
   },
 
   username: {
@@ -3573,7 +3573,7 @@ messageButtonText: {
     marginTop: 7,
     paddingHorizontal: 35,
     textAlign: 'center',
-    color: '#777',
+    color: '#8E8E98',
     fontSize: 14,
     lineHeight: 20,
   },
@@ -3587,7 +3587,7 @@ messageButtonText: {
   inputLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#333',
+    color: '#E7E7EB',
     marginBottom: 7,
     marginTop: 12,
   },
@@ -3621,11 +3621,11 @@ messageButtonText: {
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#E8E8E3',
+    backgroundColor: '#20212A',
   },
 
   cancelText: {
-    color: '#555',
+    color: '#B0B0BA',
     fontWeight: '600',
   },
 
@@ -3666,7 +3666,7 @@ messageButtonText: {
   },
 
   followingButton: {
-    backgroundColor: '#E8E8E3',
+    backgroundColor: '#20212A',
   },
 
   followButtonText: {
@@ -3676,7 +3676,7 @@ messageButtonText: {
   },
 
   followingButtonText: {
-    color: '#333',
+    color: '#E7E7EB',
   },
 
   stats: {
@@ -3702,7 +3702,7 @@ messageButtonText: {
   statLabel: {
     marginTop: 4,
     fontSize: 11,
-    color: '#777',
+    color: '#8E8E98',
   },
 
   section: {
@@ -3738,7 +3738,7 @@ messageButtonText: {
   emptyText: {
     marginTop: 6,
     textAlign: 'center',
-    color: '#777',
+    color: '#8E8E98',
     lineHeight: 20,
   },
 
@@ -3755,7 +3755,7 @@ messageButtonText: {
 
   quoteCard: {
     borderLeftWidth: 4,
-    borderLeftColor: '#444',
+    borderLeftColor: '#7C63E6',
   },
 
   feedTypeRow: {
@@ -3768,7 +3768,7 @@ messageButtonText: {
   feedType: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#555',
+    color: '#B0B0BA',
   },
 
   feedDate: {
@@ -3812,28 +3812,28 @@ messageButtonText: {
     marginLeft: 8,
     fontSize: 13,
     fontWeight: '600',
-    color: '#777',
+    color: '#8E8E98',
   },
 
   feedText: {
     marginTop: 12,
     fontSize: 15,
     lineHeight: 22,
-    color: '#444',
+    color: '#D4D4DA',
   },
 
   quoteText: {
     marginTop: 15,
     fontSize: 17,
     lineHeight: 27,
-    color: '#444',
+    color: '#D4D4DA',
     fontStyle: 'italic',
   },
 
   postUsername: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#333',
+    color: '#E7E7EB',
     marginBottom: 7,
   },
 
@@ -3849,13 +3849,13 @@ messageButtonText: {
     marginTop: 14,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#F2F2EE',
+    backgroundColor: '#181920',
   },
 
   attachedBookText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#333',
+    color: '#E7E7EB',
   },
 
   attachedRating: {
@@ -3868,7 +3868,7 @@ messageButtonText: {
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
+    borderTopColor: '#25262F',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -3878,7 +3878,7 @@ messageButtonText: {
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 9,
-    backgroundColor: '#F0F0EC',
+    backgroundColor: '#1B1C24',
   },
 
   repostHeader: {
@@ -3888,13 +3888,13 @@ messageButtonText: {
     paddingBottom: 10,
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
+    borderBottomColor: '#25262F',
   },
 
   repostText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#555',
+    color: '#B0B0BA',
   },
 
   repostDate: {
@@ -3914,14 +3914,14 @@ messageButtonText: {
   },
 
   reviewModal: {
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#090A0F',
     borderRadius: 22,
     padding: 20,
     maxHeight: '75%',
   },
 
   postModal: {
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#090A0F',
     borderRadius: 22,
     maxHeight: '85%',
     padding: 20,
@@ -3945,7 +3945,7 @@ messageButtonText: {
 
   closeButton: {
     fontSize: 22,
-    color: '#555',
+    color: '#B0B0BA',
     padding: 5,
   },
 
@@ -3960,7 +3960,7 @@ messageButtonText: {
     marginTop: 18,
     fontSize: 16,
     lineHeight: 25,
-    color: '#444',
+    color: '#D4D4DA',
   },
 
   modalScroll: {
@@ -3970,7 +3970,7 @@ messageButtonText: {
   modalPostText: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#444',
+    color: '#D4D4DA',
     marginBottom: 12,
   },
 
@@ -4005,14 +4005,14 @@ messageButtonText: {
   commentUsername: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#333',
+    color: '#E7E7EB',
     marginBottom: 4,
   },
 
   commentText: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#444',
+    color: '#D4D4DA',
   },
 
   commentInputRow: {
