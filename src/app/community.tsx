@@ -37,6 +37,7 @@ type CommunityPost = {
   created_at: string;
   likes_count: number;
   liked: boolean;
+  comments_count: number;
 };
 
 export default function CommunityScreen() {
@@ -161,6 +162,18 @@ export default function CommunityScreen() {
             .select("post_id, user_id")
             .in("post_id", postIds)
         : { data: [] };
+
+      const { data: commentRows, error: commentError } = postIds.length
+        ? await supabase
+            .from("community_post_comments")
+            .select("post_id")
+            .in("post_id", postIds)
+        : { data: [], error: null };
+
+      if (commentError) {
+        console.error("Community post comments count error:", commentError);
+      }
+
       setCommunityPosts(
         rows.map((row) => ({
           ...row,
@@ -172,6 +185,9 @@ export default function CommunityScreen() {
           liked: (likeRows ?? []).some(
             (like) => like.post_id === row.id && like.user_id === activeUserId,
           ),
+          comments_count: (commentRows ?? []).filter(
+            (comment) => comment.post_id === row.id,
+          ).length,
         })) as CommunityPost[],
       );
     } catch (error) {
@@ -441,6 +457,11 @@ export default function CommunityScreen() {
                       {post.liked ? "♥ Beğen" : "♡ Beğen"} · {post.likes_count}
                     </Text>
                   </Pressable>
+
+                  <Text style={styles.likeText}>
+                    💬 Yorum · {post.comments_count}
+                  </Text>
+
                   {post.user_id === currentUserId ? (
                     <Pressable onPress={() => void deleteCommunityPost(post)}>
                       <Text style={styles.deleteText}>
