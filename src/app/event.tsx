@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   SafeAreaView,
@@ -29,6 +30,10 @@ export default function EventScreen() {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [attendeeCount, setAttendeeCount] = useState(0);
+  const [isAttending, setIsAttending] = useState(false);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -44,13 +49,20 @@ export default function EventScreen() {
         setLoading(true);
         setErrorMessage(null);
 
-        const { data, error } = await supabase
-          .from('events')
-          .select(
-            'id, title, description, event_date, location, image_url, created_by',
-          )
-          .eq('id', id)
-          .single();
+        const [{ data, error }, userResult, attendeeResult] = await Promise.all([
+          supabase
+            .from('events')
+            .select(
+              'id, title, description, event_date, location, image_url, created_by',
+            )
+            .eq('id', id)
+            .single(),
+          supabase.auth.getUser(),
+          supabase
+            .from('event_attendees')
+            .select('user_id', { count: 'exact' })
+            .eq('event_id', id),
+        ]);
 
         if (!active) return;
 
@@ -62,6 +74,27 @@ export default function EventScreen() {
         }
 
         setEvent(data as EventDetail);
+        setAttendeeCount(attendeeResult.count ?? 0);
+
+        const user = userResult.data.user;
+        setCurrentUserId(user?.id ?? null);
+
+        if (user) {
+          const { data: attendance, error: attendanceError } = await supabase
+            .from('event_attendees')
+            .select('event_id')
+            .eq('event_id', id)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (!active) return;
+
+          if (attendanceError) {
+            console.error('Event attendance status error:', attendanceError);
+          } else {
+            setIsAttending(Boolean(attendance));
+          }
+        }
       } catch (error) {
         if (!active) return;
         console.error('Event detail error:', error);
@@ -78,6 +111,49 @@ export default function EventScreen() {
       active = false;
     };
   }, [id]);
+
+  async function toggleAttendance() {
+    if (!event || attendanceLoading) return;
+
+    if (!currentUserId) {
+      Alert.alert('Giriş gerekli', 'Etkinliğe katılmak için giriş yapmalısın.');
+      return;
+    }
+
+    const previousAttending = isAttending;
+    const previousCount = attendeeCount;
+    const nextAttending = !previousAttending;
+
+    setAttendanceLoading(true);
+    setIsAttending(nextAttending);
+    setAttendeeCount(Math.max(0, previousCount + (nextAttending ? 1 : -1)));
+
+    try {
+      if (nextAttending) {
+        const { error } = await supabase.from('event_attendees').insert({
+          event_id: event.id,
+          user_id: currentUserId,
+        });
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('event_attendees')
+          .delete()
+          .eq('event_id', event.id)
+          .eq('user_id', currentUserId);
+
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error('Event attendance error:', error);
+      setIsAttending(previousAttending);
+      setAttendeeCount(previousCount);
+      Alert.alert('İşlem başarısız', 'Katılım bilgisi güncellenemedi.');
+    } finally {
+      setAttendanceLoading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -148,9 +224,42 @@ export default function EventScreen() {
             </Text>
           </View>
 
+          <View style={styles.attendanceBox}>
+            <View style={styles.attendanceInfo}>
+              <Text style={styles.attendanceCount}>{attendeeCount}</Text>
+              <Text style={styles.attendanceLabel}>kişi katılıyor</Text>
+            </View>
+            <Pressable
+              onPress={() => void toggleAttendance()}
+              disabled={attendanceLoading}
+              style={({ pressed }) => [
+                styles.attendanceButton,
+                isAttending && styles.attendanceButtonActive,
+                (pressed || attendanceLoading) && styles.attendanceButtonPressed,
+              ]}
+            >
+              {attendanceLoading ? (
+                <ActivityIndicator
+                  size="small"
+                  color={isAttending ? '#F29A45' : '#08090D'}
+                />
+              ) : (
+                <Text
+                  style={[
+                    styles.attendanceButtonText,
+                    isAttending && styles.attendanceButtonTextActive,
+                  ]}
+                >
+                  {isAttending ? 'Katılıyorsun ✓' : 'Katılacağım'}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+
           <Text style={styles.sectionTitle}>Etkinlik hakkında</Text>
           <Text style={styles.description}>
-            {event.description?.trim() || 'Bu etkinlik için henüz açıklama eklenmemiş.'}
+            {event.description?.trim() ||
+              'Bu etkinlik için henüz açıklama eklenmemiş.'}
           </Text>
         </View>
       </ScrollView>
@@ -255,6 +364,55 @@ const styles = StyleSheet.create({
     color: '#B5B6BE',
     fontSize: 13,
     marginTop: 3,
+  },
+  attendanceBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#17181F',
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  attendanceInfo: {
+    flex: 1,
+    paddingLeft: 2,
+  },
+  attendanceCount: {
+    color: '#F29A45',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  attendanceLabel: {
+    color: '#8E8F98',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  attendanceButton: {
+    minWidth: 120,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F29A45',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+  },
+  attendanceButtonActive: {
+    backgroundColor: '#241B14',
+    borderWidth: 1,
+    borderColor: '#F29A45',
+  },
+  attendanceButtonPressed: {
+    opacity: 0.7,
+  },
+  attendanceButtonText: {
+    color: '#08090D',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  attendanceButtonTextActive: {
+    color: '#F29A45',
   },
   sectionTitle: {
     color: '#F2F2F5',
