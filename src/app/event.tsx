@@ -225,10 +225,21 @@ export default function EventScreen() {
           </View>
 
           <View style={styles.attendanceBox}>
-            <View style={styles.attendanceInfo}>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/event-attendees',
+                  params: { id: event.id },
+                })
+              }
+              style={({ pressed }) => [
+                styles.attendanceInfo,
+                pressed && styles.attendanceInfoPressed,
+              ]}
+            >
               <Text style={styles.attendanceCount}>{attendeeCount}</Text>
-              <Text style={styles.attendanceLabel}>kişi katılıyor</Text>
-            </View>
+              <Text style={styles.attendanceLabel}>kişi katılıyor · listeyi gör</Text>
+            </Pressable>
             <Pressable
               onPress={() => void toggleAttendance()}
               disabled={attendanceLoading}
@@ -378,6 +389,12 @@ const styles = StyleSheet.create({
   attendanceInfo: {
     flex: 1,
     paddingLeft: 2,
+    paddingVertical: 4,
+    marginRight: 10,
+    borderRadius: 10,
+  },
+  attendanceInfoPressed: {
+    opacity: 0.6,
   },
   attendanceCount: {
     color: '#F29A45',
