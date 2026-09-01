@@ -2174,322 +2174,84 @@ export default function ProfileScreen() {
           Profil
         </Text>
 
-        {/* KAPAK */}
-
-        <Pressable
-          onPress={
-            isOwnProfile
-              ? chooseCoverImage
-              : undefined
-          }
-          style={
-            styles.coverContainer
-          }
-        >
-          {profile.coverImage ? (
-            <Image
-              source={{
-                uri:
-                  profile.coverImage,
-              }}
-              style={
-                styles.coverImage
-              }
-            />
-          ) : (
-            <View
-              style={
-                styles.coverPlaceholder
-              }
-            >
-              <Text
-                style={
-                  styles.coverIcon
-                }
-              >
-                🖼️
-              </Text>
-
-              {isOwnProfile && (
-                <Text
-                  style={
-                    styles.coverText
-                  }
-                >
-                  Kapak fotoğrafı ekle
-                </Text>
-              )}
-            </View>
-          )}
-
-          {isOwnProfile && (
-            <View
-              style={
-                styles.coverCamera
-              }
-            >
-              <Text
-                style={
-                  styles.cameraText
-                }
-              >
-                📷
-              </Text>
-            </View>
-          )}
-        </Pressable>
-
-        {/* PROFİL FOTOĞRAFI */}
-
-        <Pressable
-          onPress={
-            isOwnProfile
-              ? chooseProfileImage
-              : undefined
-          }
-          style={
-            styles.profileImageContainer
-          }
-        >
-          {profile.profileImage ? (
-            <Image
-              source={{
-                uri:
-                  profile.profileImage,
-              }}
-              style={
-                styles.profileImage
-              }
-            />
-          ) : (
-            <View
-              style={
-                styles.profilePlaceholder
-              }
-            >
-              <Text
-                style={
-                  styles.profileIcon
-                }
-              >
-                👤
-              </Text>
-            </View>
-          )}
-
-          {isOwnProfile && (
-            <View
-              style={
-                styles.profileCamera
-              }
-            >
-              <Text
-                style={
-                  styles.cameraText
-                }
-              >
-                📷
-              </Text>
-            </View>
-          )}
-        </Pressable>
-
-        {/* PROFİL BİLGİLERİ */}
-
-        {editing ? (
-          <View
-            style={
-              styles.editArea
-            }
+        {/* KAPAK + PROFİL ÜST BİLGİ */}
+        <View style={styles.profileHero}>
+          <Pressable
+            onPress={isOwnProfile ? chooseCoverImage : undefined}
+            style={styles.coverContainer}
           >
-            <Text
-              style={
-                styles.inputLabel
-              }
-            >
-              Kullanıcı adı
-            </Text>
-
-            <TextInput
-              value={
-                username
-              }
-              onChangeText={
-                setUsername
-              }
-              placeholder="Kullanıcı adın"
-              placeholderTextColor="#999"
-              style={
-                styles.input
-              }
-              maxLength={30}
-            />
-
-            <Text
-              style={
-                styles.inputLabel
-              }
-            >
-              Biyografi
-            </Text>
-
-            <TextInput
-              value={
-                bio
-              }
-              onChangeText={
-                setBio
-              }
-              placeholder="Kendinden bahset..."
-              placeholderTextColor="#999"
-              style={[
-                styles.input,
-                styles.bioInput,
-              ]}
-              multiline
-              maxLength={150}
-            />
-
-            <View
-              style={
-                styles.editButtons
-              }
-            >
-              <Pressable
-                onPress={() =>
-                  setEditing(
-                    false
-                  )
-                }
-                style={
-                  styles.cancelButton
-                }
-              >
-                <Text
-                  style={
-                    styles.cancelText
-                  }
-                >
-                  Vazgeç
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={
-                  handleSaveProfile
-                }
-                style={
-                  styles.saveButton
-                }
-              >
-                <Text
-                  style={
-                    styles.saveText
-                  }
-                >
-                  Kaydet
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : (
-          <>
-            <Text
-              style={
-                styles.username
-              }
-            >
-              {
-                profile.username
-              }
-            </Text>
-
-            <Text
-              style={
-                styles.bio
-              }
-            >
-              {
-                profile.bio
-              }
-            </Text>
-
-            {isOwnProfile ? (
-              <Pressable
-                onPress={
-                  startEditing
-                }
-                style={
-                  styles.editButton
-                }
-              >
-                <Text
-                  style={
-                    styles.editButtonText
-                  }
-                >
-                  ✏️ Profili Düzenle
-                </Text>
-              </Pressable>
+            {profile.coverImage ? (
+              <Image source={{ uri: profile.coverImage }} style={styles.coverImage} />
             ) : (
-              
-<View style={styles.profileActions}>
-  <Pressable
-    onPress={toggleFollow}
-    disabled={followLoading}
-    style={[
-      styles.followButton,
-      isFollowing &&
-        styles.followingButton,
-    ]}
-  >
-    <Text
-      style={[
-        styles.followButtonText,
-        isFollowing &&
-          styles.followingButtonText,
-      ]}
-    >
-      {followLoading
-        ? '...'
-        : isFollowing
-        ? 'Takipten Çık'
-        : 'Takip Et'}
-    </Text>
-  </Pressable>
-
-  <Pressable
-    onPress={() => {
-      if (!profile?.id) {
-        Alert.alert(
-          'Hata',
-          'Kullanıcı bulunamadı.'
-        );
-        return;
-      }
-
-      router.push({
-        pathname: '/chat',
-        params: {
-          userId: profile.id,
-          username:
-            profile.username ||
-            'Kitap Okuru',
-        },
-      });
-    }}
-    style={styles.messageButton}
-  >
-    <Text style={styles.messageButtonText}>
-      💬 Mesaj Gönder
-    </Text>
-  </Pressable>
-</View>
-
-
+              <View style={styles.coverPlaceholder}>
+                <Text style={styles.coverIcon}>🖼️</Text>
+                {isOwnProfile && <Text style={styles.coverText}>Kapak fotoğrafı ekle</Text>}
+              </View>
             )}
-          </>
-        )}
+            <View style={styles.coverShade} />
+            {isOwnProfile && (
+              <View style={styles.coverCamera}><Text style={styles.cameraText}>📷</Text></View>
+            )}
+          </Pressable>
+
+          <View style={styles.identityRow}>
+            <Pressable
+              onPress={isOwnProfile ? chooseProfileImage : undefined}
+              style={styles.profileImageContainer}
+            >
+              {profile.profileImage ? (
+                <Image source={{ uri: profile.profileImage }} style={styles.profileImage} />
+              ) : (
+                <View style={styles.profilePlaceholder}><Text style={styles.profileIcon}>👤</Text></View>
+              )}
+              {isOwnProfile && (
+                <View style={styles.profileCamera}><Text style={styles.cameraText}>📷</Text></View>
+              )}
+            </Pressable>
+
+            {!editing && (
+              <View style={styles.identityInfo}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.username} numberOfLines={1}>{profile.username}</Text>
+                </View>
+                <Text style={styles.handle}>@{profile.username.toLowerCase().replace(/\s+/g, '')}</Text>
+                <View style={styles.verifiedRow}>
+                  <Text style={styles.verifiedIcon}>✦</Text>
+                  <Text style={styles.verifiedText}>Okur Profili</Text>
+                </View>
+                <Text style={styles.bio}>{profile.bio}</Text>
+              </View>
+            )}
+          </View>
+
+          {editing ? (
+            <View style={styles.editArea}>
+              <Text style={styles.inputLabel}>Kullanıcı adı</Text>
+              <TextInput value={username} onChangeText={setUsername} placeholder="Kullanıcı adın" placeholderTextColor="#777" style={styles.input} maxLength={30} />
+              <Text style={styles.inputLabel}>Biyografi</Text>
+              <TextInput value={bio} onChangeText={setBio} placeholder="Kendinden bahset..." placeholderTextColor="#777" style={[styles.input, styles.bioInput]} multiline maxLength={150} />
+              <View style={styles.editButtons}>
+                <Pressable onPress={() => setEditing(false)} style={styles.cancelButton}><Text style={styles.cancelText}>Vazgeç</Text></Pressable>
+                <Pressable onPress={handleSaveProfile} style={styles.saveButton}><Text style={styles.saveText}>Kaydet</Text></Pressable>
+              </View>
+            </View>
+          ) : isOwnProfile ? (
+            <Pressable onPress={startEditing} style={styles.editButton}><Text style={styles.editButtonText}>✏️ Profili Düzenle</Text></Pressable>
+          ) : (
+            <View style={styles.profileActions}>
+              <Pressable onPress={toggleFollow} disabled={followLoading} style={[styles.followButton, isFollowing && styles.followingButton]}>
+                <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>{followLoading ? '...' : isFollowing ? 'Takiptesin' : 'Takip Et'}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  if (!profile?.id) { Alert.alert('Hata', 'Kullanıcı bulunamadı.'); return; }
+                  router.push({ pathname: '/chat', params: { userId: profile.id, username: profile.username || 'Kitap Okuru' } });
+                }}
+                style={styles.messageButton}
+              ><Text style={styles.messageButtonText}>💬 Mesaj</Text></Pressable>
+            </View>
+          )}
+        </View>
 
         {/* İSTATİSTİKLER */}
 
@@ -3438,246 +3200,54 @@ const styles = StyleSheet.create({
   },
 
   pageTitle: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#222',
-    marginTop: 20,
-    marginHorizontal: 20,
-    marginBottom: 20,
-  },
-
-  coverContainer: {
-    width: '100%',
-    height: 210,
-    position: 'relative',
-  },
-
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-
-  coverPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#14151C',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  coverIcon: {
-    fontSize: 34,
-  },
-
-  coverText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#8E8E98',
-    fontWeight: '600',
-  },
-
-  coverCamera: {
-    position: 'absolute',
-    right: 15,
-    bottom: 15,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#222',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  cameraText: {
     fontSize: 18,
-  },
-
-
-  profileActions: {
-  flexDirection: 'row',
-  gap: 8,
-  marginTop: 10,
-},
-
-messageButton: {
-  flex: 1,
-  minHeight: 44,
-  borderRadius: 10,
-  backgroundColor: '#222',
-  justifyContent: 'center',
-  alignItems: 'center',
-  paddingHorizontal: 12,
-},
-
-messageButtonText: {
-  color: '#FFF',
-  fontSize: 14,
-  fontWeight: '600',
-},
-
-  profileImageContainer: {
-    width: 125,
-    height: 125,
-    borderRadius: 63,
-    position: 'relative',
-    marginTop: -62,
-    marginLeft: 'auto',
-    marginRight: 'auto',
-    borderWidth: 5,
-    borderColor: '#090A0F',
-    overflow: 'visible',
-  },
-
-  profileImage: {
-    width: 115,
-    height: 115,
-    borderRadius: 58,
-  },
-
-  profilePlaceholder: {
-    width: 115,
-    height: 115,
-    borderRadius: 58,
-    backgroundColor: '#1A1B23',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  profileIcon: {
-    fontSize: 48,
-  },
-
-  profileCamera: {
-    position: 'absolute',
-    right: -3,
-    bottom: 0,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#222',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#090A0F',
-  },
-
-  username: {
-    marginTop: 12,
-    fontSize: 23,
     fontWeight: '700',
-    color: '#222',
-    textAlign: 'center',
-  },
-
-  bio: {
-    marginTop: 7,
-    paddingHorizontal: 35,
-    textAlign: 'center',
-    color: '#8E8E98',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-
-  editArea: {
-    width: '90%',
+    color: '#F5F5F7',
     marginTop: 18,
-    alignSelf: 'center',
+    marginHorizontal: 20,
+    marginBottom: 14,
   },
-
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#E7E7EB',
-    marginBottom: 7,
-    marginTop: 12,
-  },
-
-  input: {
-    width: '100%',
-    minHeight: 48,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E2E2',
-    paddingHorizontal: 14,
-    fontSize: 15,
-    color: '#222',
-  },
-
-  bioInput: {
-    minHeight: 90,
-    paddingTop: 12,
-    textAlignVertical: 'top',
-  },
-
-  editButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 15,
-  },
-
-  cancelButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#20212A',
-  },
-
-  cancelText: {
-    color: '#B0B0BA',
-    fontWeight: '600',
-  },
-
-  saveButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#222',
-  },
-
-  saveText: {
-    color: '#FFF',
-    fontWeight: '700',
-  },
-
-  editButton: {
-    marginTop: 18,
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#222',
-    alignSelf: 'center',
-  },
-
-  editButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-
-  followButton: {
-    marginTop: 18,
-    paddingHorizontal: 35,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#222',
-    alignSelf: 'center',
-  },
-
-  followingButton: {
-    backgroundColor: '#20212A',
-  },
-
-  followButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-
-  followingButtonText: {
-    color: '#E7E7EB',
-  },
+  profileHero: { paddingBottom: 4 },
+  coverContainer: { width: '100%', height: 190, position: 'relative', overflow: 'hidden' },
+  coverImage: { width: '100%', height: '100%' },
+  coverPlaceholder: { width: '100%', height: '100%', backgroundColor: '#15161D', justifyContent: 'center', alignItems: 'center' },
+  coverShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 95, backgroundColor: 'rgba(9,10,15,0.38)' },
+  coverIcon: { fontSize: 34 },
+  coverText: { marginTop: 8, fontSize: 13, color: '#A2A2AC', fontWeight: '600' },
+  coverCamera: { position: 'absolute', right: 16, top: 14, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(15,16,22,0.88)', justifyContent: 'center', alignItems: 'center' },
+  cameraText: { fontSize: 17 },
+  identityRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: -74, paddingHorizontal: 20, zIndex: 3 },
+  profileImageContainer: { width: 138, height: 138, borderRadius: 69, borderWidth: 3, borderColor: '#7C63E6', backgroundColor: '#090A0F', padding: 4, position: 'relative', flexShrink: 0 },
+  profileImage: { width: 124, height: 124, borderRadius: 62 },
+  profilePlaceholder: { width: 124, height: 124, borderRadius: 62, backgroundColor: '#1A1B23', justifyContent: 'center', alignItems: 'center' },
+  profileIcon: { fontSize: 48 },
+  profileCamera: { position: 'absolute', right: -2, bottom: 4, width: 36, height: 36, borderRadius: 18, backgroundColor: '#20212A', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#090A0F' },
+  identityInfo: { flex: 1, paddingLeft: 18, paddingTop: 70, minHeight: 150 },
+  nameRow: { flexDirection: 'row', alignItems: 'center' },
+  username: { flexShrink: 1, fontSize: 24, lineHeight: 30, fontWeight: '800', color: '#F5F5F7' },
+  handle: { marginTop: 3, fontSize: 14, color: '#B5B5BE' },
+  verifiedRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  verifiedIcon: { color: '#8B6FF0', fontSize: 16, marginRight: 6 },
+  verifiedText: { color: '#A98BFF', fontSize: 14, fontWeight: '700' },
+  bio: { marginTop: 9, color: '#E0E0E5', fontSize: 14, lineHeight: 20 },
+  profileActions: { flexDirection: 'row', gap: 10, marginTop: 18, paddingHorizontal: 20 },
+  messageButton: { flex: 1, minHeight: 48, borderRadius: 24, backgroundColor: '#1B1C23', borderWidth: 1, borderColor: '#292A33', justifyContent: 'center', alignItems: 'center' },
+  messageButtonText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  editArea: { width: '90%', marginTop: 18, alignSelf: 'center' },
+  inputLabel: { fontSize: 14, fontWeight: '700', color: '#E7E7EB', marginBottom: 7, marginTop: 12 },
+  input: { width: '100%', minHeight: 48, backgroundColor: '#15161D', borderRadius: 12, borderWidth: 1, borderColor: '#2A2B34', paddingHorizontal: 14, fontSize: 15, color: '#F5F5F7' },
+  bioInput: { minHeight: 90, paddingTop: 12, textAlignVertical: 'top' },
+  editButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 15 },
+  cancelButton: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12, backgroundColor: '#20212A' },
+  cancelText: { color: '#B0B0BA', fontWeight: '600' },
+  saveButton: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, backgroundColor: '#7C63E6' },
+  saveText: { color: '#FFF', fontWeight: '700' },
+  editButton: { marginTop: 16, marginHorizontal: 20, minHeight: 46, borderRadius: 23, backgroundColor: '#7C63E6', justifyContent: 'center', alignItems: 'center' },
+  editButtonText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  followButton: { flex: 1, minHeight: 48, borderRadius: 24, backgroundColor: '#7157DD', justifyContent: 'center', alignItems: 'center' },
+  followingButton: { backgroundColor: '#7157DD' },
+  followButtonText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  followingButtonText: { color: '#FFF' },
 
   stats: {
     flexDirection: 'row',
