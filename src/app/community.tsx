@@ -185,51 +185,73 @@ export default function CommunityScreen() {
   async function toggleCommunityPostLike(post: CommunityPost) {
     if (pendingLikePostIds.has(post.id)) return;
     if (!currentUserId || !post.id) return;
-    const wasLiked = post.liked;
-    const nextLiked = !wasLiked;
+
     setPendingLikePostIds((ids) => new Set(ids).add(post.id));
+
     try {
+      const { data: existingLikes, error: fetchError } = await supabase
+        .from("community_post_likes")
+        .select("user_id")
+        .eq("post_id", post.id);
+
+      if (fetchError) {
+        console.error("Failed to fetch current likes:", fetchError);
+        return;
+      }
+
+      const wasLiked =
+        existingLikes?.some((like) => like.user_id === currentUserId) ?? false;
+
       if (wasLiked) {
-        const result = await supabase
+        const { error: deleteError } = await supabase
           .from("community_post_likes")
           .delete()
           .eq("post_id", post.id)
           .eq("user_id", currentUserId);
-        if (result.error) {
-          console.error("Community post like error:", result.error);
+
+        if (deleteError) {
+          console.error("Community post unlike error:", deleteError);
           return;
         }
-        setCommunityPosts((current) =>
-          current.map((item) =>
-            item.id === post.id
-              ? {
-                  ...item,
-                  liked: false,
-                  likes_count: Math.max(0, item.likes_count - 1),
-                }
-              : item,
-          ),
-        );
       } else {
-        const result = await supabase
+        const { error: insertError } = await supabase
           .from("community_post_likes")
-          .insert({ post_id: post.id, user_id: currentUserId });
-        if (result.error) {
-          console.error("Community post like error:", result.error);
+          .insert({
+            post_id: post.id,
+            user_id: currentUserId,
+          });
+
+        if (insertError) {
+          console.error("Community post like error:", insertError);
           return;
         }
-        setCommunityPosts((current) =>
-          current.map((item) =>
-            item.id === post.id
-              ? {
-                  ...item,
-                  liked: nextLiked,
-                  likes_count: item.likes_count + 1,
-                }
-              : item,
-          ),
-        );
       }
+
+      const { data: freshLikes, error: freshError } = await supabase
+        .from("community_post_likes")
+        .select("user_id")
+        .eq("post_id", post.id);
+
+      if (freshError) {
+        console.error("Failed to refresh likes:", freshError);
+        return;
+      }
+
+      const freshLikesCount = freshLikes?.length ?? 0;
+      const isNowLiked =
+        freshLikes?.some((like) => like.user_id === currentUserId) ?? false;
+
+      setCommunityPosts((current) =>
+        current.map((item) =>
+          item.id === post.id
+            ? {
+                ...item,
+                liked: isNowLiked,
+                likes_count: freshLikesCount,
+              }
+            : item,
+        ),
+      );
     } finally {
       setPendingLikePostIds((ids) => {
         const next = new Set(ids);
@@ -238,7 +260,6 @@ export default function CommunityScreen() {
       });
     }
   }
-
   useEffect(() => {
     void loadCommunityPosts();
   }, [communityId]);
