@@ -35,6 +35,7 @@ type Review = {
   text: string;
   createdAt: string;
   username?: string;
+  full_name?: string | null;
   profile_image?: string | null;
   likes?: number;
   liked?: boolean;
@@ -55,6 +56,7 @@ type Post = {
   id: string;
   user_id: string | null;
   username: string;
+  full_name?: string | null;
   profile_image?: string | null;
   text: string | null;
   image_url: string | null;
@@ -201,7 +203,7 @@ export default function HomeScreen() {
     const { data: reviewProfileData } =
       await supabase
         .from('profiles')
-        .select('id, username, profile_image');
+        .select('id, full_name, username, profile_image');
 
     const reviewProfiles = new Map(
       (reviewProfileData ?? []).map((profile: any) => [
@@ -334,6 +336,8 @@ export default function HomeScreen() {
             username:
               reviewAuthor?.username ||
               CURRENT_USERNAME,
+            full_name:
+              reviewAuthor?.full_name ?? null,
             profile_image:
               reviewAuthor?.profile_image ??
               null,
@@ -403,7 +407,7 @@ export default function HomeScreen() {
       const { data: profileData } =
         await supabase
           .from('profiles')
-          .select('id, username, profile_image');
+          .select('id, full_name, username, profile_image');
 
       const profilesByUserId = new Map(
         (profileData ?? []).map((profile: any) => [
@@ -599,6 +603,8 @@ export default function HomeScreen() {
                 postAuthor?.username ||
                 post.username ||
                 CURRENT_USERNAME,
+              full_name:
+                postAuthor?.full_name ?? null,
               profile_image:
                 postAuthor?.profile_image ??
                 null,
@@ -636,6 +642,8 @@ const reviewPosts: Post[] = (reviewData ?? []).map(
     username:
       profilesByUserId.get(review.user_id)?.username ||
       CURRENT_USERNAME,
+    full_name:
+      profilesByUserId.get(review.user_id)?.full_name ?? null,
     profile_image:
       profilesByUserId.get(review.user_id)?.profile_image ??
       null,
@@ -1012,7 +1020,7 @@ async function createPost() {
     const { data: authorProfile } =
       await supabase
         .from('profiles')
-        .select('username, profile_image')
+        .select('full_name, username, profile_image')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -3319,14 +3327,12 @@ async function deletePostComment(
                     styles.userInfo
                   }
                 >
-                  <Text
-                    style={
-                      styles.username
-                    }
-                  >
-                    {
-                      post.username
-                    }
+                  <Text style={styles.username} numberOfLines={1}>
+                    {post.full_name?.trim() || post.username}
+                  </Text>
+
+                  <Text style={styles.handle} numberOfLines={1}>
+                    @{post.username}
                   </Text>
 
                     <Text
@@ -3700,16 +3706,19 @@ async function deletePostComment(
                         styles.avatar
                       }
                     >
-                      <Text
-                        style={
-                          styles.avatarText
-                        }
-                      >
-                        {(review.username || CURRENT_USERNAME)
-                          .trim()
-                          .charAt(0)
-                          .toUpperCase()}
-                      </Text>
+                      {review.profile_image ? (
+                        <Image
+                          source={{ uri: review.profile_image }}
+                          style={styles.avatarImage}
+                        />
+                      ) : (
+                        <Text style={styles.avatarText}>
+                          {(review.full_name || review.username || CURRENT_USERNAME)
+                            .trim()
+                            .charAt(0)
+                            .toUpperCase()}
+                        </Text>
+                      )}
                     </View>
 
                     <View
@@ -3717,13 +3726,12 @@ async function deletePostComment(
                         styles.userInfo
                       }
                     >
-                      <Text
-                        style={
-                          styles.username
-                        }
-                      >
-                        {review.username ||
-                          CURRENT_USERNAME}
+                      <Text style={styles.username} numberOfLines={1}>
+                        {review.full_name?.trim() || review.username || CURRENT_USERNAME}
+                      </Text>
+
+                      <Text style={styles.handle} numberOfLines={1}>
+                        @{review.username || CURRENT_USERNAME}
                       </Text>
 
                       <Text
@@ -4784,6 +4792,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#F2F3F5',
+  },
+
+  handle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#9198A6',
   },
 
   date: {
