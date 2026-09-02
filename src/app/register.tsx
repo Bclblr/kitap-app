@@ -14,15 +14,17 @@ export default function RegisterScreen() {
   const router = useRouter();
 
   const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleRegister() {
     const cleanUsername = username.trim();
+    const cleanFullName = fullName.trim();
     const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanUsername || !cleanEmail || !password) {
+    if (!cleanFullName || !cleanUsername || !cleanEmail || !password) {
       Alert.alert(
         'Eksik bilgi',
         'Lütfen tüm alanları doldur.'
@@ -48,6 +50,7 @@ export default function RegisterScreen() {
           options: {
             data: {
               username: cleanUsername,
+              full_name: cleanFullName,
             },
           },
         });
@@ -75,6 +78,7 @@ export default function RegisterScreen() {
             .from('profiles')
             .insert({
               id: data.user.id,
+              full_name: cleanFullName,
               username: cleanUsername,
               bio: 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚',
             });
@@ -124,6 +128,15 @@ export default function RegisterScreen() {
         <Text style={styles.subtitle}>
           Kitap dünyasına katıl
         </Text>
+
+        <TextInput
+          value={fullName}
+          onChangeText={setFullName}
+          placeholder="Ad soyad"
+          placeholderTextColor="#999"
+          autoCapitalize="words"
+          style={styles.input}
+        />
 
         <TextInput
           value={username}
