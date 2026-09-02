@@ -37,6 +37,7 @@ type Comment = {
 
 type ProfileData = {
   id: string;
+  fullName: string;
   username: string;
   bio: string;
   profileImage: string | null;
@@ -88,6 +89,7 @@ type FeedItem = {
 
 const DEFAULT_PROFILE: ProfileData = {
   id: '',
+  fullName: '',
   username: 'Kitap Okuru',
   bio: 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚',
   profileImage: null,
@@ -109,6 +111,7 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
 
   const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
 
   const [loading, setLoading] = useState(true);
@@ -189,7 +192,7 @@ export default function ProfileScreen() {
         await supabase
           .from('profiles')
           .select(
-            'id, username, bio, profile_image, cover_image'
+            'id, full_name, username, bio, profile_image, cover_image'
           )
           .eq('id', targetUserId)
           .maybeSingle();
@@ -210,6 +213,7 @@ export default function ProfileScreen() {
 
         const newProfile = {
           id: targetUserId,
+          full_name: '',
           username: DEFAULT_PROFILE.username,
           bio: DEFAULT_PROFILE.bio,
           profile_image: null,
@@ -234,6 +238,9 @@ export default function ProfileScreen() {
 
       setProfile({
   id: data.id,
+
+  fullName:
+    data.full_name || '',
 
   username:
     data.username ||
@@ -1556,6 +1563,7 @@ export default function ProfileScreen() {
    */
 
   function startEditing() {
+    setFullName(profile.fullName);
     setUsername(
       profile.username
     );
@@ -1570,6 +1578,9 @@ export default function ProfileScreen() {
   async function handleSaveProfile() {
     const cleanUsername =
       username.trim();
+
+    const cleanFullName =
+      fullName.trim();
 
     const cleanBio =
       bio.trim();
@@ -1597,6 +1608,9 @@ export default function ProfileScreen() {
       {
         ...profile,
 
+        fullName:
+          cleanFullName,
+
         username:
           cleanUsername,
 
@@ -1612,6 +1626,9 @@ export default function ProfileScreen() {
         {
           id:
             loggedInUserId,
+
+          full_name:
+            cleanFullName || null,
 
           username:
             cleanUsername,
@@ -1800,6 +1817,9 @@ export default function ProfileScreen() {
           id:
             loggedInUserId,
 
+          full_name:
+            profile.fullName || null,
+
           username:
             profile.username,
 
@@ -1889,6 +1909,9 @@ export default function ProfileScreen() {
         {
           id:
             loggedInUserId,
+
+          full_name:
+            profile.fullName || null,
 
           username:
             profile.username,
@@ -2212,7 +2235,7 @@ export default function ProfileScreen() {
             {!editing && (
               <View style={styles.identityInfo}>
                 <View style={styles.nameRow}>
-                  <Text style={styles.username} numberOfLines={1}>{profile.username}</Text>
+                  <Text style={styles.username} numberOfLines={1}>{profile.fullName || profile.username}</Text>
                 </View>
                 <Text style={styles.handle}>@{profile.username.toLowerCase().replace(/\s+/g, '')}</Text>
                 <View style={styles.verifiedRow}>
@@ -2226,6 +2249,8 @@ export default function ProfileScreen() {
 
           {editing ? (
             <View style={styles.editArea}>
+              <Text style={styles.inputLabel}>Ad soyad</Text>
+              <TextInput value={fullName} onChangeText={setFullName} placeholder="Adın ve soyadın" placeholderTextColor="#777" style={styles.input} maxLength={50} />
               <Text style={styles.inputLabel}>Kullanıcı adı</Text>
               <TextInput value={username} onChangeText={setUsername} placeholder="Kullanıcı adın" placeholderTextColor="#777" style={styles.input} maxLength={30} />
               <Text style={styles.inputLabel}>Biyografi</Text>
