@@ -35,6 +35,7 @@ type Review = {
   text: string;
   createdAt: string;
   username?: string;
+  profile_image?: string | null;
   likes?: number;
   liked?: boolean;
   comments?: Comment[];
@@ -54,6 +55,7 @@ type Post = {
   id: string;
   user_id: string | null;
   username: string;
+  profile_image?: string | null;
   text: string | null;
   image_url: string | null;
   book_key: string | null;
@@ -196,6 +198,18 @@ export default function HomeScreen() {
       return;
     }
 
+    const { data: reviewProfileData } =
+      await supabase
+        .from('profiles')
+        .select('id, username, profile_image');
+
+    const reviewProfiles = new Map(
+      (reviewProfileData ?? []).map((profile: any) => [
+        profile.id,
+        profile,
+      ])
+    );
+
     const preparedReviews: Review[] =
       await Promise.all(
         data.map(async (review: any) => {
@@ -306,6 +320,9 @@ export default function HomeScreen() {
               );
           }
 
+          const reviewAuthor =
+            reviewProfiles.get(review.user_id);
+
           return {
             id: review.id,
             user_id: review.user_id,
@@ -314,7 +331,12 @@ export default function HomeScreen() {
             rating: Number(review.rating) || 0,
             text: review.text || '',
             createdAt: review.created_at,
-            username: CURRENT_USERNAME,
+            username:
+              reviewAuthor?.username ||
+              CURRENT_USERNAME,
+            profile_image:
+              reviewAuthor?.profile_image ??
+              null,
             likes: likesCount,
             liked,
             comments: preparedComments,
@@ -377,6 +399,22 @@ export default function HomeScreen() {
         await getCurrentUserId();
 
       setCurrentUserId(userId);
+
+      const { data: profileData } =
+        await supabase
+          .from('profiles')
+          .select('id, username, profile_image');
+
+      const profilesByUserId = new Map(
+        (profileData ?? []).map((profile: any) => [
+          profile.id,
+          profile,
+        ])
+      );
+
+      const currentProfile = userId
+        ? profilesByUserId.get(userId)
+        : null;
 
       const preparedPosts: Post[] =
         await Promise.all(
@@ -550,8 +588,20 @@ export default function HomeScreen() {
               saved = !!savedData;
             }
 
+            const postAuthor =
+              post.user_id
+                ? profilesByUserId.get(post.user_id)
+                : null;
+
             return {
               ...post,
+              username:
+                postAuthor?.username ||
+                post.username ||
+                CURRENT_USERNAME,
+              profile_image:
+                postAuthor?.profile_image ??
+                null,
               liked,
               likes,
               reposted,
@@ -583,7 +633,12 @@ const reviewPosts: Post[] = (reviewData ?? []).map(
   (review: any) => ({
     id: review.id,
     user_id: review.user_id ?? null,
-    username: CURRENT_USERNAME,
+    username:
+      profilesByUserId.get(review.user_id)?.username ||
+      CURRENT_USERNAME,
+    profile_image:
+      profilesByUserId.get(review.user_id)?.profile_image ??
+      null,
     text: review.text,
     image_url: null,
     book_key: review.book_key,
@@ -613,7 +668,12 @@ const quotePosts: Post[] =
   parsedQuotes.map((quote) => ({
     id: `quote-${quote.id}`,
     user_id: null,
-    username: CURRENT_USERNAME,
+    username:
+      currentProfile?.username ||
+      CURRENT_USERNAME,
+    profile_image:
+      currentProfile?.profile_image ??
+      null,
     text: quote.text,
     image_url: null,
     book_key: quote.bookKey,
@@ -946,6 +1006,17 @@ async function createPost() {
     }
 
     // =====================================================
+    // GÖNDERİ SAHİBİNİN GÜNCEL PROFİLİNİ AL
+    // =====================================================
+
+    const { data: authorProfile } =
+      await supabase
+        .from('profiles')
+        .select('username, profile_image')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    // =====================================================
     // POST'U VERİTABANINA KAYDET
     // =====================================================
 
@@ -956,7 +1027,9 @@ async function createPost() {
       .from('posts')
       .insert({
         user_id: user.id,
-        username: CURRENT_USERNAME,
+        username:
+          authorProfile?.username ||
+          CURRENT_USERNAME,
         text: cleanText || null,
         image_url: imageUrl,
         book_key: null,
@@ -1000,6 +1073,13 @@ async function createPost() {
         (current) => [
           {
             ...(data as Post),
+            username:
+              authorProfile?.username ||
+              data.username ||
+              CURRENT_USERNAME,
+            profile_image:
+              authorProfile?.profile_image ??
+              null,
             saved: false,
             liked: false,
             likes: 0,
@@ -3211,6 +3291,16 @@ async function deletePostComment(
                     styles.avatar
                   }
                 >
+                  {post.profile_image ? (
+                    <Image
+                      source={{
+                        uri: post.profile_image,
+                      }}
+                      style={
+                        styles.avatarImage
+                      }
+                    />
+                  ) : (
                     <Text
                       style={
                         styles.avatarText
@@ -3221,6 +3311,7 @@ async function deletePostComment(
                         .charAt(0)
                         .toUpperCase() || 'K'}
                     </Text>
+                  )}
                 </View>
 
                 <View
@@ -4416,6 +4507,12 @@ const styles = StyleSheet.create({
     marginRight: 10,
     borderWidth: 1,
     borderColor: '#6E4FA9',
+  },
+
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
   },
 
   avatarText: {
