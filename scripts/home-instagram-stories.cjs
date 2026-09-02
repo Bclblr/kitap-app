@@ -20,12 +20,12 @@ function replaceOnce(label, matcher, replacement) {
   source = next;
 }
 
-// PanResponder ekle.
+// PanResponder ekle. CRLF/LF farkına dayanıklı.
 if (!/\bPanResponder\b/.test(source.split("from 'react-native';")[0])) {
   replaceOnce(
     'PanResponder importu',
-    /(\n\s*)Pressable,(\n\s*ScrollView,)/,
-    '$1PanResponder,$1Pressable,$2'
+    /(\r?\n\s*)Pressable,/,
+    '$1PanResponder,$1Pressable,'
   );
 }
 
