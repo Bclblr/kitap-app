@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase";
+import { Action } from '@/components/ReaderUI';
+import { readerDate } from '@/lib/reader-date';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -6,7 +8,7 @@ import {
   Alert,
   Image,
   Pressable,
-  SafeAreaView,
+  View as SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -62,6 +64,7 @@ export default function CommunityScreen() {
   const [memberCount, setMemberCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isMember, setIsMember] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [membershipUpdating, setMembershipUpdating] = useState(false);
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
@@ -115,6 +118,10 @@ export default function CommunityScreen() {
         if (!mounted) return;
 
         setCommunity(data as CommunityDetail | null);
+        if (userId) {
+          const permission = await supabase.rpc('community_admin', { cid: communityId });
+          if (mounted) setIsAdmin(permission.data === true);
+        }
 
         const countResult = await supabase
           .from("community_members")
@@ -632,13 +639,14 @@ export default function CommunityScreen() {
 
           <Text style={styles.title}>{community.name}</Text>
           <Text style={styles.count}>{memberCount} üye</Text>
+          {isAdmin && <Action label="Topluluğu düzenle" onPress={() => router.push({ pathname: '/community-editor', params: { id: communityId } })} />}
 
           {community.description ? (
             <Text style={styles.description}>{community.description}</Text>
           ) : null}
 
           <Pressable
-            disabled={membershipUpdating || !currentUserId}
+            disabled={membershipUpdating || !currentUserId || community.created_by === currentUserId}
             onPress={toggleMembership}
             style={styles.cta}
           >
@@ -712,7 +720,7 @@ export default function CommunityScreen() {
                 </Pressable>
 
                 <Text style={styles.postDate}>
-                  {new Date(post.created_at).toLocaleDateString("tr-TR")}
+                  {readerDate(post.created_at)}
                 </Text>
 
                 <Text style={styles.postBody}>{post.text}</Text>
@@ -1053,8 +1061,8 @@ const styles = StyleSheet.create({
   postDate: {
     color: "#777983",
     fontSize: 10,
-    marginTop: -20,
-    marginLeft: 55,
+    marginTop: 6,
+    flexShrink: 1,
   },
   postBody: {
     color: "#F4F4F6",

@@ -559,24 +559,25 @@ export default function ShelvesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#090A0F',
   },
 
   content: {
     padding: 20,
+    paddingTop: 24,
     paddingBottom: 110,
   },
 
   title: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#222',
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#F5F5F7',
   },
 
   subtitle: {
-    marginTop: 5,
-    color: '#777',
-    fontSize: 15,
+    marginTop: 6,
+    color: '#9A9AA4',
+    fontSize: 14,
   },
 
   filterContainer: {
@@ -588,197 +589,215 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#15161D',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#2A2B34',
   },
 
   activeFilter: {
-    backgroundColor: '#222',
-    borderColor: '#222',
+    backgroundColor: '#2B2140',
+    borderColor: '#8B5CF6',
   },
 
   filterText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#555',
+    color: '#A0A0AA',
   },
 
   activeFilterText: {
-    color: '#FFFFFF',
+    color: '#D9CCFF',
   },
 
   info: {
     marginTop: 40,
     textAlign: 'center',
-    color: '#777',
+    color: '#9A9AA4',
   },
 
   count: {
     marginBottom: 12,
-    fontSize: 14,
-    color: '#777',
+    fontSize: 13,
+    color: '#8E8E98',
     fontWeight: '600',
   },
 
   empty: {
     alignItems: 'center',
-    marginTop: 60,
-    paddingHorizontal: 20,
+    marginTop: 40,
+    marginHorizontal: 0,
+    paddingHorizontal: 24,
+    paddingVertical: 34,
+    borderRadius: 20,
+    backgroundColor: '#15161D',
+    borderWidth: 1,
+    borderColor: '#25262F',
   },
 
   emptyIcon: {
-    fontSize: 50,
+    fontSize: 44,
     marginBottom: 15,
   },
 
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#222',
+    fontWeight: '800',
+    color: '#F5F5F7',
   },
 
   emptyText: {
     marginTop: 10,
     textAlign: 'center',
-    color: '#777',
+    color: '#9A9AA4',
     lineHeight: 21,
   },
 
   exploreButton: {
     marginTop: 25,
-    backgroundColor: '#222',
+    backgroundColor: '#8B5CF6',
     paddingHorizontal: 22,
     paddingVertical: 14,
     borderRadius: 14,
   },
 
   exploreButtonText: {
-    color: '#FFF',
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
 
   bookCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 12,
+    backgroundColor: '#15161D',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#25262F',
+    marginBottom: 14,
+    overflow: 'hidden',
   },
 
   bookPressable: {
     flexDirection: 'row',
-    alignItems: 'center',
+    padding: 14,
   },
 
   cover: {
-    width: 70,
-    height: 105,
-    borderRadius: 8,
-    backgroundColor: '#E8E8E8',
+    width: 86,
+    height: 128,
+    borderRadius: 10,
+    backgroundColor: '#20212A',
   },
 
   noCover: {
-    width: 70,
-    height: 105,
-    borderRadius: 8,
-    backgroundColor: '#E8E8E8',
-    justifyContent: 'center',
+    width: 86,
+    height: 128,
+    borderRadius: 10,
+    backgroundColor: '#20212A',
+    borderWidth: 1,
+    borderColor: '#30313A',
     alignItems: 'center',
+    justifyContent: 'center',
   },
 
   noCoverText: {
-    fontSize: 10,
-    color: '#777',
+    color: '#777984',
+    fontSize: 11,
     textAlign: 'center',
   },
 
   bookInfo: {
     flex: 1,
+    minWidth: 0,
     marginLeft: 14,
-    marginRight: 8,
+    paddingVertical: 2,
   },
 
   bookTitle: {
+    color: '#F5F5F7',
     fontSize: 17,
-    fontWeight: '700',
-    color: '#222',
+    lineHeight: 22,
+    fontWeight: '800',
   },
 
   author: {
     marginTop: 6,
-    fontSize: 14,
-    color: '#777',
+    color: '#A0A1AA',
+    fontSize: 13,
+    lineHeight: 18,
   },
 
   status: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#555',
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    color: '#CDB7F8',
+    fontSize: 12,
+    fontWeight: '700',
   },
 
   year: {
-    marginTop: 6,
-    fontSize: 12,
-    color: '#999',
+    marginTop: 7,
+    color: '#6F707A',
+    fontSize: 11,
   },
 
   statusSection: {
-    marginTop: 14,
+    paddingHorizontal: 14,
     paddingTop: 12,
+    paddingBottom: 14,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
+    borderTopColor: '#25262F',
   },
 
   statusLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#777',
-    marginBottom: 8,
+    color: '#8E8E98',
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 10,
   },
 
   statusButtons: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
 
   smallStatusButton: {
-    width: 42,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#F7F7F5',
+    flex: 1,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#1B1C24',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    justifyContent: 'center',
+    borderColor: '#2B2C35',
     alignItems: 'center',
+    justifyContent: 'center',
   },
 
   selectedSmallStatus: {
-    backgroundColor: '#222',
-    borderColor: '#222',
+    backgroundColor: '#2B2140',
+    borderColor: '#8B5CF6',
   },
 
   smallStatusText: {
-    fontSize: 17,
+    fontSize: 18,
   },
 
   deleteButton: {
-    marginTop: 14,
-    width: '100%',
-    height: 50,
+    marginHorizontal: 14,
+    marginBottom: 14,
+    minHeight: 42,
     borderRadius: 12,
-    backgroundColor: '#F8EAEA',
-    justifyContent: 'center',
+    backgroundColor: '#1C171A',
+    borderWidth: 1,
+    borderColor: '#4A292F',
     alignItems: 'center',
+    justifyContent: 'center',
   },
 
   deleteButtonPressed: {
-    opacity: 0.5,
+    opacity: 0.7,
   },
 
   deleteText: {
-    color: '#B44',
-    fontSize: 14,
+    color: '#D98792',
+    fontSize: 12,
     fontWeight: '700',
   },
 });

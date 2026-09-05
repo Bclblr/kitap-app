@@ -4,7 +4,7 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
-  SafeAreaView,
+  View as SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -219,6 +219,7 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     flex: 1,
+    minWidth: 0,
     marginLeft: 12,
   },
   username: {

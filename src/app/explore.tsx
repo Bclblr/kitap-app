@@ -1,10 +1,15 @@
 import { useRouter } from 'expo-router';
+import ReadersList from '@/components/ReadersList';
+import AdSlot from '@/components/AdSlot';
+import WorksList from '@/components/WorksList';
+import { Action } from '@/components/ReaderUI';
+import { useReaderSocial } from '@/hooks/use-reader-social';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   Pressable,
-  SafeAreaView,
+  View as SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -79,6 +84,7 @@ const DISCOVERY_SECTIONS = [
 ] as const;
 
 export default function ExploreScreen() {
+  const social = useReaderSocial();
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [books, setBooks] = useState<Book[]>([]);
@@ -638,6 +644,10 @@ export default function ExploreScreen() {
 
           {!isSearching ? (
             <View style={styles.discovery}>
+              <ReadersList />
+              <WorksList />
+              <AdSlot />
+              <Action label="Topluluk / Kitap Kulübü Oluştur" onPress={() => router.push('/community-editor')} />
               <Text style={styles.discoveryTitle}>Yeni şeyler keşfet</Text>
               <Text style={styles.discoveryText}>
                 Okuma dünyandaki yeni kitaplar, insanlar ve sohbetler burada buluşacak.
@@ -667,7 +677,7 @@ export default function ExploreScreen() {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.activeReadersList}
                   >
-                    {activeReaders.map((reader) => {
+                    {activeReaders.filter(reader => !social.error && reader.user_id !== social.userId && !social.blocked.includes(reader.user_id)).map((reader) => {
                       const name = reader.username?.trim() || 'Okuyucu';
                       const initial = name
                         .charAt(0)
@@ -872,7 +882,7 @@ export default function ExploreScreen() {
                 <Text style={styles.popularBooksCaption}>Okur buluşmaları ve etkinlikler</Text>
                 {upcomingEventsLoading ? <ActivityIndicator size="small" color="#F29A45" style={styles.eventsLoading} /> : upcomingEvents.length ? upcomingEvents.map((event) => {
                   const date = new Date(event.event_date);
-                  return <View key={event.id} style={styles.eventRow}><View style={styles.eventDate}><Text style={styles.eventDay}>{date.toLocaleDateString('tr-TR', { day: '2-digit' })}</Text><Text style={styles.eventMonth}>{date.toLocaleDateString('tr-TR', { month: 'short' }).replace('.', '').toLocaleUpperCase('tr-TR')}</Text><Text style={styles.eventTime}>{date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</Text></View><View style={styles.eventInfo}><Text style={styles.resultTitle} numberOfLines={2}>{event.title}</Text>{event.location ? <Text style={styles.eventMeta} numberOfLines={1}>{event.location}</Text> : null}{event.description ? <Text style={styles.eventDescription} numberOfLines={2}>{event.description}</Text> : null}</View></View>;
+                  return <Pressable key={event.id} onPress={() => router.push({ pathname: '/event', params: { id: event.id } })} style={styles.eventRow}><View style={styles.eventDate}><Text style={styles.eventDay}>{date.toLocaleDateString('tr-TR', { day: '2-digit' })}</Text><Text style={styles.eventMonth}>{date.toLocaleDateString('tr-TR', { month: 'short' }).replace('.', '').toLocaleUpperCase('tr-TR')}</Text><Text style={styles.eventTime}>{date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</Text></View><View style={styles.eventInfo}><Text style={styles.resultTitle} numberOfLines={2}>{event.title}</Text>{event.location ? <Text style={styles.eventMeta} numberOfLines={1}>{event.location}</Text> : null}{event.description ? <Text style={styles.eventDescription} numberOfLines={2}>{event.description}</Text> : null}</View></Pressable>;
                 }) : <Text style={styles.popularBooksEmpty}>Yaklaşan etkinlik bulunmuyor.</Text>}
               </View>
 
@@ -921,7 +931,7 @@ export default function ExploreScreen() {
                 </View>
               ) : (
                 <>
-                  {activeSearchType === 'users' && users.map((user) => {
+                  {activeSearchType === 'users' && users.filter(user => !social.error && !social.blocked.includes(user.id)).map((user) => {
                     const name = user.username?.trim() || 'Kitap Okuru';
                     const initial = name.charAt(0).toLocaleUpperCase('tr-TR');
                     return (

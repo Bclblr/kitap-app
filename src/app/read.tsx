@@ -6,7 +6,7 @@ import {
   Alert,
   Image,
   Pressable,
-  SafeAreaView,
+  View as SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -536,8 +536,20 @@ export default function ReadScreen() {
         contentContainerStyle={styles.content}
       >
         <View style={styles.header}>
-          <Text style={styles.headerEyebrow}>KİTAPLIĞIN</Text>
-          <Text style={styles.headerTitle}>Oku</Text>
+          <View style={styles.headerTopRow}>
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.backButton}
+              hitSlop={10}
+            >
+              <Text style={styles.backButtonText}>‹</Text>
+            </Pressable>
+
+            <View style={styles.headerTextWrap}>
+              <Text style={styles.headerEyebrow}>KİTAPLIĞIN</Text>
+              <Text style={styles.headerTitle}>Oku</Text>
+            </View>
+          </View>
         </View>
 
         {loading ? (
@@ -1023,6 +1035,31 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 20,
   },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111218',
+    borderWidth: 1,
+    borderColor: '#2A2B34',
+    marginRight: 12,
+  },
+  backButtonText: {
+    color: '#F7F7F9',
+    fontSize: 32,
+    lineHeight: 34,
+    fontWeight: '500',
+    marginTop: -2,
+  },
+  headerTextWrap: {
+    flex: 1,
+  },
   headerEyebrow: {
     color: '#9870EA',
     fontSize: 10,
@@ -1416,6 +1453,7 @@ const styles = StyleSheet.create({
   },
   goalEditor: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'flex-end',
     gap: 9,
     marginTop: 17,
@@ -1425,6 +1463,7 @@ const styles = StyleSheet.create({
   },
   goalInputGroup: {
     flex: 1,
+    minWidth: 100,
   },
   goalInput: {
     height: 44,

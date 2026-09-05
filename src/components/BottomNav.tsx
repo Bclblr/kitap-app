@@ -1,107 +1,84 @@
-import { Link, usePathname } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { usePathname, useRouter } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function BottomNav() {
-  const pathname = usePathname();
+type NavRoute = '/' | '/read' | '/messages' | '/explore' | '/profile';
+type NavIcon = 'home' | 'book-open' | 'message-circle' | 'search' | 'user';
+
+type NavItemProps = {
+  href: NavRoute;
+  pathname: string;
+  icon: NavIcon;
+  onPress: () => void;
+};
+
+function NavItem({ href, pathname, icon, onPress }: NavItemProps) {
+  const active = pathname === href;
 
   return (
-    <View style={styles.bottomBar}>
-      <Link href="/" style={styles.tab}>
-        <Text style={[styles.icon, pathname === '/' && styles.activeIcon]}>🏠</Text>
-        <Text style={[styles.label, pathname === '/' && styles.activeLabel]}>
-          Ana Sayfa
-        </Text>
-      </Link>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.tab, pressed && styles.pressedTab]}
+      hitSlop={8}
+    >
+      <View style={[styles.iconWrap, active && styles.activeIconWrap]}>
+        <Feather
+          name={icon}
+          size={23}
+          color={active ? '#A985FF' : '#85858F'}
+        />
+      </View>
+    </Pressable>
+  );
+}
 
-      <Link href="/explore" style={styles.tab}>
-        <Text style={[styles.icon, pathname === '/explore' && styles.activeIcon]}>
-          🔍
-        </Text>
-        <Text style={[styles.label, pathname === '/explore' && styles.activeLabel]}>
-          Keşfet
-        </Text>
-      </Link>
+export default function BottomNav() {
+  const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const router = useRouter();
 
-      <Link href="/read" style={styles.tab}>
-        <Text style={[styles.icon, pathname === '/read' && styles.activeIcon]}>📖</Text>
-        <Text style={[styles.label, pathname === '/read' && styles.activeLabel]}>
-          Oku
-        </Text>
-      </Link>
-
-      <Link href="/notifications" style={styles.tab}>
-        <Text
-          style={[
-            styles.icon,
-            pathname === '/notifications' && styles.activeIcon,
-          ]}
-        >
-          🔔
-        </Text>
-        <Text
-          style={[
-            styles.label,
-            pathname === '/notifications' && styles.activeLabel,
-          ]}
-        >
-          Bildirimler
-        </Text>
-      </Link>
-
-      <Link href="/profile" style={styles.tab}>
-        <Text style={[styles.icon, pathname === '/profile' && styles.activeIcon]}>
-          👤
-        </Text>
-        <Text style={[styles.label, pathname === '/profile' && styles.activeLabel]}>
-          Profil
-        </Text>
-      </Link>
+  return (
+    <View style={[styles.bottomBar, { height: 68 + Math.max(insets.bottom, 8), paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <NavItem href="/" pathname={pathname} icon="home" onPress={() => router.push('/')} />
+      <NavItem href="/read" pathname={pathname} icon="book-open" onPress={() => router.push('/read')} />
+      <NavItem href="/messages" pathname={pathname} icon="message-circle" onPress={() => router.push('/messages')} />
+      <NavItem href="/explore" pathname={pathname} icon="search" onPress={() => router.push('/explore')} />
+      <NavItem href="/profile" pathname={pathname} icon="user" onPress={() => router.push('/profile')} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   bottomBar: {
-    height: 88,
-    backgroundColor: '#0B0B0F',
+    height: 76,
+    backgroundColor: '#0A0A0E',
     borderTopWidth: 1,
-    borderTopColor: '#24242B',
+    borderTopColor: '#222229',
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingBottom: 7,
+    paddingHorizontal: 0,
+    paddingBottom: 8,
   },
-
   tab: {
     flex: 1,
-    height: 72,
+    height: 62,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 58,
   },
-
-  icon: {
-    fontSize: 22,
-    lineHeight: 28,
-    textAlign: 'center',
-    marginBottom: 4,
+  pressedTab: {
+    opacity: 0.65,
   },
-
-  label: {
-    marginTop: 1,
-    textAlign: 'center',
-    color: '#8B8B92',
-    fontSize: 10,
-    fontWeight: '600',
+  iconWrap: {
+    width: 40,
+    height: 38,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-
-  activeIcon: {
-    transform: [{ scale: 1.08 }],
-  },
-
-  activeLabel: {
-    color: '#A985FF',
-    fontWeight: '800',
+  activeIconWrap: {
+    backgroundColor: '#1D1728',
+    borderWidth: 1,
+    borderColor: '#302342',
   },
 });

@@ -771,7 +771,7 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#090A0F',
   },
 
   scrollContent: {
@@ -799,7 +799,7 @@ const styles = StyleSheet.create({
   },
 
   pageTitle: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '700',
     color: '#222',
   },
@@ -828,20 +828,22 @@ const styles = StyleSheet.create({
     marginTop: 10,
     padding: 30,
     borderRadius: 20,
-    backgroundColor: '#FFF',
+    backgroundColor: '#111114',
+    borderWidth: 1,
+    borderColor: '#24242A',
     alignItems: 'center',
   },
 
   emptyIcon: {
     fontSize: 46,
-    color: '#999',
+    color: '#8B5CF6',
   },
 
   emptyTitle: {
     marginTop: 12,
     fontSize: 18,
     fontWeight: '700',
-    color: '#222',
+    color: '#FFFFFF',
   },
 
   emptyText: {
@@ -849,7 +851,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     lineHeight: 21,
-    color: '#777',
+    color: '#8E8E98',
   },
 
   list: {
@@ -859,14 +861,17 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 17,
+    backgroundColor: '#111114',
+    borderRadius: 18,
     padding: 15,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#24242A',
   },
 
   unreadCard: {
-    backgroundColor: '#EEEEEA',
+    backgroundColor: '#18131F',
+    borderColor: '#6D4AFF',
   },
 
   // ===================================================
@@ -874,67 +879,74 @@ const styles = StyleSheet.create({
   // ===================================================
 
   profileImage: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#E8E8E3',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#1C1C21',
+    borderWidth: 1,
+    borderColor: '#303038',
   },
 
   iconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#E8E8E3',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#211A31',
+    borderWidth: 1,
+    borderColor: '#6D4AFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   icon: {
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: '700',
-    color: '#222',
+    color: '#A78BFA',
   },
 
   cardContent: {
     flex: 1,
+    minWidth: 0,
     marginLeft: 12,
   },
 
   topRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
 
   typeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#777',
+    color: '#A78BFA',
+    letterSpacing: 0.3,
   },
 
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#222',
+    backgroundColor: '#8B5CF6',
   },
 
   message: {
-    marginTop: 3,
+    marginTop: 4,
     fontSize: 14,
     lineHeight: 20,
-    color: '#555',
+    color: '#C9C9D1',
   },
 
   username: {
-    fontWeight: '700',
-    color: '#222',
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 
   date: {
     marginTop: 6,
     fontSize: 11,
-    color: '#999',
+    color: '#74747F',
   },
 
   clearButton: {
@@ -945,6 +957,6 @@ const styles = StyleSheet.create({
   clearText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#888',
+    color: '#777782',
   },
 });

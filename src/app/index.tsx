@@ -1,12 +1,14 @@
+import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
   Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,7 +18,16 @@ import {
 } from 'react-native';
 
 import BottomNav from '@/components/BottomNav';
+import StoryPlayback from '@/components/StoryPlayback';
+import StoryActions from '@/components/StoryActions';
+import StoryTransition from '@/components/StoryTransition';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ReadersList from '@/components/ReadersList';
+import AdSlot from '@/components/AdSlot';
+import { Action, ui } from '@/components/ReaderUI';
+import { useReaderSocial } from '@/hooks/use-reader-social';
 import { supabase } from '@/lib/supabase';
+import { storyAge } from '@/lib/reader-date';
 
 type Comment = {
   id: string;
@@ -81,6 +92,7 @@ type Story = {
   id: string;
   user_id?: string | null;
   username: string;
+  profile_image?: string | null;
   image_url: string | null;
   text: string | null;
   created_at: string;
@@ -88,6 +100,7 @@ type Story = {
 };
 
 const REVIEWS_KEY = 'reviews';
+const STORY_SEEN_KEY = 'story-seen-ids';
 
 const CURRENT_USERNAME = 'Kitap Okuru';
 
@@ -98,8 +111,18 @@ function isValidUUID(value: string) {
 }
 
 export default function HomeScreen() {
+  const scrollRef = useRef<ScrollView>(null);
+  const composerY = useRef(0);
+  const insets = useSafeAreaInsets();
+  const social = useReaderSocial();
+  const [feedTab, setFeedTab] = useState<'following' | 'for-you'>('for-you');
+  const [createMenu, setCreateMenu] = useState(false);
+  const [showAuthMenu, setShowAuthMenu] = useState(false);
   const router = useRouter();const [selectedStory, setSelectedStory] =
   useState<Story | null>(null);
+  const [storyGroupIndex, setStoryGroupIndex] = useState<number | null>(null);
+  const [storyIndex, setStoryIndex] = useState(0);
+  const [seenStoryIds, setSeenStoryIds] = useState<string[]>([]);
 
   const [reviews, setReviews] = useState<Review[]>([]);
   const [currentUserId, setCurrentUserId] =
@@ -110,6 +133,8 @@ export default function HomeScreen() {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
+  const [bookCoverUrls, setBookCoverUrls] =
+    useState<Record<string, string | null>>({});
 
   const [loading, setLoading] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -147,7 +172,7 @@ export default function HomeScreen() {
     } = await supabase.auth.getUser();
 
     if (error) {
-      
+
       return null;
     }
 
@@ -164,7 +189,7 @@ export default function HomeScreen() {
     return user?.id ?? null;
   }
 
-  
+
 
   /*
    * =====================================================
@@ -697,10 +722,22 @@ const quotePosts: Post[] =
     isQuote: true,
   }));
 
+const remoteQuotes = await supabase.from('quotes').select('id,user_id,book_key,book_title,text,created_at').order('created_at', { ascending: false }).limit(100);
+if (remoteQuotes.error) throw remoteQuotes.error;
+const remoteQuotePosts: Post[] = (remoteQuotes.data ?? []).map(quote => ({
+  id: `quote-${quote.id}`, user_id: quote.user_id,
+  username: profilesByUserId.get(quote.user_id)?.username || CURRENT_USERNAME,
+  full_name: profilesByUserId.get(quote.user_id)?.full_name,
+  profile_image: profilesByUserId.get(quote.user_id)?.profile_image,
+  text: quote.text, image_url: null, book_key: quote.book_key, book_title: quote.book_title,
+  rating: 0, created_at: quote.created_at, isQuote: true,
+}));
+
 const allFeedItems: Post[] = [
   ...preparedPosts,
   ...reviewPosts,
-  ...quotePosts,
+  ...remoteQuotePosts,
+  ...quotePosts.filter(quote => !remoteQuotePosts.some(remote => remote.id === quote.id)),
 ].sort(
   (a, b) =>
     new Date(b.created_at).getTime() -
@@ -761,10 +798,62 @@ setPosts(allFeedItems);
         );
         return;
       }
+      const rawStories = (data || []) as Story[];
 
-      setStories(
-        (data || []) as Story[]
+      const storyUserIds = Array.from(
+        new Set(
+          rawStories
+            .map((story) => story.user_id)
+            .filter((id): id is string => !!id)
+        )
       );
+
+      let storyProfiles = new Map<string, any>();
+
+      if (storyUserIds.length > 0) {
+        const { data: storyProfileData } = await supabase
+          .from('profiles')
+          .select('id, username, profile_image')
+          .in('id', storyUserIds);
+
+        storyProfiles = new Map(
+          (storyProfileData ?? []).map((profile: any) => [
+            profile.id,
+            profile,
+          ])
+        );
+      }
+
+      const preparedStories = rawStories.map((story) => {
+        const profile = story.user_id
+          ? storyProfiles.get(story.user_id)
+          : null;
+
+        return {
+          ...story,
+          username:
+            profile?.username ||
+            story.username ||
+            CURRENT_USERNAME,
+          profile_image: profile?.profile_image ?? null,
+        };
+      });
+
+      setStories(preparedStories);
+
+      try {
+        const savedSeen = await AsyncStorage.getItem(STORY_SEEN_KEY);
+        const parsedSeen: string[] = savedSeen ? JSON.parse(savedSeen) : [];
+        const activeIds = new Set(preparedStories.map((story) => story.id));
+        const cleanSeen = parsedSeen.filter((id) => activeIds.has(id));
+        setSeenStoryIds(cleanSeen);
+
+        if (cleanSeen.length !== parsedSeen.length) {
+          await AsyncStorage.setItem(STORY_SEEN_KEY, JSON.stringify(cleanSeen));
+        }
+      } catch (seenError) {
+        console.error('Hikaye görülme bilgisi okunamadı:', seenError);
+      }
     } catch (error) {
       console.error(
         'Hikâye yükleme hatası:',
@@ -774,6 +863,81 @@ setPosts(allFeedItems);
       setLoadingStories(false);
     }
   }, []);
+
+  useEffect(() => {
+    const bookKeys = Array.from(
+      new Set(
+        [
+          ...posts.map((post) => post.book_key),
+          ...reviews.map((review) => review.bookKey),
+        ].filter((value): value is string => !!value)
+      )
+    );
+
+    const missingKeys = bookKeys.filter(
+      (bookKey) => !(bookKey in bookCoverUrls)
+    );
+
+    if (missingKeys.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    Promise.all(
+      missingKeys.map(async (bookKey) => {
+        try {
+          const response = await fetch(
+            `https://openlibrary.org${bookKey}.json`
+          );
+
+          if (!response.ok) {
+            return [bookKey, null] as const;
+          }
+
+          const data = await response.json();
+          const coverId = Array.isArray(data?.covers)
+            ? data.covers.find(
+                (id: unknown) =>
+                  typeof id === 'number' && id > 0
+              )
+            : null;
+
+          const coverUrl = coverId
+            ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`
+            : null;
+
+          return [bookKey, coverUrl] as const;
+        } catch (error) {
+          console.error(
+            'Kitap kapağı alınamadı:',
+            bookKey,
+            error
+          );
+          return [bookKey, null] as const;
+        }
+      })
+    ).then((entries) => {
+      if (cancelled) {
+        return;
+      }
+
+      setBookCoverUrls((current) => {
+        const next = { ...current };
+
+        entries.forEach(([bookKey, coverUrl]) => {
+          next[bookKey] = coverUrl;
+        });
+
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [posts, reviews, bookCoverUrls]);
+
 
   /*
    * =====================================================
@@ -796,7 +960,7 @@ setPosts(allFeedItems);
 
 setCurrentUser(user);
 
-          
+
 
         if (active) {
           setCurrentUserId(userId);
@@ -899,7 +1063,7 @@ setCurrentUser(user);
    * =====================================================
    */
 
-  
+
 async function createPost() {
   const cleanText = postText.trim();
 
@@ -1138,7 +1302,7 @@ async function createPost() {
    * =====================================================
    */
 
- 
+
 async function createStory() {
   const cleanText = storyText.trim();
 
@@ -1466,7 +1630,7 @@ async function createStory() {
    * =====================================================
    */
 
-  
+
 
 async function togglePostLike(post: Post) {
   const user = await getCurrentUser();
@@ -1638,7 +1802,7 @@ async function togglePostLike(post: Post) {
           read: false,
         });
 
-      
+
 if (notificationError) {
   // Bildirim zaten varsa bu normaldir.
   // 23505 = unique constraint ihlali.
@@ -1875,7 +2039,7 @@ async function togglePostRepost(post: Post) {
 }
 
 
-  
+
 /*
  * =====================================================
  * POST YORUM KUTUSU
@@ -2634,10 +2798,155 @@ async function deletePostComment(
    * STORY
    * =====================================================
    */
+  const storyGroups = (() => {
+    const groups = new Map<string, {
+      key: string;
+      username: string;
+      profile_image: string | null;
+      stories: Story[];
+    }>();
 
-  function openStory(story: Story) {
-  setSelectedStory(story);
-}
+    stories.filter(story => !social.blocked.includes(story.user_id ?? '')).forEach((story) => {
+      const key = story.user_id || story.username || story.id;
+      const existing = groups.get(key);
+
+      if (existing) {
+        existing.stories.push(story);
+      } else {
+        groups.set(key, {
+          key,
+          username: story.username || CURRENT_USERNAME,
+          profile_image: story.profile_image ?? null,
+          stories: [story],
+        });
+      }
+    });
+
+    return Array.from(groups.values()).map((group) => ({
+      ...group,
+      stories: [...group.stories].sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() -
+          new Date(b.created_at).getTime()
+      ),
+      hasUnseen: group.stories.some(
+        (story) => !seenStoryIds.includes(story.id)
+      ),
+    }));
+  })();
+
+  const activeStoryGroup =
+    storyGroupIndex === null
+      ? null
+      : storyGroups[storyGroupIndex] ?? null;
+
+  function markStorySeen(storyId: string) {
+    setSeenStoryIds((current) => {
+      if (current.includes(storyId)) {
+        return current;
+      }
+
+      const next = [...current, storyId];
+      AsyncStorage.setItem(STORY_SEEN_KEY, JSON.stringify(next)).catch(
+        (error) => console.error('Hikaye görülme bilgisi kaydedilemedi:', error)
+      );
+      return next;
+    });
+  }
+
+  function showStoryAt(groupIndex: number, itemIndex: number) {
+    const group = storyGroups[groupIndex];
+    const story = group?.stories[itemIndex];
+
+    if (!group || !story) {
+      return;
+    }
+
+    setStoryGroupIndex(groupIndex);
+    setStoryIndex(itemIndex);
+    setSelectedStory(story);
+    const upcoming = group.stories[itemIndex + 1] ?? storyGroups[groupIndex + 1]?.stories[0];
+    if (upcoming?.image_url) Image.prefetch(upcoming.image_url).catch(() => {});
+    markStorySeen(story.id);
+  }
+
+  function openStoryGroup(groupIndex: number) {
+    const group = storyGroups[groupIndex];
+    if (!group) return;
+
+    const firstUnseen = group.stories.findIndex(
+      (story) => !seenStoryIds.includes(story.id)
+    );
+
+    showStoryAt(groupIndex, firstUnseen >= 0 ? firstUnseen : 0);
+  }
+
+  function closeStory() {
+    setSelectedStory(null);
+    setStoryGroupIndex(null);
+    setStoryIndex(0);
+  }
+
+  function nextStory() {
+    if (storyGroupIndex === null) return;
+
+    const group = storyGroups[storyGroupIndex];
+    if (!group) return;
+
+    if (storyIndex < group.stories.length - 1) {
+      showStoryAt(storyGroupIndex, storyIndex + 1);
+      return;
+    }
+
+    if (storyGroupIndex < storyGroups.length - 1) {
+      showStoryAt(storyGroupIndex + 1, 0);
+      return;
+    }
+
+    closeStory();
+  }
+
+  function previousStory() {
+    if (storyGroupIndex === null) return;
+
+    if (storyIndex > 0) {
+      showStoryAt(storyGroupIndex, storyIndex - 1);
+      return;
+    }
+
+    if (storyGroupIndex > 0) {
+      const previousGroupIndex = storyGroupIndex - 1;
+      const previousGroup = storyGroups[previousGroupIndex];
+      showStoryAt(
+        previousGroupIndex,
+        Math.max(0, previousGroup.stories.length - 1)
+      );
+    }
+  }
+
+  const storyPanResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gesture) =>
+      Math.abs(gesture.dy) > 12 &&
+      Math.abs(gesture.dy) > Math.abs(gesture.dx),
+    onPanResponderRelease: (_event, gesture) => {
+      if (gesture.dy > 70) {
+        closeStory();
+      }
+    },
+  });
+
+  const visiblePosts = social.error ? [] : posts.filter(post =>
+    !social.blocked.includes(post.user_id ?? '') &&
+    (feedTab !== 'following' || social.following.includes(post.user_id ?? ''))
+  ).sort((a, b) => {
+    if (feedTab === 'following') return Date.parse(b.created_at) - Date.parse(a.created_at);
+    const score = (post: Post) => {
+      const review = post.isReview ? reviews.find(item => item.id === post.id) : undefined;
+      const age = Math.max(0, (Date.now() - Date.parse(post.created_at)) / 3600000);
+      return (1 + Math.log1p((review?.likes ?? post.likes ?? 0) + 2 * (review?.comments?.length ?? post.comments?.length ?? 0) + 3 * (review?.reposts ?? post.reposts ?? 0))) / Math.pow(2 + age, .7) * (post.user_id === social.userId ? .65 : 1);
+    };
+    return score(b) - score(a) || a.id.localeCompare(b.id);
+  });
 
   /*
    * =====================================================
@@ -2647,7 +2956,71 @@ async function deletePostComment(
 
   return (
     <View style={styles.container}>
+      <Modal
+        visible={showAuthMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAuthMenu(false)}
+      >
+        <View style={styles.drawerOverlay}>
+          <View style={styles.drawerPanel}>
+            <View style={styles.drawerHeader}>
+              <Text style={styles.drawerBrand}>
+                1000<Text style={styles.drawerBrandAccent}>Kitap</Text>
+              </Text>
+
+              <Pressable
+                onPress={() => setShowAuthMenu(false)}
+                style={styles.drawerCloseButton}
+                accessibilityLabel="Menüyü kapat"
+              >
+                <Feather name="x" size={24} color="#F1F1F5" />
+              </Pressable>
+            </View>
+
+            <View style={styles.drawerDivider} />
+
+            <View style={styles.drawerSection}>
+              <Pressable
+                onPress={() => {
+                  setShowAuthMenu(false);
+                  router.push('/login');
+                }}
+                style={styles.drawerItem}
+              >
+                <View style={styles.drawerIconWrap}>
+                  <Feather name="log-in" size={22} color="#F1F1F5" />
+                </View>
+                <Text style={styles.drawerItemText}>Giriş Yap</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  setShowAuthMenu(false);
+                  router.push('/register');
+                }}
+                style={styles.drawerItem}
+              >
+                <View style={styles.drawerIconWrap}>
+                  <Feather name="user-plus" size={22} color="#F1F1F5" />
+                </View>
+                <Text style={styles.drawerItemText}>Kaydol</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.drawerBottomArea}>
+              <Text style={styles.drawerBottomText}>Okuma dünyana hoş geldin.</Text>
+            </View>
+          </View>
+
+          <Pressable
+            style={styles.drawerDismissArea}
+            onPress={() => setShowAuthMenu(false)}
+          />
+        </View>
+      </Modal>
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={
           false
         }
@@ -2657,43 +3030,36 @@ async function deletePostComment(
       >
         <View style={styles.homeHeader}>
           <Pressable
-            onPress={() => router.push('/explore')}
+            onPress={() => setShowAuthMenu(true)}
             style={styles.headerIconButton}
-            accessibilityLabel="Ara"
+            accessibilityLabel="Menü"
           >
-            <Text style={styles.headerIcon}>⌕</Text>
+            <Feather name="menu" size={24} color="#F1F1F5" />
           </Pressable>
-
           <Text style={styles.brandTitle}>
             1000<Text style={styles.brandAccent}>Kitap</Text>
           </Text>
 
           <View style={styles.headerRightActions}>
-            <Pressable
-              onPress={() => router.push('/messages')}
-              style={styles.headerIconButton}
-              accessibilityLabel="Mesajlar"
-            >
-              <Text style={styles.headerSmallIcon}>✉</Text>
-            </Pressable>
+
 
             <Pressable
               onPress={() => router.push('/notifications')}
               style={styles.headerIconButton}
               accessibilityLabel="Bildirimler"
             >
-              <Text style={styles.headerSmallIcon}>♧</Text>
+              <Feather name="bell" size={22} color="#F1F1F5" />
             </Pressable>
           </View>
         </View>
         <View style={styles.topTabs}>
-          <Pressable style={styles.topTabActive}>
+          <Pressable onPress={() => router.push('/explore')} style={styles.topTab}>
             <Text style={styles.topTabActiveText}>Keşfet</Text>
           </Pressable>
-          <Pressable style={styles.topTab}>
+          <Pressable onPress={() => setFeedTab('following')} style={feedTab === 'following' ? styles.topTabActive : styles.topTab}>
             <Text style={styles.topTabText}>Takip</Text>
           </Pressable>
-          <Pressable style={styles.topTab}>
+          <Pressable onPress={() => setFeedTab('for-you')} style={feedTab === 'for-you' ? styles.topTabActive : styles.topTab}>
             <Text style={styles.topTabText}>Senin İçin</Text>
           </Pressable>
         </View>
@@ -2701,72 +3067,13 @@ async function deletePostComment(
         <View style={styles.headerDivider} />
 
         <View style={styles.headerActions}>
-          <Pressable
-            onPress={() =>
-              router.push('/explore')
-            }
-            style={styles.exploreButton}
-          >
-            <Text style={styles.exploreIcon}>⌕</Text>
-            <Text style={styles.exploreButtonText}>
-              Kitap, yazar veya kullanıcı ara
-            </Text>
-          </Pressable>
 
-          <Pressable
-            onPress={async () => {
-              if (currentUser) {
-                const { error } =
-                  await supabase.auth.signOut();
-
-                if (error) {
-                  Alert.alert(
-                    'Hata',
-                    'Çıkış yapılırken bir hata oluştu.'
-                  );
-                  return;
-                }
-
-                setCurrentUser(null);
-                setCurrentUserId(null);
-                router.replace('/login');
-              } else {
-                router.push('/login');
-              }
-            }}
-            style={styles.loginButton}
-          >
-            <Text style={styles.loginButtonText}>
-              {currentUser ? 'Çıkış' : 'Giriş'}
-            </Text>
-          </Pressable>
         </View>
 
         <View style={styles.readerHighlights}>
-          <View style={styles.readerHighlightCard}>
-            <Text style={styles.readerHighlightEyebrow}>
-              ŞU AN AKTİF OKURLAR
-            </Text>
-            <Text style={styles.readerHighlightTitle}>
-              Okuma topluluğunu keşfet
-            </Text>
-            <Text style={styles.readerHighlightText}>
-              Aktif okuyucu verisi bağlandığında burada gösterilecek.
-            </Text>
-          </View>
 
-          <View style={styles.readerHighlightCard}>
-            <Text style={styles.readerHighlightEyebrow}>
-              AYNI KİTABI OKUYANLAR
-            </Text>
-            <Text style={styles.readerHighlightTitle}>
-              Birlikte okumaya hazır
-            </Text>
-            <Text style={styles.readerHighlightText}>
-              {/* Gerçek okuyucu verisi sonraki aşamada bağlanacak. */}
-              Kitap eşleşme verisi henüz bağlı değil.
-            </Text>
-          </View>
+
+
         </View>
 
         {/* HİKÂYELER */}
@@ -2924,68 +3231,79 @@ async function deletePostComment(
             {loadingStories ? (
               <ActivityIndicator />
             ) : (
-              stories.map(
-                (story) => (
+              storyGroups.map((group, groupIndex) => {
+                const previewStory =
+                  group.stories[group.stories.length - 1];
+
+                return (
                   <Pressable
-                    key={
-                      story.id
-                    }
-                    onPress={() =>
-                      openStory(
-                        story
-                      )
-                    }
-                    style={
-                      styles.storyItem
-                    }
+                    key={group.key}
+                    onPress={() => openStoryGroup(groupIndex)}
+                    style={styles.storyItem}
                   >
-                    {story.image_url ? (
-                      <Image
-                        source={{
-                          uri: story.image_url,
-                        }}
-                        style={
-                          styles.storyCircle
-                        }
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          styles.storyCircle,
-                          styles.storyTextCircle,
-                        ]}
-                      >
-                        <Text>
-                          📖
-                        </Text>
-                      </View>
-                    )}
+                    <View
+                      style={[
+                        styles.storyRing,
+                        group.hasUnseen
+                          ? styles.storyRingUnseen
+                          : styles.storyRingSeen,
+                      ]}
+                    >
+                      {group.profile_image || previewStory?.image_url ? (
+                        <Image
+                          source={{
+                            uri:
+                              group.profile_image ||
+                              previewStory?.image_url ||
+                              '',
+                          }}
+                          style={styles.storyCircleInner}
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            styles.storyCircleInner,
+                            styles.storyTextCircle,
+                          ]}
+                        >
+                          <Text style={styles.storyFallbackIcon}>📖</Text>
+                        </View>
+                      )}
+
+                      {group.stories.length > 1 ? (
+                        <View style={styles.storyCountBadge}>
+                          <Text style={styles.storyCountText}>
+                            {group.stories.length}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
 
                     <Text
-                      numberOfLines={
-                        1
-                      }
-                      style={
-                        styles.storyName
-                      }
+                      numberOfLines={1}
+                      style={[
+                        styles.storyName,
+                        !group.hasUnseen && styles.storyNameSeen,
+                      ]}
                     >
-                      {
-                        story.username
-                      }
+                      {group.username}
                     </Text>
                   </Pressable>
-                )
-              )
+                );
+              })
             )}
           </ScrollView>
         </View>
 
+        <View style={{ padding: 12 }}><ReadersList limit={3} /></View>
+        {feedTab === 'following' && <Action label="Okurları keşfet" onPress={() => router.push('/readers')} />}
         {/* POST OLUŞTUR */}
 
         <View
           style={
             styles.createPostCard
           }
+          onLayout={event => { composerY.current = event.nativeEvent.layout.y; }}
         >
           <View
             style={
@@ -3123,54 +3441,97 @@ async function deletePostComment(
           )}
         </View>
          <Modal
-      visible={!!selectedStory}
-      transparent
-      animationType="fade"
-      onRequestClose={() =>
-        setSelectedStory(null)
-      }
-    >
-      <View style={styles.storyModalOverlay}>
-        <Pressable
-          style={styles.storyModalCloseArea}
-          onPress={() =>
-            setSelectedStory(null)
-          }
-        />
+          visible={!!selectedStory}
+          transparent
+          animationType="fade"
+          onRequestClose={closeStory}
+        >
+          <View style={[styles.storyModalOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+            <View
+              style={styles.storyViewer}
+              {...storyPanResponder.panHandlers}
+            >
+              <View style={[styles.storyProgressRow, { opacity: 0 }]}>
+                {(activeStoryGroup?.stories ?? []).map((story, index) => (
+                  <View
+                    key={story.id}
+                    style={[
+                      styles.storyProgressTrack,
+                      index <= storyIndex && styles.storyProgressActive,
+                    ]}
+                  />
+                ))}
+              </View>
 
-        <View style={styles.storyViewer}>
-          <Pressable
-            onPress={() =>
-              setSelectedStory(null)
-            }
-            style={styles.storyCloseButton}
-          >
-            <Text style={styles.storyCloseText}>
-              ×
-            </Text>
-          </Pressable>
+              <View style={styles.storyViewerHeader}>
+                <View style={styles.storyViewerIdentity}>
+                  {activeStoryGroup?.profile_image ? (
+                    <Image
+                      source={{ uri: activeStoryGroup.profile_image }}
+                      style={styles.storyViewerAvatar}
+                    />
+                  ) : (
+                    <View style={styles.storyViewerAvatarFallback}>
+                      <Text style={styles.storyViewerAvatarText}>
+                        {(selectedStory?.username || 'K')
+                          .trim()
+                          .charAt(0)
+                          .toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
 
-          <Text style={styles.storyViewerUsername}>
-            {selectedStory?.username}
-          </Text>
+                  <View>
+                    <Text style={styles.storyViewerUsername}>
+                      {selectedStory?.username}
+                    </Text>
+                    <Text style={styles.storyViewerCounter}>
+                      {selectedStory ? storyAge(selectedStory.created_at) : ''} · {storyIndex + 1}/{activeStoryGroup?.stories.length ?? 1}
+                    </Text>
+                  </View>
+                </View>
 
-          {selectedStory?.image_url ? (
-            <Image
-              source={{
-                uri: selectedStory.image_url,
-              }}
-              style={styles.storyViewerImage}
-              resizeMode="contain"
-            />
-          ) : null}
+                <Pressable
+                  onPress={closeStory}
+                  style={styles.storyCloseButton}
+                >
+                  <Text style={styles.storyCloseText}>×</Text>
+                </Pressable>
+              </View>
 
-          {selectedStory?.text ? (
-            <Text style={styles.storyViewerText}>
-              {selectedStory.text}
-            </Text>
-          ) : null}
-        </View>
-      </View>
+              <View style={styles.storyMediaArea}>
+                <StoryTransition key={selectedStory?.id}>
+                {selectedStory?.image_url ? (
+                  <Image
+                    source={{ uri: selectedStory.image_url }}
+                    style={styles.storyViewerImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.storyTextOnlyCard}>
+                    <Text style={styles.storyTextOnlyIcon}>📚</Text>
+                  </View>
+                )}
+
+                {selectedStory?.text ? (
+                  <View style={styles.storyTextOverlay}>
+                    <Text style={styles.storyViewerText}>
+                      {selectedStory.text}
+                    </Text>
+                  </View>
+                ) : null}
+
+                </StoryTransition>
+              </View>
+
+              <View style={styles.storySwipeHint}>
+                <View style={styles.storySwipeHandle} />
+                <Text style={styles.storySwipeText}>Aşağı kaydırarak kapat</Text>
+              </View>
+              {selectedStory && <StoryPlayback key={selectedStory.id} storyId={selectedStory.id} count={activeStoryGroup?.stories.length ?? 1} index={storyIndex} onNext={nextStory} onPrevious={previousStory} />}
+              {selectedStory && <StoryActions key={`actions-${selectedStory.id}`} storyId={selectedStory.id} ownerId={selectedStory.user_id} onClose={closeStory} onDeleted={() => { setStories(current => current.filter(item => item.id !== selectedStory.id)); closeStory(); }} />}
+            </View>
+          </View>
         </Modal>
 
         {/* TOPLULUK */}
@@ -3207,7 +3568,7 @@ async function deletePostComment(
               Gönderiler yükleniyor...
             </Text>
           </View>
-        ) : posts.length === 0 ? (
+        ) : visiblePosts.length === 0 ? (
           <View
             style={
               styles.empty
@@ -3226,7 +3587,7 @@ async function deletePostComment(
                 styles.emptyTitle
               }
             >
-              Henüz gönderi yok
+              {social.error || (feedTab === 'following' ? 'Takip akışında henüz içerik yok' : 'Henüz gönderi yok')}
             </Text>
 
             <Text
@@ -3234,8 +3595,7 @@ async function deletePostComment(
                 styles.emptyText
               }
             >
-              İlk gönderiyi sen
-              paylaş.
+              {feedTab === 'following' ? 'Okurları keşfet ve takip ederek akışını oluştur.' : 'İlk gönderiyi sen paylaş.'}
             </Text>
 
             <Pressable
@@ -3258,7 +3618,7 @@ async function deletePostComment(
             </Pressable>
           </View>
         ) : (
-          posts.map((post) => {
+          visiblePosts.map((post, feedIndex) => {
             const reviewForPost = post.isReview
               ? reviews.find((review) => review.id === post.id)
               : undefined;
@@ -3289,6 +3649,7 @@ async function deletePostComment(
                 post.rating > 0 && styles.reviewPostCard,
               ]}
             >
+              {feedIndex > 0 && feedIndex % 9 === 0 && <AdSlot />}
               <View
                 style={
                   styles.userRow
@@ -3391,7 +3752,15 @@ async function deletePostComment(
                   style={styles.bookAttachment}
                 >
                   <View style={styles.bookAttachmentIcon}>
-                    <Text style={styles.bookAttachmentEmoji}>▥</Text>
+                    {post.book_key && bookCoverUrls[post.book_key] ? (
+                      <Image
+                        source={{ uri: bookCoverUrls[post.book_key] as string }}
+                        style={styles.bookAttachmentCover}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text style={styles.bookAttachmentEmoji}>▥</Text>
+                    )}
                   </View>
                   <View style={styles.bookAttachmentInfo}>
                     <Text style={styles.bookAttachmentLabel}>KİTAP</Text>
@@ -3584,7 +3953,7 @@ async function deletePostComment(
                         comment.user_id ===
                         currentUserId;
 
-                        
+
 
                       return (
                         <View
@@ -3669,8 +4038,8 @@ async function deletePostComment(
           >
             Paylaşımlar yükleniyor...
           </Text>
-        ) : reviews.length > 0 ? (
-          
+        ) : reviews.length > 0 && posts.length === 0 && feedTab === 'for-you' && !social.error ? (
+
           <>
             <View
               style={
@@ -3686,8 +4055,8 @@ async function deletePostComment(
               </Text>
             </View>
 
-            {reviews.map(
-              (review) => ( 
+            {reviews.filter(review => !social.blocked.includes(review.user_id ?? '')).map(
+              (review) => (
                 <View
                   key={
                     review.id
@@ -3760,7 +4129,15 @@ async function deletePostComment(
                     style={styles.bookAttachment}
                   >
                     <View style={styles.bookAttachmentIcon}>
-                      <Text style={styles.bookAttachmentEmoji}>▥</Text>
+                      {review.bookKey && bookCoverUrls[review.bookKey] ? (
+                        <Image
+                          source={{ uri: bookCoverUrls[review.bookKey] as string }}
+                          style={styles.bookAttachmentCover}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <Text style={styles.bookAttachmentEmoji}>▥</Text>
+                      )}
                     </View>
                     <View style={styles.bookAttachmentInfo}>
                       <Text style={styles.bookAttachmentLabel}>KİTAP</Text>
@@ -4074,12 +4451,12 @@ async function deletePostComment(
                                   comment.createdAt
                                 )}
                               </Text>
-                              
+
                             </View>
                           );
                         }
                       )}
-                      
+
                     </View>
                   )}
                 </View>
@@ -4090,7 +4467,7 @@ async function deletePostComment(
       </ScrollView>
 
       <Pressable
-        onPress={() => setShowPostBox(true)}
+        onPress={() => setCreateMenu(true)}
         style={styles.floatingCreateButton}
         accessibilityRole="button"
         accessibilityLabel="Yeni gönderi oluştur"
@@ -4099,6 +4476,18 @@ async function deletePostComment(
       </Pressable>
 
       <BottomNav />
+      <Modal visible={createMenu} transparent animationType="slide" onRequestClose={() => setCreateMenu(false)}>
+        <View style={{ flex: 1, backgroundColor: '#0009', justifyContent: 'flex-end' }}>
+          <Pressable style={{ flex: 1 }} accessibilityLabel="Kapat" onPress={() => setCreateMenu(false)} />
+          <View style={[ui.card, { padding: 24, paddingBottom: 40, maxHeight: '85%' }]}>
+            <Action label="Gönderi Oluştur" onPress={() => { setCreateMenu(false); setShowPostBox(true); requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: composerY.current, animated: true })); }} />
+            <Action label="Kitap İncelemesi Yaz" onPress={() => { setCreateMenu(false); router.push('/explore'); }} />
+            <Action label="Alıntı Paylaş" onPress={() => { setCreateMenu(false); router.push('/quote-create'); }} />
+            <Action label="Kitap Yaz / Yayınla" onPress={() => { setCreateMenu(false); router.push('/my-works'); }} />
+            <Action label="Kapat" onPress={() => setCreateMenu(false)} />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -4113,12 +4502,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#08090D',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   content: {
     paddingTop: 12,
     paddingHorizontal: 14,
     paddingBottom: 132,
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
   },
 
   homeHeader: {
@@ -4127,6 +4523,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 48,
     marginBottom: 6,
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   brandTitle: {
@@ -4146,6 +4544,9 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
     flexDirection: 'row',
     gap: 7,
+    maxWidth: '100%',
+    minWidth: 0,
+    flexShrink: 1,
   },
 
   headerIconButton: {
@@ -4170,12 +4571,14 @@ const styles = StyleSheet.create({
 
   homeHeaderText: {
     flex: 1,
+    minWidth: 0,
   },
 
   greeting: {
     fontSize: 14,
     color: '#8F96A3',
     letterSpacing: 0.2,
+    flexShrink: 1,
   },
 
   title: {
@@ -4184,6 +4587,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#F7F8FA',
     letterSpacing: -0.5,
+    flexShrink: 1,
   },
 
   messageButton: {
@@ -4208,6 +4612,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginTop: 2,
     gap: 25,
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   topTab: {
@@ -4243,6 +4649,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 14,
     gap: 10,
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   loginButton: {
@@ -4273,6 +4681,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
+    minWidth: 0,
+    maxWidth: '100%',
   },
 
   exploreIcon: {
@@ -4286,12 +4696,16 @@ const styles = StyleSheet.create({
     color: '#8F96A3',
     fontSize: 13,
     fontWeight: '600',
+    flexShrink: 1,
+    minWidth: 0,
   },
 
   readerHighlights: {
     flexDirection: 'row',
     gap: 10,
     marginTop: 16,
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   readerHighlightCard: {
@@ -4302,6 +4716,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#111219',
     borderWidth: 1,
     borderColor: '#252631',
+    minWidth: 0,
+    maxWidth: '100%',
   },
 
   readerHighlightEyebrow: {
@@ -4316,6 +4732,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     marginTop: 8,
+    flexShrink: 1,
   },
 
   readerHighlightText: {
@@ -4323,74 +4740,192 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 15,
     marginTop: 6,
+    flexShrink: 1,
   },
 
   storyModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.97)',
-    justifyContent: 'flex-end',
-  },
-
-  storyModalCloseArea: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    backgroundColor: '#000',
   },
 
   storyViewer: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#08090D',
-    paddingHorizontal: 16,
-    paddingTop: 54,
-    paddingBottom: 28,
-    alignItems: 'center',
-    position: 'relative',
+    flex: 1,
+    backgroundColor: '#050507',
+    paddingTop: 14,
+    paddingBottom: 18,
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
-  storyCloseButton: {
-    position: 'absolute',
-    top: 48,
-    right: 16,
-    zIndex: 10,
+  storyProgressRow: {
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+
+  storyProgressTrack: {
+    flex: 1,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.24)',
+  },
+
+  storyProgressActive: {
+    backgroundColor: '#F5F5F7',
+  },
+
+  storyViewerHeader: {
+    height: 52,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 20,
+  },
+
+  storyViewerIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  storyViewerAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#191A22',
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginRight: 10,
   },
 
-  storyCloseText: {
-    color: '#fff',
-    fontSize: 28,
-    lineHeight: 30,
+  storyViewerAvatarFallback: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 10,
+    backgroundColor: '#2B2140',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  storyViewerAvatarText: {
+    color: '#F4EEFF',
+    fontWeight: '900',
   },
 
   storyViewerUsername: {
-    color: '#fff',
-    fontSize: 17,
+    color: '#FFF',
+    fontSize: 14,
     fontWeight: '800',
-    marginBottom: 14,
-    alignSelf: 'flex-start',
-    paddingRight: 48,
+    flexShrink: 1,
+    maxWidth: '100%',
+  },
+
+  storyViewerCounter: {
+    color: '#9B9BA4',
+    fontSize: 10,
+    marginTop: 2,
+  },
+
+  storyCloseButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(20,20,26,0.78)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+
+  storyCloseText: {
+    color: '#FFF',
+    fontSize: 27,
+    lineHeight: 29,
+  },
+
+  storyMediaArea: {
+    flex: 1,
+    marginHorizontal: 8,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#0D0D12',
+    position: 'relative',
   },
 
   storyViewerImage: {
     width: '100%',
+    height: '100%',
+    backgroundColor: '#0D0D12',
+    maxWidth: '100%',
+  },
+
+  storyTextOnlyCard: {
     flex: 1,
-    borderRadius: 18,
-    backgroundColor: '#101117',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#15111E',
+  },
+
+  storyTextOnlyIcon: {
+    fontSize: 58,
+  },
+
+  storyTextOverlay: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    bottom: 38,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    zIndex: 5,
   },
 
   storyViewerText: {
-    color: '#F4F5F7',
+    color: '#FFF',
     fontSize: 17,
-    lineHeight: 25,
+    lineHeight: 24,
     textAlign: 'center',
-    marginTop: 15,
+    fontWeight: '600',
+    flexShrink: 1,
+    maxWidth: '100%',
+  },
+
+  storyTapLeft: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '42%',
+    zIndex: 10,
+  },
+
+  storyTapRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '58%',
+    zIndex: 10,
+  },
+
+  storySwipeHint: {
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+
+  storySwipeHandle: {
+    width: 34,
+    height: 4,
+    borderRadius: 3,
+    backgroundColor: '#4A4A52',
+    marginBottom: 4,
+  },
+
+  storySwipeText: {
+    color: '#66666F',
+    fontSize: 9,
   },
 
   sectionHeader: {
@@ -4399,6 +4934,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   sectionTitle: {
@@ -4406,6 +4943,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#F2F3F5',
     letterSpacing: -0.2,
+    flexShrink: 1,
+    minWidth: 0,
   },
 
   storySection: {
@@ -4424,14 +4963,14 @@ const styles = StyleSheet.create({
   },
 
   storyItem: {
-    width: 70,
+    width: 74,
     alignItems: 'center',
   },
 
   addStoryCircle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     borderWidth: 2,
     borderColor: '#F28A2E',
     backgroundColor: '#14151C',
@@ -4445,13 +4984,30 @@ const styles = StyleSheet.create({
     color: '#F28A2E',
   },
 
-  storyCircle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: '#171820',
+  storyRing: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
     borderWidth: 3,
-    borderColor: '#8755E8',
+    padding: 2,
+    position: 'relative',
+  },
+
+  storyRingUnseen: {
+    borderColor: '#A985FF',
+    backgroundColor: '#17131F',
+  },
+
+  storyRingSeen: {
+    borderColor: 'rgba(145,145,155,0.42)',
+    backgroundColor: 'rgba(40,40,46,0.42)',
+  },
+
+  storyCircleInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 29,
+    backgroundColor: '#171820',
   },
 
   storyTextCircle: {
@@ -4459,13 +5015,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  storyFallbackIcon: {
+    fontSize: 21,
+  },
+
+  storyCountBadge: {
+    position: 'absolute',
+    right: -5,
+    bottom: -3,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: '#A985FF',
+    borderWidth: 2,
+    borderColor: '#08090D',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  storyCountText: {
+    color: '#0C0812',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+
   storyName: {
-    marginTop: 6,
+    marginTop: 7,
     fontSize: 10,
-    color: '#B5B5BD',
-    fontWeight: '600',
-    maxWidth: 68,
+    color: '#D0D0D6',
+    fontWeight: '700',
+    maxWidth: 72,
     textAlign: 'center',
+  },
+
+  storyNameSeen: {
+    color: 'rgba(160,160,170,0.58)',
   },
 
   storyCreateBox: {
@@ -4475,6 +5060,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#292A33',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   storyPreview: {
@@ -4482,6 +5069,7 @@ const styles = StyleSheet.create({
     height: 145,
     borderRadius: 12,
     marginBottom: 8,
+    maxWidth: '100%',
   },
 
   createTitle: {
@@ -4498,11 +5086,15 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#292A33',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   createPostHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   avatar: {
@@ -4538,11 +5130,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: '#292E39',
+    minWidth: 0,
+    maxWidth: '100%',
   },
 
   postPromptText: {
     color: '#858C99',
     fontSize: 13,
+    flexShrink: 1,
+    minWidth: 0,
   },
 
   postCreateBox: {
@@ -4561,6 +5157,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#F1F3F5',
     textAlignVertical: 'top',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   postPreview: {
@@ -4568,6 +5166,7 @@ const styles = StyleSheet.create({
     height: 190,
     borderRadius: 13,
     marginBottom: 8,
+    maxWidth: '100%',
   },
 
   removeImageButton: {
@@ -4593,6 +5192,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 9,
     gap: 8,
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   secondaryButton: {
@@ -4603,12 +5204,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#30313B',
+    minWidth: 0,
+    maxWidth: '100%',
   },
 
   secondaryButtonText: {
     color: '#D3D3DA',
     fontSize: 12,
     fontWeight: '800',
+    flexShrink: 1,
+    textAlign: 'center',
   },
 
   primarySmallButton: {
@@ -4617,11 +5222,15 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     backgroundColor: '#F28A2E',
     alignItems: 'center',
+    minWidth: 0,
+    maxWidth: '100%',
   },
 
   primarySmallText: {
     color: '#15110A',
     fontWeight: '900',
+    flexShrink: 1,
+    textAlign: 'center',
   },
 
   postCard: {
@@ -4631,6 +5240,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#24252D',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
   },
 
   reviewPostCard: {
@@ -4649,6 +5262,7 @@ const styles = StyleSheet.create({
     height: 292,
     borderRadius: 13,
     marginTop: 14,
+    maxWidth: '100%',
   },
 
   postText: {
@@ -4656,6 +5270,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
     color: '#ECECF0',
+    flexShrink: 1,
+    maxWidth: '100%',
   },
 
   quotePostText: {
@@ -4663,6 +5279,8 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: '#F3EFFB',
     fontStyle: 'italic',
+    flexShrink: 1,
+    maxWidth: '100%',
   },
 
   feedTypeLabel: {
@@ -4690,17 +5308,23 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#252A34',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   postAction: {
     paddingVertical: 7,
     paddingHorizontal: 5,
+    minWidth: 0,
+    flexShrink: 1,
   },
 
   postActionText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#9EA5B1',
+    flexShrink: 1,
+    textAlign: 'center',
   },
 
   likedPostAction: {
@@ -4777,27 +5401,38 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     borderWidth: 1,
     borderColor: '#34284F',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
   },
 
   userRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   userInfo: {
     flex: 1,
+    minWidth: 0,
   },
 
   username: {
     fontSize: 14,
     fontWeight: '800',
     color: '#F2F3F5',
+    flexShrink: 1,
+    minWidth: 0,
   },
 
   handle: {
     marginTop: 2,
     fontSize: 12,
     color: '#9198A6',
+    flexShrink: 1,
+    minWidth: 0,
   },
 
   date: {
@@ -4810,6 +5445,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#F2F2F5',
+    flexShrink: 1,
+    minWidth: 0,
   },
 
   bookAttachment: {
@@ -4821,24 +5458,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#171820',
     borderWidth: 1,
     borderColor: '#2B2C36',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   bookAttachmentIcon: {
     width: 38,
     height: 48,
     borderRadius: 7,
+    overflow: 'hidden',
     backgroundColor: '#382651',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 11,
   },
 
+  bookAttachmentCover: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 7,
+  },
+
+
   bookAttachmentEmoji: {
     color: '#C7A9FF',
     fontSize: 22,
   },
 
-  bookAttachmentInfo: { flex: 1 },
+  bookAttachmentInfo: { flex: 1,
+    minWidth: 0,
+  },
 
   bookAttachmentLabel: {
     color: '#8D65F2',
@@ -4858,18 +5507,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   stars: {
     fontSize: 17,
     letterSpacing: 1,
     color: '#F28A2E',
+    flexShrink: 1,
   },
 
   ratingNumber: {
     marginLeft: 8,
     fontSize: 12,
     color: '#9299A5',
+    flexShrink: 1,
   },
 
   reviewText: {
@@ -4877,6 +5530,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: '#D9DCE2',
+    flexShrink: 1,
+    maxWidth: '100%',
   },
 
   actions: {
@@ -4887,6 +5542,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#252A34',
     gap: 9,
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   actionButton: {
@@ -4897,12 +5554,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     borderRadius: 14,
     backgroundColor: '#191D26',
+    minWidth: 0,
+    flexShrink: 1,
   },
 
   action: {
     fontSize: 12,
     color: '#9EA5B1',
     fontWeight: '700',
+    flexShrink: 1,
   },
 
   likedAction: {
@@ -4923,6 +5583,8 @@ const styles = StyleSheet.create({
     paddingTop: 11,
     borderTopWidth: 1,
     borderTopColor: '#25262E',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   commentInput: {
@@ -4937,6 +5599,8 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     borderWidth: 1,
     borderColor: '#30313A',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   commentButtons: {
@@ -4944,6 +5608,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 8,
     marginTop: 8,
+    maxWidth: '100%',
+    minWidth: 0,
+    flexWrap: 'wrap',
   },
 
   cancelButton: {
@@ -4978,6 +5645,8 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#252A34',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   comment: {
@@ -4986,18 +5655,24 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 13,
     backgroundColor: '#17181F',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   commentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    maxWidth: '100%',
+    minWidth: 0,
   },
 
   commentUser: {
     fontSize: 12,
     fontWeight: '800',
     color: '#E7E9ED',
+    flexShrink: 1,
+    minWidth: 0,
   },
 
   deleteComment: {
@@ -5011,6 +5686,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#C4C8D0',
     lineHeight: 19,
+    flexShrink: 1,
+    maxWidth: '100%',
   },
 
   commentDate: {
@@ -5045,4 +5722,131 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     fontWeight: '400',
   },
+
+    headerMenuWrap: {
+      position: 'relative',
+      zIndex: 50,
+    },
+    authDropdown: {
+      position: 'absolute',
+      top: 48,
+      left: 0,
+      width: 170,
+      backgroundColor: '#111116',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: '#292932',
+      paddingVertical: 6,
+      shadowColor: '#000',
+      shadowOpacity: 0.28,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 12,
+      zIndex: 100,
+    },
+    authDropdownItem: {
+      minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 15,
+      gap: 11,
+    },
+    authDropdownText: {
+      color: '#F1F1F5',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    authDropdownDivider: {
+      height: 1,
+      backgroundColor: '#24242B',
+      marginHorizontal: 12,
+    },
+
+    drawerOverlay: {
+      flex: 1,
+      flexDirection: 'row',
+      backgroundColor: 'rgba(0,0,0,0.48)',
+    },
+    drawerPanel: {
+      width: '86%',
+      height: '100%',
+      backgroundColor: '#101012',
+      paddingTop: 54,
+      paddingHorizontal: 24,
+      borderRightWidth: 1,
+      borderRightColor: '#24242A',
+    },
+    drawerDismissArea: {
+      flex: 1,
+    },
+    drawerHeader: {
+      minHeight: 54,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    drawerBrand: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: '#F3F3F6',
+      letterSpacing: -0.5,
+    },
+    drawerBrandAccent: {
+      color: '#A985FF',
+    },
+    drawerCloseButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#17171C',
+      borderWidth: 1,
+      borderColor: '#2A2A31',
+    },
+    drawerDivider: {
+      height: 1,
+      backgroundColor: '#29292F',
+      marginTop: 18,
+      marginBottom: 26,
+    },
+    drawerSection: {
+      gap: 6,
+    },
+    drawerItem: {
+      minHeight: 62,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 16,
+      paddingHorizontal: 10,
+    },
+    drawerIconWrap: {
+      width: 42,
+      height: 42,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#17171C',
+      borderWidth: 1,
+      borderColor: '#29292F',
+      marginRight: 14,
+    },
+    drawerItemText: {
+      color: '#F3F3F6',
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    drawerBottomArea: {
+      marginTop: 'auto',
+      paddingBottom: 42,
+      paddingTop: 22,
+      borderTopWidth: 1,
+      borderTopColor: '#29292F',
+    },
+    drawerBottomText: {
+      color: '#7F7F89',
+      fontSize: 13,
+    },
 });
+
+// RESPONSIVE_HOME_SAFE_V1

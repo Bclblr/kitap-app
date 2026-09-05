@@ -362,6 +362,7 @@ export default function BookScreen() {
           />
           <Text style={styles.backButtonText}>
             Keşfet'e dön
+
           </Text>
         </Pressable>
       </View>
@@ -1232,6 +1233,8 @@ const styles = StyleSheet.create({
 
   saveQuoteButton: {
     minWidth: 108,
+    flexShrink: 1,
+
     height: 42,
     paddingHorizontal: 15,
     borderRadius: 13,

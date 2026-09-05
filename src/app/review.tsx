@@ -242,10 +242,13 @@ export default function ReviewScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#0A0A0E',
   },
 
   content: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
     padding: 20,
     paddingBottom: 50,
   },
@@ -257,22 +260,22 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222',
+    color: '#C8B0F8',
   },
 
   pageTitle: {
     fontSize: 30,
     fontWeight: '700',
-    color: '#222',
+    color: '#F5F5F7',
     marginBottom: 22,
   },
 
   bookCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#17171F',
     borderRadius: 16,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#30303B',
   },
 
   bookLabel: {
@@ -285,7 +288,7 @@ const styles = StyleSheet.create({
   bookTitle: {
     fontSize: 19,
     fontWeight: '700',
-    color: '#222',
+    color: '#F5F5F7',
     lineHeight: 25,
   },
 
@@ -294,11 +297,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 18,
     fontWeight: '700',
-    color: '#222',
+    color: '#F5F5F7',
   },
 
   starsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
   },
 
@@ -312,7 +316,7 @@ const styles = StyleSheet.create({
   },
 
   selectedStar: {
-    color: '#222',
+    color: '#A985FF',
   },
 
   ratingLabel: {
@@ -324,14 +328,14 @@ const styles = StyleSheet.create({
 
   reviewInput: {
     minHeight: 190,
-    backgroundColor: '#FFF',
+    backgroundColor: '#17171F',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E2E2E2',
+    borderColor: '#30303B',
     padding: 15,
     fontSize: 15,
     lineHeight: 23,
-    color: '#333',
+    color: '#F5F5F7',
   },
 
   characterCount: {
@@ -345,7 +349,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     height: 55,
     borderRadius: 14,
-    backgroundColor: '#222',
+    backgroundColor: '#7157DD',
     justifyContent: 'center',
     alignItems: 'center',
   },

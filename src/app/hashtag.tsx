@@ -6,7 +6,7 @@ import {
   Image,
   Pressable,
   RefreshControl,
-  SafeAreaView,
+  View as SafeAreaView,
   StyleSheet,
   Text,
   TextInput,

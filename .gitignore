@@ -6,6 +6,8 @@ node_modules/
 # Expo
 .expo/
 dist/
+dist-reader-check/
+dist-native-check/
 web-build/
 expo-env.d.ts
 

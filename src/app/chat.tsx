@@ -1,11 +1,13 @@
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     ActivityIndicator,
     Alert,
     FlatList,
     KeyboardAvoidingView,
+    Keyboard,
     Platform,
     Pressable,
     StyleSheet,
@@ -15,6 +17,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+import ChatActions from '@/components/ChatActions';
 
 type Message = {
   id: string;
@@ -26,12 +29,24 @@ type Message = {
 };
 
 export default function ChatScreen() {
+  const insets = useSafeAreaInsets();
+  const list = useRef<FlatList<Message>>(null);
+  const sendLock = useRef(false);
+  const [blocked, setBlocked] = useState(true);
+  const [sendError, setSendError] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => { setKeyboardVisible(true); list.current?.scrollToEnd({ animated: true }); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const router = useRouter();
 
   const params = useLocalSearchParams<{
     conversationId?: string;
     userId?: string;
     username?: string;
+    reply?: string;
   }>();
 
   const conversationIdParam =
@@ -61,7 +76,7 @@ export default function ChatScreen() {
     useState<Message[]>([]);
 
   const [text, setText] =
-    useState('');
+    useState(params.reply ?? '');
 
   const [loading, setLoading] =
     useState(true);
@@ -502,7 +517,7 @@ export default function ChatScreen() {
     const cleanText =
       text.trim();
 
-    if (!cleanText) {
+    if (!cleanText || sendLock.current || blocked) {
       return;
     }
 
@@ -519,7 +534,9 @@ export default function ChatScreen() {
     }
 
     try {
+      sendLock.current = true;
       setSending(true);
+      setSendError(false);
 
       const { data, error } =
         await supabase
@@ -540,6 +557,7 @@ export default function ChatScreen() {
           .single();
 
       if (error) {
+        setSendError(true);
         console.error(
           'Mesaj gönderilemedi:',
           error
@@ -558,14 +576,14 @@ export default function ChatScreen() {
        */
       if (data) {
         setMessages(
-          previous => [
+            previous => previous.some(message => message.id === data.id) ? previous : [
             ...previous,
             data as Message,
           ]
         );
       }
 
-      setText('');
+      setText(current => current === text ? '' : current);
 
       /*
        * Konuşmanın güncellenme zamanını yenile.
@@ -581,6 +599,7 @@ export default function ChatScreen() {
           conversationId
         );
     } catch (error) {
+      setSendError(true);
       console.error(
         'Mesaj gönderme hatası:',
         error
@@ -591,6 +610,7 @@ export default function ChatScreen() {
         'Mesaj gönderilemedi.'
       );
     } finally {
+      sendLock.current = false;
       setSending(false);
     }
   }
@@ -616,8 +636,10 @@ export default function ChatScreen() {
 
   function renderMessage({
     item,
+    index,
   }: {
     item: Message;
+    index: number;
   }) {
     const isMine =
       item.sender_id ===
@@ -632,6 +654,7 @@ export default function ChatScreen() {
             : styles.otherMessageRow,
         ]}
       >
+        {(index === 0 || new Date(messages[index - 1].created_at).toDateString() !== new Date(item.created_at).toDateString()) && <Text style={{ color: '#999', alignSelf: 'center', marginVertical: 12 }}>{new Date(item.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>}
         <View
           style={[
             styles.messageBubble,
@@ -697,7 +720,7 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={
-        styles.container
+        [styles.container, { paddingBottom: keyboardVisible ? 0 : insets.bottom }]
       }
       behavior={
         Platform.OS === 'ios'
@@ -706,7 +729,7 @@ export default function ChatScreen() {
       }
       keyboardVerticalOffset={
         Platform.OS === 'ios'
-          ? 10
+          ? insets.top
           : 0
       }
     >
@@ -766,6 +789,7 @@ export default function ChatScreen() {
             Mesajlar
           </Text>
         </View>
+        <ChatActions conversationId={conversationId} onBlocked={setBlocked} />
       </View>
 
       {loading ? (
@@ -786,6 +810,11 @@ export default function ChatScreen() {
         </View>
       ) : (
         <FlatList
+          ref={list}
+          onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
+          onLayout={() => list.current?.scrollToEnd({ animated: false })}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           data={messages}
           keyExtractor={item =>
             item.id
@@ -835,26 +864,28 @@ export default function ChatScreen() {
         />
       )}
 
-      <View
-        style={
-          styles.inputContainer
-        }
-      >
+      {sendError && <Pressable accessibilityRole="button" onPress={sendMessage} disabled={sending || blocked} style={{ padding: 12 }}><Text style={{ color: '#FFB2B2' }}>Mesaj gönderilemedi. Yeniden göndermek için dokun.</Text></Pressable>}
+      <View style={styles.inputContainer}>
         <TextInput
           value={text}
           onChangeText={
             setText
           }
-          placeholder="Mesaj yaz..."
-          placeholderTextColor="#999"
+          editable={!blocked}
+          placeholder={blocked ? 'Mesaj gönderme kapalı' : 'Mesaj yaz...'}
+          placeholderTextColor="#777782"
           multiline
+          returnKeyType="send"
+          submitBehavior="submit"
+          onSubmitEditing={sendMessage}
+          keyboardAppearance="dark"
           maxLength={2000}
           style={
             styles.input
           }
         />
 
-        <Pressable onPress={sendMessage} style={styles.sendButton} >
+        <Pressable disabled={blocked || sending || !text.trim()} accessibilityLabel="Mesaj gönder" onPress={sendMessage} style={styles.sendButton} >
           <Text
             style={
               styles.sendButtonText
@@ -876,266 +907,245 @@ export default function ChatScreen() {
  * =====================================================
  */
 
-const styles =
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor:
-        '#F7F7F5',
-    },
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#09090D',
+  },
 
-    header: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      paddingTop: 18,
-      paddingHorizontal: 15,
-      paddingBottom: 14,
-      backgroundColor:
-        '#FFF',
-      borderBottomWidth: 1,
-      borderBottomColor:
-        '#E5E5E5',
-    },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 18,
+    paddingHorizontal: 14,
+    paddingBottom: 13,
+    backgroundColor: '#0D0D12',
+    borderBottomWidth: 1,
+    borderBottomColor: '#202028',
+  },
 
-    backButton: {
-      width: 40,
-      height: 40,
-      justifyContent:
-        'center',
-      alignItems:
-        'center',
-      marginRight: 5,
-    },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 7,
+    backgroundColor: '#15151C',
+    borderWidth: 1,
+    borderColor: '#24242D',
+  },
 
-    backText: {
-      fontSize: 38,
-      lineHeight: 40,
-      color: '#222',
-      fontWeight: '300',
-    },
+  backText: {
+    fontSize: 34,
+    lineHeight: 36,
+    color: '#F1F1F5',
+    fontWeight: '300',
+  },
 
-    headerAvatar: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      backgroundColor:
-        '#EEEEEA',
-      justifyContent:
-        'center',
-      alignItems:
-        'center',
-    },
+  headerAvatar: {
+    width: 43,
+    height: 43,
+    borderRadius: 22,
+    backgroundColor: '#1D1728',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#34264B',
+  },
 
-    headerAvatarText: {
-      fontSize: 20,
-    },
+  headerAvatarText: {
+    fontSize: 20,
+  },
 
-    headerInfo: {
-      flex: 1,
-      marginLeft: 10,
-    },
+  headerInfo: {
+    minWidth: 0,
+    flex: 1,
+    marginLeft: 11,
+  },
 
-    headerUsername: {
-      fontSize: 16,
-      fontWeight:
-        '700',
-      color: '#222',
-    },
+  headerUsername: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F4F4F6',
+  },
 
-    headerSubtitle: {
-      marginTop: 2,
-      fontSize: 11,
-      color: '#999',
-    },
+  headerSubtitle: {
+    marginTop: 2,
+    fontSize: 11,
+    color: '#85858F',
+  },
 
-    loadingContainer: {
-      flex: 1,
-      justifyContent:
-        'center',
-      alignItems:
-        'center',
-    },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-    loadingText: {
-      marginTop: 10,
-      color: '#777',
-      fontSize: 14,
-    },
+  loadingText: {
+    marginTop: 10,
+    color: '#8A8A94',
+    fontSize: 14,
+  },
 
-    messageList: {
-      paddingHorizontal: 15,
-      paddingVertical: 15,
-    },
+  messageList: {
+    paddingHorizontal: 14,
+    paddingTop: 16,
+    paddingBottom: 18,
+  },
 
-    emptyList: {
-      flexGrow: 1,
-      justifyContent:
-        'center',
-      paddingHorizontal: 30,
-    },
+  emptyList: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
 
-    emptyContainer: {
-      alignItems:
-        'center',
-    },
+  emptyContainer: {
+    alignItems: 'center',
+  },
 
-    emptyIcon: {
-      fontSize: 45,
-    },
+  emptyIcon: {
+    fontSize: 42,
+    opacity: 0.8,
+  },
 
-    emptyTitle: {
-      marginTop: 12,
-      fontSize: 18,
-      fontWeight:
-        '700',
-      color: '#222',
-    },
+  emptyTitle: {
+    marginTop: 12,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#F1F1F4',
+  },
 
-    messageMeta: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  marginTop: 3,
-},
+  emptyText: {
+    marginTop: 6,
+    color: '#85858F',
+    fontSize: 14,
+  },
 
-readStatus: {
-  marginLeft: 4,
-  fontSize: 12,
-  color: '#999',
-  fontWeight: '700',
-},
+  messageRow: {
+    width: '100%',
+    marginBottom: 9,
+  },
 
-readStatusRead: {
-  color: '#4A90E2',
-},
+  myMessageRow: {
+    alignItems: 'flex-end',
+  },
 
-    emptyText: {
-      marginTop: 6,
-      color: '#777',
-      fontSize: 14,
-    },
+  otherMessageRow: {
+    alignItems: 'flex-start',
+  },
 
-    messageRow: {
-      width: '100%',
-      marginBottom: 8,
-    },
+  messageBubble: {
+    maxWidth: '79%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+  },
 
-    myMessageRow: {
-      alignItems:
-        'flex-end',
-    },
+  myMessageBubble: {
+    backgroundColor: '#6F4ED8',
+    borderBottomRightRadius: 6,
+    borderWidth: 1,
+    borderColor: '#8062DD',
+  },
 
-    otherMessageRow: {
-      alignItems:
-        'flex-start',
-    },
+  otherMessageBubble: {
+    backgroundColor: '#15151B',
+    borderBottomLeftRadius: 6,
+    borderWidth: 1,
+    borderColor: '#26262F',
+  },
 
-    messageBubble: {
-      maxWidth: '78%',
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-      borderRadius: 17,
-    },
+  messageText: {
+    flexShrink: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
 
-    myMessageBubble: {
-      backgroundColor:
-        '#222',
-      borderBottomRightRadius:
-        5,
-    },
+  myMessageText: {
+    color: '#FFFFFF',
+  },
 
-    otherMessageBubble: {
-      backgroundColor:
-        '#FFF',
-      borderBottomLeftRadius:
-        5,
-      borderWidth: 1,
-      borderColor:
-        '#E5E5E5',
-    },
+  otherMessageText: {
+    color: '#E7E7EB',
+  },
 
-    messageText: {
-      fontSize: 14,
-      lineHeight: 20,
-    },
+  messageMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+  },
 
-    myMessageText: {
-      color: '#FFF',
-    },
+  messageTime: {
+    fontSize: 9,
+  },
 
-    otherMessageText: {
-      color: '#333',
-    },
+  myMessageTime: {
+    color: '#D9D0F7',
+    textAlign: 'right',
+  },
 
-    messageTime: {
-      marginTop: 4,
-      fontSize: 9,
-    },
+  otherMessageTime: {
+    color: '#777782',
+  },
 
-    myMessageTime: {
-      color: '#BBB',
-      textAlign:
-        'right',
-    },
+  readStatus: {
+    marginLeft: 4,
+    fontSize: 12,
+    color: '#D0C7ED',
+    fontWeight: '700',
+  },
 
-    otherMessageTime: {
-      color: '#999',
-    },
+  readStatusRead: {
+    color: '#D9CFFF',
+  },
 
-    inputContainer: {
-      flexDirection:
-        'row',
-      alignItems:
-        'flex-end',
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      backgroundColor:
-        '#FFF',
-      borderTopWidth: 1,
-      borderTopColor:
-        '#E5E5E5',
-    },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
+    backgroundColor: '#0D0D12',
+    borderTopWidth: 1,
+    borderTopColor: '#202028',
+  },
 
-    input: {
-      flex: 1,
-      maxHeight: 110,
-      minHeight: 44,
-      backgroundColor:
-        '#F7F7F5',
-      borderRadius: 22,
-      paddingHorizontal: 16,
-      paddingVertical: 11,
-      fontSize: 14,
-      color: '#333',
-      borderWidth: 1,
-      borderColor:
-        '#E5E5E5',
-    },
+  input: {
+    flex: 1,
+    minWidth: 0,
+    maxHeight: 110,
+    minHeight: 46,
+    backgroundColor: '#15151B',
+    borderRadius: 23,
+    paddingHorizontal: 17,
+    paddingVertical: 11,
+    fontSize: 14,
+    color: '#F2F2F5',
+    borderWidth: 1,
+    borderColor: '#292932',
+  },
 
-    sendButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor:
-        '#222',
-      justifyContent:
-        'center',
-      alignItems:
-        'center',
-      marginLeft: 8,
-    },
+  sendButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#6F4ED8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#8062DD',
+  },
 
-    sendButtonDisabled: {
-      opacity: 0.4,
-    },
+  sendButtonDisabled: {
+    opacity: 0.4,
+  },
 
-    sendButtonText: {
-      color: '#FFF',
-      fontSize: 20,
-      fontWeight:
-        '700',
-    },
-  });
-
+  sendButtonText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+});

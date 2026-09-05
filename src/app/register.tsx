@@ -1,274 +1,213 @@
+import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    Alert,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 
 export default function RegisterScreen() {
   const router = useRouter();
-
   const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleRegister() {
     const cleanUsername = username.trim();
-    const cleanFullName = fullName.trim();
     const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanFullName || !cleanUsername || !cleanEmail || !password) {
-      Alert.alert(
-        'Eksik bilgi',
-        'Lütfen tüm alanları doldur.'
-      );
+    if (!cleanUsername || !cleanEmail || !password) {
+      Alert.alert('Eksik bilgi', 'Lütfen tüm alanları doldur.');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert(
-        'Şifre çok kısa',
-        'Şifren en az 6 karakter olmalı.'
-      );
+      Alert.alert('Şifre çok kısa', 'Şifren en az 6 karakter olmalı.');
       return;
     }
 
     setLoading(true);
-
     try {
-      const { data, error } =
-        await supabase.auth.signUp({
-          email: cleanEmail,
-          password,
-          options: {
-            data: {
-              username: cleanUsername,
-              full_name: cleanFullName,
-            },
-          },
-        });
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: { data: { username: cleanUsername } },
+      });
 
       if (error) {
-        Alert.alert(
-          'Kayıt başarısız',
-          error.message
-        );
+        Alert.alert('Kayıt başarısız', error.message);
         return;
       }
 
       if (!data.user) {
-        Alert.alert(
-          'Kayıt başarısız',
-          'Kullanıcı oluşturulamadı.'
-        );
+        Alert.alert('Kayıt başarısız', 'Kullanıcı oluşturulamadı.');
         return;
       }
 
-      // Kullanıcı oturumu oluştuysa profil oluştur
       if (data.session) {
-        const { error: profileError } =
-          await supabase
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              full_name: cleanFullName,
-              username: cleanUsername,
-              bio: 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚',
-            });
-
-        if (profileError) {
-          console.error(
-            'Profil oluşturulamadı:',
-            profileError
-          );
-        }
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: data.user.id,
+          username: cleanUsername,
+          bio: 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚',
+        });
+        if (profileError) console.error('Profil oluşturulamadı:', profileError);
       }
 
       Alert.alert(
         'Kayıt başarılı 🎉',
-        data.session
-          ? 'Hesabın oluşturuldu.'
-          : 'Hesabın oluşturuldu. E-postanı kontrol et.',
-        [
-          {
-            text: 'Tamam',
-            onPress: () =>
-              router.replace('/login'),
-          },
-        ]
+        data.session ? 'Hesabın oluşturuldu.' : 'Hesabın oluşturuldu. E-postanı kontrol et.',
+        [{ text: 'Tamam', onPress: () => router.replace('/login') }]
       );
     } catch (error) {
       console.error(error);
-
-      Alert.alert(
-        'Hata',
-        'Kayıt sırasında bir hata oluştu.'
-      );
+      Alert.alert('Hata', 'Kayıt sırasında bir hata oluştu.');
     } finally {
       setLoading(false);
     }
   }
 
+  function pendingProvider(provider: 'Google' | 'Apple') {
+    Alert.alert(provider, provider + ' ile kayıt altyapısını birazdan bağlayacağız.');
+  }
+
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.logo}>📚</Text>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Feather name="arrow-left" size={22} color="#F1F1F5" />
+          </Pressable>
+        </View>
 
-        <Text style={styles.title}>
-          Hesap Oluştur
-        </Text>
+        <View style={styles.brandWrap}>
+          <View style={styles.logoMark}>
+            <Feather name="user-plus" size={28} color="#A985FF" />
+          </View>
+          <Text style={styles.brandTitle}>1000<Text style={styles.brandAccent}>Kitap</Text></Text>
+          <Text style={styles.brandSubtitle}>Okuyanların topluluğuna katıl.</Text>
+        </View>
 
-        <Text style={styles.subtitle}>
-          Kitap dünyasına katıl
-        </Text>
+        <View style={styles.card}>
+          <Text style={styles.title}>Hesap Oluştur</Text>
+          <Text style={styles.subtitle}>Sana en uygun kayıt yöntemini seç.</Text>
 
-        <TextInput
-          value={fullName}
-          onChangeText={setFullName}
-          placeholder="Ad soyad"
-          placeholderTextColor="#999"
-          autoCapitalize="words"
-          style={styles.input}
-        />
+          <Pressable onPress={() => pendingProvider('Google')} style={styles.providerButton}>
+            <Text style={styles.providerLetter}>G</Text>
+            <Text style={styles.providerText}>Google ile kaydol</Text>
+          </Pressable>
 
-        <TextInput
-          value={username}
-          onChangeText={setUsername}
-          placeholder="Kullanıcı adı"
-          placeholderTextColor="#999"
-          autoCapitalize="none"
-          style={styles.input}
-        />
+          <Pressable onPress={() => pendingProvider('Apple')} style={styles.providerButton}>
+            <Feather name="smartphone" size={19} color="#F4F4F7" />
+            <Text style={styles.providerText}>Apple ile kaydol</Text>
+          </Pressable>
 
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          placeholder="E-posta"
-          placeholderTextColor="#999"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={styles.input}
-        />
+          <View style={styles.orRow}>
+            <View style={styles.orLine} />
+            <Text style={styles.orText}>veya</Text>
+            <View style={styles.orLine} />
+          </View>
 
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Şifre"
-          placeholderTextColor="#999"
-          secureTextEntry
-          style={styles.input}
-        />
+          <Text style={styles.label}>Kullanıcı adı</Text>
+          <View style={styles.inputWrap}>
+            <Feather name="user" size={18} color="#777783" />
+            <TextInput
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Kullanıcı adın"
+              placeholderTextColor="#686873"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+          </View>
 
-        <Pressable
-          onPress={handleRegister}
-          disabled={loading}
-          style={[
-            styles.button,
-            loading && styles.disabledButton,
-          ]}
-        >
-          <Text style={styles.buttonText}>
-            {loading
-              ? 'Kayıt yapılıyor...'
-              : 'Kayıt Ol'}
-          </Text>
-        </Pressable>
+          <Text style={styles.label}>E-posta</Text>
+          <View style={styles.inputWrap}>
+            <Feather name="mail" size={18} color="#777783" />
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="ornek@email.com"
+              placeholderTextColor="#686873"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.input}
+            />
+          </View>
 
-        <Pressable
-          onPress={() =>
-            router.replace('/login')
-          }
-          style={styles.linkButton}
-        >
-          <Text style={styles.linkText}>
-            Zaten hesabın var mı? Giriş yap
-          </Text>
-        </Pressable>
-      </View>
-    </View>
+          <Text style={styles.label}>Şifre</Text>
+          <View style={styles.inputWrap}>
+            <Feather name="lock" size={18} color="#777783" />
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="En az 6 karakter"
+              placeholderTextColor="#686873"
+              secureTextEntry
+              style={styles.input}
+            />
+          </View>
+
+          <Pressable
+            onPress={handleRegister}
+            disabled={loading}
+            style={({ pressed }) => [
+              styles.button,
+              loading && styles.disabledButton,
+              pressed && !loading && styles.buttonPressed,
+            ]}
+          >
+            <Text style={styles.buttonText}>{loading ? 'Kayıt yapılıyor...' : 'E-posta ile Kaydol'}</Text>
+          </Pressable>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.switchText}>Zaten hesabın var mı?</Text>
+            <Pressable onPress={() => router.replace('/login')}>
+              <Text style={styles.switchLink}> Giriş Yap</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F7F7F5',
-    justifyContent: 'center',
-    padding: 20,
-  },
-
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 24,
-  },
-
-  logo: {
-    fontSize: 45,
-    textAlign: 'center',
-  },
-
-  title: {
-    marginTop: 10,
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#222',
-    textAlign: 'center',
-  },
-
-  subtitle: {
-    marginTop: 6,
-    marginBottom: 25,
-    color: '#777',
-    textAlign: 'center',
-  },
-
-  input: {
-    height: 52,
-    backgroundColor: '#F7F7F5',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    marginBottom: 12,
-    color: '#222',
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-  },
-
-  button: {
-    height: 52,
-    borderRadius: 12,
-    backgroundColor: '#222',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-
-  disabledButton: {
-    opacity: 0.6,
-  },
-
-  buttonText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-
-  linkButton: {
-    marginTop: 18,
-    alignItems: 'center',
-  },
-
-  linkText: {
-    color: '#555',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#09090D' },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 32 },
+  topBar: { paddingTop: 18, minHeight: 62, justifyContent: 'center' },
+  backButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: '#24242C', backgroundColor: '#111116', alignItems: 'center', justifyContent: 'center' },
+  brandWrap: { alignItems: 'center', marginTop: 18, marginBottom: 24 },
+  logoMark: { width: 60, height: 60, borderRadius: 19, backgroundColor: '#17121F', borderWidth: 1, borderColor: '#2E2340', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  brandTitle: { fontSize: 29, fontWeight: '800', color: '#F5F5F8', letterSpacing: -0.7 },
+  brandAccent: { color: '#A985FF' },
+  brandSubtitle: { marginTop: 7, fontSize: 13, color: '#85858F' },
+  card: { backgroundColor: '#111116', borderRadius: 24, borderWidth: 1, borderColor: '#23232B', padding: 20 },
+  title: { fontSize: 25, fontWeight: '800', color: '#F4F4F7' },
+  subtitle: { marginTop: 7, marginBottom: 20, fontSize: 14, color: '#85858F' },
+  providerButton: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 11, backgroundColor: '#0C0C11', borderWidth: 1, borderColor: '#2B2B34', borderRadius: 15, marginBottom: 10 },
+  providerLetter: { color: '#F4F4F7', fontSize: 18, fontWeight: '900' },
+  providerText: { color: '#F2F2F5', fontSize: 14, fontWeight: '700' },
+  orRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 14 },
+  orLine: { flex: 1, height: 1, backgroundColor: '#292932' },
+  orText: { color: '#666672', fontSize: 12, fontWeight: '700' },
+  label: { marginBottom: 8, fontSize: 12, fontWeight: '700', color: '#B5B5BE' },
+  inputWrap: { height: 54, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: '#0C0C11', borderRadius: 15, borderWidth: 1, borderColor: '#292932', paddingHorizontal: 15, marginBottom: 17 },
+  input: { flex: 1, height: '100%', color: '#F2F2F5', fontSize: 15 },
+  button: { height: 54, borderRadius: 15, backgroundColor: '#A985FF', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  buttonPressed: { opacity: 0.84 },
+  disabledButton: { opacity: 0.55 },
+  buttonText: { color: '#0B0710', fontSize: 15, fontWeight: '800' },
+  switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 21 },
+  switchText: { color: '#85858F', fontSize: 14 },
+  switchLink: { color: '#A985FF', fontSize: 14, fontWeight: '800' },
 });

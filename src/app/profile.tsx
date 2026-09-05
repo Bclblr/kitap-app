@@ -1,4 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
+import WorksList from '@/components/WorksList';
+import { Action } from '@/components/ReaderUI';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -36,8 +38,8 @@ type Comment = {
 };
 
 type ProfileData = {
+  fullName?: string;
   id: string;
-  fullName: string;
   username: string;
   bio: string;
   profileImage: string | null;
@@ -89,7 +91,6 @@ type FeedItem = {
 
 const DEFAULT_PROFILE: ProfileData = {
   id: '',
-  fullName: '',
   username: 'Kitap Okuru',
   bio: 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚',
   profileImage: null,
@@ -97,6 +98,7 @@ const DEFAULT_PROFILE: ProfileData = {
 };
 
 export default function ProfileScreen() {
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const router = useRouter();
 
   const { userId } = useLocalSearchParams<{
@@ -111,7 +113,6 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
 
   const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
 
   const [loading, setLoading] = useState(true);
@@ -192,7 +193,7 @@ export default function ProfileScreen() {
         await supabase
           .from('profiles')
           .select(
-            'id, full_name, username, bio, profile_image, cover_image'
+            'id, username, full_name, bio, profile_image, cover_image'
           )
           .eq('id', targetUserId)
           .maybeSingle();
@@ -213,7 +214,6 @@ export default function ProfileScreen() {
 
         const newProfile = {
           id: targetUserId,
-          full_name: '',
           username: DEFAULT_PROFILE.username,
           bio: DEFAULT_PROFILE.bio,
           profile_image: null,
@@ -239,12 +239,12 @@ export default function ProfileScreen() {
       setProfile({
   id: data.id,
 
-  fullName:
-    data.full_name || '',
-
   username:
     data.username ||
     DEFAULT_PROFILE.username,
+
+  fullName:
+    data.full_name || '',
 
   bio:
     data.bio ??
@@ -1563,7 +1563,6 @@ export default function ProfileScreen() {
    */
 
   function startEditing() {
-    setFullName(profile.fullName);
     setUsername(
       profile.username
     );
@@ -1578,9 +1577,6 @@ export default function ProfileScreen() {
   async function handleSaveProfile() {
     const cleanUsername =
       username.trim();
-
-    const cleanFullName =
-      fullName.trim();
 
     const cleanBio =
       bio.trim();
@@ -1608,9 +1604,6 @@ export default function ProfileScreen() {
       {
         ...profile,
 
-        fullName:
-          cleanFullName,
-
         username:
           cleanUsername,
 
@@ -1626,9 +1619,6 @@ export default function ProfileScreen() {
         {
           id:
             loggedInUserId,
-
-          full_name:
-            cleanFullName || null,
 
           username:
             cleanUsername,
@@ -1817,9 +1807,6 @@ export default function ProfileScreen() {
           id:
             loggedInUserId,
 
-          full_name:
-            profile.fullName || null,
-
           username:
             profile.username,
 
@@ -1909,9 +1896,6 @@ export default function ProfileScreen() {
         {
           id:
             loggedInUserId,
-
-          full_name:
-            profile.fullName || null,
 
           username:
             profile.username,
@@ -2200,7 +2184,7 @@ export default function ProfileScreen() {
         {/* KAPAK + PROFİL ÜST BİLGİ */}
         <View style={styles.profileHero}>
           <Pressable
-            onPress={isOwnProfile ? chooseCoverImage : undefined}
+            disabled
             style={styles.coverContainer}
           >
             {profile.coverImage ? (
@@ -2211,15 +2195,11 @@ export default function ProfileScreen() {
                 {isOwnProfile && <Text style={styles.coverText}>Kapak fotoğrafı ekle</Text>}
               </View>
             )}
-            <View style={styles.coverShade} />
-            {isOwnProfile && (
-              <View style={styles.coverCamera}><Text style={styles.cameraText}>📷</Text></View>
-            )}
           </Pressable>
 
           <View style={styles.identityRow}>
             <Pressable
-              onPress={isOwnProfile ? chooseProfileImage : undefined}
+              onPress={() => setAvatarOpen(true)}
               style={styles.profileImageContainer}
             >
               {profile.profileImage ? (
@@ -2227,16 +2207,15 @@ export default function ProfileScreen() {
               ) : (
                 <View style={styles.profilePlaceholder}><Text style={styles.profileIcon}>👤</Text></View>
               )}
-              {isOwnProfile && (
-                <View style={styles.profileCamera}><Text style={styles.cameraText}>📷</Text></View>
-              )}
             </Pressable>
 
             {!editing && (
               <View style={styles.identityInfo}>
                 <View style={styles.nameRow}>
-                  <Text style={styles.username} numberOfLines={1}>{profile.fullName || profile.username}</Text>
-                </View>
+          <Text style={styles.fullName} numberOfLines={1}>
+            {profile.fullName || 'Ad Soyad'}
+          </Text>
+        </View>
                 <Text style={styles.handle}>@{profile.username.toLowerCase().replace(/\s+/g, '')}</Text>
                 <View style={styles.verifiedRow}>
                   <Text style={styles.verifiedIcon}>✦</Text>
@@ -2247,21 +2226,14 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {editing ? (
-            <View style={styles.editArea}>
-              <Text style={styles.inputLabel}>Ad soyad</Text>
-              <TextInput value={fullName} onChangeText={setFullName} placeholder="Adın ve soyadın" placeholderTextColor="#777" style={styles.input} maxLength={50} />
-              <Text style={styles.inputLabel}>Kullanıcı adı</Text>
-              <TextInput value={username} onChangeText={setUsername} placeholder="Kullanıcı adın" placeholderTextColor="#777" style={styles.input} maxLength={30} />
-              <Text style={styles.inputLabel}>Biyografi</Text>
-              <TextInput value={bio} onChangeText={setBio} placeholder="Kendinden bahset..." placeholderTextColor="#777" style={[styles.input, styles.bioInput]} multiline maxLength={150} />
-              <View style={styles.editButtons}>
-                <Pressable onPress={() => setEditing(false)} style={styles.cancelButton}><Text style={styles.cancelText}>Vazgeç</Text></Pressable>
-                <Pressable onPress={handleSaveProfile} style={styles.saveButton}><Text style={styles.saveText}>Kaydet</Text></Pressable>
-              </View>
-            </View>
-          ) : isOwnProfile ? (
-            <Pressable onPress={startEditing} style={styles.editButton}><Text style={styles.editButtonText}>✏️ Profili Düzenle</Text></Pressable>
+          {editing ? null : isOwnProfile ? (
+            <Pressable
+              onPress={() => router.push('/profile-settings')}
+              style={styles.settingsButton}
+              accessibilityLabel="Profil ayarları"
+            >
+              <Text style={styles.settingsButtonText}>⚙</Text>
+            </Pressable>
           ) : (
             <View style={styles.profileActions}>
               <Pressable onPress={toggleFollow} disabled={followLoading} style={[styles.followButton, isFollowing && styles.followingButton]}>
@@ -2279,130 +2251,31 @@ export default function ProfileScreen() {
         </View>
 
         {/* İSTATİSTİKLER */}
+        <View style={styles.stats}>
+          <Pressable onPress={() => router.push({ pathname: '/readers', params: { id: profile.id, mode: 'followers' } })} style={styles.stat}>
+            <Text style={styles.statNumber}>{followerCount}</Text>
+            <Text style={styles.statLabel}>Takipçi</Text>
+          </Pressable>
 
-        <View
-          style={
-            styles.stats
-          }
-        >
-          <View
-            style={
-              styles.stat
-            }
-          >
-            <Text
-              style={
-                styles.statNumber
-              }
-            >
-              {
-                bookCount
-              }
-            </Text>
+          <View style={styles.statDivider} />
 
-            <Text
-              style={
-                styles.statLabel
-              }
-            >
-              Kitap
-            </Text>
+          <Pressable onPress={() => router.push({ pathname: '/readers', params: { id: profile.id, mode: 'following' } })} style={styles.stat}>
+            <Text style={styles.statNumber}>{followingCount}</Text>
+            <Text style={styles.statLabel}>Takip</Text>
+          </Pressable>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>{quoteCount}</Text>
+            <Text style={styles.statLabel}>Alıntı</Text>
           </View>
 
-          <View
-            style={
-              styles.stat
-            }
-          >
-            <Text
-              style={
-                styles.statNumber
-              }
-            >
-              {
-                reviewCount
-              }
-            </Text>
+          <View style={styles.statDivider} />
 
-            <Text
-              style={
-                styles.statLabel
-              }
-            >
-              İnceleme
-            </Text>
-          </View>
-
-          <View
-            style={
-              styles.stat
-            }
-          >
-            <Text
-              style={
-                styles.statNumber
-              }
-            >
-              {
-                followerCount
-              }
-            </Text>
-
-            <Text
-              style={
-                styles.statLabel
-              }
-            >
-              Takipçi
-            </Text>
-          </View>
-
-          <View
-            style={
-              styles.stat
-            }
-          >
-            <Text
-              style={
-                styles.statNumber
-              }
-            >
-              {
-                followingCount
-              }
-            </Text>
-
-            <Text
-              style={
-                styles.statLabel
-              }
-            >
-              Takip
-            </Text>
-          </View>
-
-          <View
-            style={
-              styles.stat
-            }
-          >
-            <Text
-              style={
-                styles.statNumber
-              }
-            >
-              {
-                quoteCount
-              }
-            </Text>
-
-            <Text
-              style={
-                styles.statLabel
-              }
-            >
-              Alıntı
-            </Text>
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>{reviewCount}</Text>
+            <Text style={styles.statLabel}>İnceleme</Text>
           </View>
         </View>
 
@@ -2864,7 +2737,17 @@ export default function ProfileScreen() {
             )
           )}
         </View>
+        <View style={{ padding: 16, gap: 12 }}>
+          {isOwnProfile && <Action label="Yazdıklarım / Kitap yaz" onPress={() => router.push('/my-works')} />}
+          {profile.id && <WorksList authorId={profile.id} />}
+        </View>
       </ScrollView>
+      <Modal visible={avatarOpen} transparent animationType="fade" onRequestClose={() => setAvatarOpen(false)}>
+        <Pressable accessibilityLabel="Profil fotoğrafını kapat" onPress={() => setAvatarOpen(false)} style={{ flex: 1, backgroundColor: '#000E', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          {profile.profileImage ? <Image source={{ uri: profile.profileImage }} resizeMode="contain" style={{ width: '100%', maxWidth: 600, aspectRatio: 1 }} /> : <Text style={{ color: '#fff' }}>Profil fotoğrafı yok</Text>}
+          <Text style={{ color: '#fff', padding: 20 }}>Kapat ×</Text>
+        </Pressable>
+      </Modal>
 
       {/* =======================================================
           İNCELEME MODALI
@@ -3242,13 +3125,20 @@ const styles = StyleSheet.create({
   coverCamera: { position: 'absolute', right: 16, top: 14, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(15,16,22,0.88)', justifyContent: 'center', alignItems: 'center' },
   cameraText: { fontSize: 17 },
   identityRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: -74, paddingHorizontal: 20, zIndex: 3 },
-  profileImageContainer: { width: 138, height: 138, borderRadius: 69, borderWidth: 3, borderColor: '#7C63E6', backgroundColor: '#090A0F', padding: 4, position: 'relative', flexShrink: 0 },
-  profileImage: { width: 124, height: 124, borderRadius: 62 },
-  profilePlaceholder: { width: 124, height: 124, borderRadius: 62, backgroundColor: '#1A1B23', justifyContent: 'center', alignItems: 'center' },
+  profileImageContainer: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: '#7C63E6', backgroundColor: '#090A0F', padding: 4, position: 'relative', flexShrink: 0 },
+  profileImage: { width: 82, height: 82, borderRadius: 41 },
+  profilePlaceholder: { width: 82, height: 82, borderRadius: 41, backgroundColor: '#1A1B23', justifyContent: 'center', alignItems: 'center' },
   profileIcon: { fontSize: 48 },
   profileCamera: { position: 'absolute', right: -2, bottom: 4, width: 36, height: 36, borderRadius: 18, backgroundColor: '#20212A', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#090A0F' },
-  identityInfo: { flex: 1, paddingLeft: 18, paddingTop: 70, minHeight: 150 },
+  identityInfo: { flex: 1, minWidth: 0, paddingLeft: 12, paddingTop: 78, minHeight: 150 },
   nameRow: { flexDirection: 'row', alignItems: 'center' },
+  fullName: {
+    flexShrink: 1,
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '800',
+    color: '#F5F5F7',
+  },
   username: { flexShrink: 1, fontSize: 24, lineHeight: 30, fontWeight: '800', color: '#F5F5F7' },
   handle: { marginTop: 3, fontSize: 14, color: '#B5B5BE' },
   verifiedRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
@@ -3267,6 +3157,24 @@ const styles = StyleSheet.create({
   cancelText: { color: '#B0B0BA', fontWeight: '600' },
   saveButton: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, backgroundColor: '#7C63E6' },
   saveText: { color: '#FFF', fontWeight: '700' },
+  settingsButton: {
+    position: 'absolute',
+    right: 18,
+    top: 138,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1B1C23',
+    borderWidth: 1,
+    borderColor: '#2A2B34',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  settingsButtonText: {
+    fontSize: 22,
+    color: '#F5F5F7',
+  },
   editButton: { marginTop: 16, marginHorizontal: 20, minHeight: 46, borderRadius: 23, backgroundColor: '#7C63E6', justifyContent: 'center', alignItems: 'center' },
   editButtonText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
   followButton: { flex: 1, minHeight: 48, borderRadius: 24, backgroundColor: '#7157DD', justifyContent: 'center', alignItems: 'center' },
@@ -3276,28 +3184,41 @@ const styles = StyleSheet.create({
 
   stats: {
     flexDirection: 'row',
-    marginTop: 25,
-    marginHorizontal: 15,
-    justifyContent: 'space-around',
-    paddingVertical: 18,
-    backgroundColor: '#FFF',
-    borderRadius: 18,
+    alignItems: 'center',
+    marginTop: 18,
+    marginHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
   },
 
   stat: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+
+  statDivider: {
+    width: 1,
+    height: 34,
+    backgroundColor: '#34353F',
   },
 
   statNumber: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#222',
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '800',
+    color: '#F5F5F7',
+    textAlign: 'center',
   },
 
   statLabel: {
     marginTop: 4,
     fontSize: 11,
-    color: '#8E8E98',
+    lineHeight: 15,
+    color: '#9A9AA4',
+    textAlign: 'center',
   },
 
   section: {
@@ -3308,13 +3229,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 21,
     fontWeight: '700',
-    color: '#222',
+    color: '#F5F5F7',
     marginBottom: 12,
   },
 
   emptyCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#15161D',
     borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#25262F',
     padding: 25,
     alignItems: 'center',
   },
@@ -3327,7 +3250,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 17,
     fontWeight: '700',
-    color: '#222',
+    color: '#F5F5F7',
   },
 
   emptyText: {
@@ -3342,8 +3265,10 @@ const styles = StyleSheet.create({
    */
 
   feedCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#15161D',
     borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#25262F',
     padding: 18,
     marginBottom: 12,
   },
@@ -3363,12 +3288,12 @@ const styles = StyleSheet.create({
   feedType: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#B0B0BA',
+    color: '#A98BFF',
   },
 
   feedDate: {
     fontSize: 11,
-    color: '#999',
+    color: '#8E8E98',
   },
 
   bookHeader: {
@@ -3380,14 +3305,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 17,
     fontWeight: '700',
-    color: '#222',
+    color: '#F5F5F7',
     lineHeight: 23,
   },
 
   openBookText: {
     marginLeft: 8,
     fontSize: 28,
-    color: '#999',
+    color: '#A98BFF',
     lineHeight: 30,
   },
 
@@ -3400,35 +3325,35 @@ const styles = StyleSheet.create({
   stars: {
     fontSize: 17,
     letterSpacing: 2,
-    color: '#222',
+    color: '#A98BFF',
   },
 
   ratingText: {
     marginLeft: 8,
     fontSize: 13,
     fontWeight: '600',
-    color: '#8E8E98',
+    color: '#A7A7B0',
   },
 
   feedText: {
     marginTop: 12,
     fontSize: 15,
     lineHeight: 22,
-    color: '#D4D4DA',
+    color: '#E0E0E5',
   },
 
   quoteText: {
     marginTop: 15,
     fontSize: 17,
     lineHeight: 27,
-    color: '#D4D4DA',
+    color: '#E0E0E5',
     fontStyle: 'italic',
   },
 
   postUsername: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#E7E7EB',
+    color: '#F5F5F7',
     marginBottom: 7,
   },
 
@@ -3437,20 +3362,22 @@ const styles = StyleSheet.create({
     height: 260,
     borderRadius: 14,
     marginTop: 14,
-    backgroundColor: '#EEE',
+    backgroundColor: '#20212A',
   },
 
   attachedBook: {
     marginTop: 14,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#181920',
+    backgroundColor: '#1B1C24',
+    borderWidth: 1,
+    borderColor: '#292A33',
   },
 
   attachedBookText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#E7E7EB',
+    color: '#F5F5F7',
   },
 
   attachedRating: {
@@ -3473,7 +3400,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 9,
-    backgroundColor: '#1B1C24',
+    backgroundColor: '#20212A',
+    borderWidth: 1,
+    borderColor: '#2B2C35',
   },
 
   repostHeader: {
@@ -3489,7 +3418,7 @@ const styles = StyleSheet.create({
   repostText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#B0B0BA',
+    color: '#A98BFF',
   },
 
   repostDate: {

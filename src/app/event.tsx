@@ -5,7 +5,7 @@ import {
   Alert,
   Image,
   Pressable,
-  SafeAreaView,
+  View as SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -388,6 +388,7 @@ const styles = StyleSheet.create({
   },
   attendanceInfo: {
     flex: 1,
+    minWidth: 0,
     paddingLeft: 2,
     paddingVertical: 4,
     marginRight: 10,
