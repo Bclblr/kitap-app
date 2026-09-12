@@ -46,7 +46,12 @@ export default function RegisterScreen() {
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
-        options: { data: { username: cleanUsername } },
+        options: {
+          data: {
+            username: cleanUsername,
+            onboarding_pending: true,
+          },
+        },
       });
 
       if (error) {
@@ -60,11 +65,14 @@ export default function RegisterScreen() {
       }
 
       if (data.session) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: data.user.id,
-          username: cleanUsername,
-          bio: 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚',
-        });
+        const { error: profileError } = await supabase.from('profiles').upsert(
+          {
+            id: data.user.id,
+            username: cleanUsername,
+            bio: 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚',
+          },
+          { onConflict: 'id' }
+        );
         if (profileError) console.error('Profil oluşturulamadı:', profileError);
       }
 
@@ -76,9 +84,7 @@ export default function RegisterScreen() {
         return;
       }
 
-      Alert.alert('Kayıt başarılı 🎉', 'Hesabın oluşturuldu.', [
-        { text: 'Tamam', onPress: () => router.replace('/') },
-      ]);
+      router.replace('/onboarding');
     } catch (error) {
       console.error(error);
       Alert.alert('Hata', 'Kayıt sırasında bir hata oluştu.');
@@ -94,7 +100,7 @@ export default function RegisterScreen() {
       const session = await signInWithGoogle();
 
       if (session) {
-        router.replace('/');
+        router.replace('/onboarding');
       }
     } catch (error) {
       console.error('Google register error:', error);
@@ -117,7 +123,7 @@ export default function RegisterScreen() {
       const session = await signInWithApple();
 
       if (session) {
-        router.replace('/');
+        router.replace('/onboarding');
       }
     } catch (error) {
       const errorCode =
@@ -218,7 +224,7 @@ export default function RegisterScreen() {
               value={password}
               keyboardAppearance={scheme}
               onChangeText={setPassword}
-              placeholder="En az 6 karakter"
+              placeholder="En az 8 karakter"
               placeholderTextColor="#686873"
               secureTextEntry
               style={styles.input}
