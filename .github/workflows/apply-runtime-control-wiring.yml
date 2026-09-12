@@ -1,0 +1,43 @@
+name: Apply runtime control wiring
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-runtime-control-wiring.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Wire search analytics and hashtag controls
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/app/explore.tsx')
+          s=p.read_text(encoding='utf-8')
+          old="""    const searchText = query.trim();\n    if (!searchText) return;\n\n    const requestId = ++searchRequestIdRef.current;"""
+          new="""    const searchText = query.trim();\n    if (!searchText) return;\n\n    void supabase.rpc('log_search_event', {\n      p_query: searchText,\n      p_scope: 'explore',\n      p_result_count: 0,\n    });\n\n    const requestId = ++searchRequestIdRef.current;"""
+          if old in s and "log_search_event" not in s:
+              s=s.replace(old,new,1)
+          old2="""      const rows: any[] = Array.isArray(data) ? data : [];\n      setTrendingHashtags(\n        rows\n          .map((row) => ({"""
+          new2="""      const rows: any[] = Array.isArray(data) ? data : [];\n      const { data: hashtagControls } = await supabase\n        .from('hashtag_controls')\n        .select('tag,blocked,featured,priority');\n      const controlMap = new Map(\n        (hashtagControls ?? []).map((item: any) => [String(item.tag), item])\n      );\n      setTrendingHashtags(\n        rows\n          .map((row) => ({"""
+          if old2 in s and "hashtagControls" not in s:
+              s=s.replace(old2,new2,1)
+          old3="""          .filter((item) => item.hashtag)\n          .slice(0, 10)"""
+          new3="""          .filter((item) => item.hashtag && !controlMap.get(item.hashtag)?.blocked)\n          .sort((a, b) => {\n            const ac = controlMap.get(a.hashtag);\n            const bc = controlMap.get(b.hashtag);\n            return Number(bc?.featured ?? false) - Number(ac?.featured ?? false)\n              || Number(bc?.priority ?? 0) - Number(ac?.priority ?? 0)\n              || b.mention_count - a.mention_count;\n          })\n          .slice(0, 10)"""
+          if old3 in s and "controlMap.get(item.hashtag)?.blocked" not in s:
+              s=s.replace(old3,new3,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/explore.tsx
+          git commit -m "Wire runtime controls into explore"
+          git push
