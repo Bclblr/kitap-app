@@ -36,8 +36,8 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Şifre çok kısa', 'Şifren en az 6 karakter olmalı.');
+    if (password.length < 8) {
+      Alert.alert('Şifre çok kısa', 'Şifren en az 8 karakter olmalı.');
       return;
     }
 
@@ -68,11 +68,17 @@ export default function RegisterScreen() {
         if (profileError) console.error('Profil oluşturulamadı:', profileError);
       }
 
-      Alert.alert(
-        'Kayıt başarılı 🎉',
-        data.session ? 'Hesabın oluşturuldu.' : 'Hesabın oluşturuldu. E-postanı kontrol et.',
-        [{ text: 'Tamam', onPress: () => router.replace('/login') }]
-      );
+      if (!data.session) {
+        router.replace({
+          pathname: '/verify-email',
+          params: { email: cleanEmail },
+        });
+        return;
+      }
+
+      Alert.alert('Kayıt başarılı 🎉', 'Hesabın oluşturuldu.', [
+        { text: 'Tamam', onPress: () => router.replace('/') },
+      ]);
     } catch (error) {
       console.error(error);
       Alert.alert('Hata', 'Kayıt sırasında bir hata oluştu.');

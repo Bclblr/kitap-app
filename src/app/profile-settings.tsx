@@ -201,6 +201,51 @@ export default function ProfileSettingsScreen() {
     router.replace('/login');
   }
 
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Hesabı kalıcı olarak sil',
+      'Bu işlem geri alınamaz. Profilin ve hesabına bağlı veriler silinir.',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Hesabımı Sil',
+          style: 'destructive',
+          onPress: () => {
+            void deleteAccount();
+          },
+        },
+      ]
+    );
+  }
+
+  async function deleteAccount() {
+    setSaving(true);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) {
+        router.replace('/login');
+        return;
+      }
+
+      const { error } = await supabase.rpc('delete_my_account');
+      if (error) {
+        console.error('Hesap silinemedi:', error);
+        Alert.alert('Hesap silinemedi', 'İşlem tamamlanamadı. Lütfen tekrar dene.');
+        return;
+      }
+
+      await supabase.auth.signOut().catch(() => undefined);
+      Alert.alert('Hesap silindi', 'Hesabın kalıcı olarak silindi.', [
+        { text: 'Tamam', onPress: () => router.replace('/login') },
+      ]);
+    } catch (error) {
+      console.error('Hesap silme hatası:', error);
+      Alert.alert('Hata', 'Hesap silinirken bir hata oluştu.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -289,6 +334,10 @@ export default function ProfileSettingsScreen() {
 
         <Pressable onPress={handleLogout} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Çıkış Yap</Text>
+        </Pressable>
+
+        <Pressable onPress={confirmDeleteAccount} disabled={saving} style={styles.deleteAccountButton}>
+          <Text style={styles.deleteAccountText}>Hesabımı Kalıcı Olarak Sil</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -484,5 +533,18 @@ const baseStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     textAlign: 'center',
+  },
+  deleteAccountButton: {
+    alignSelf: 'center',
+    marginTop: 14,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+  },
+  deleteAccountText: {
+    color: '#A66A70',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });

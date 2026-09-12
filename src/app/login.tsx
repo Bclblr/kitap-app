@@ -54,6 +54,11 @@ export default function LoginScreen() {
       });
 
       if (error) {
+        const message = error.message.toLowerCase();
+        if (message.includes('email not confirmed') || message.includes('email_not_confirmed')) {
+          router.push({ pathname: '/verify-email', params: { email: cleanEmail } });
+          return;
+        }
         Alert.alert('Giriş başarısız', error.message);
         return;
       }
