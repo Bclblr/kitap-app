@@ -1,4 +1,5 @@
 import BookCover from '@/components/BookCover';
+import HashtagText from '@/components/HashtagText';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
@@ -1272,7 +1273,7 @@ export default function HomeScreen() {
 
                   {(post.isQuote || post.rating > 0) && <Text style={styles.feedTypeLabel}>{post.isQuote ? 'ALINTI' : 'KİTAP İNCELEMESİ'}</Text>}
                   {post.image_url && <Image source={{ uri: post.image_url }} style={styles.postImage} />}
-                  {post.text && <Text style={[styles.postText, post.isQuote && styles.quotePostText]}>{post.isQuote ? `“${post.text}”` : post.text}</Text>}
+                  {post.text && <HashtagText text={post.isQuote ? `“${post.text}”` : post.text} style={[styles.postText, post.isQuote && styles.quotePostText]} />}
                   {post.book_title && (
                     <Pressable onPress={() => { if (post.book_key) openBook(post.book_key); }} style={styles.bookAttachment}>
                       <View style={styles.bookAttachmentIcon}><BookCover uri={existingBookCover(post) ?? bookCoverUrls[post.book_key || post.key || post.workKey || ''] ?? null} style={styles.bookAttachmentCover}><Text style={styles.bookAttachmentEmoji}>▥</Text></BookCover></View>
