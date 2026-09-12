@@ -83,4 +83,27 @@ $$;
 
 grant execute on function public.should_deliver_notification(uuid, text) to authenticated;
 
+create or replace function public.enforce_notification_preferences()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.should_deliver_notification(new.user_id, new.type) then
+    return new;
+  end if;
+  return null;
+end;
+$$;
+
+do $$
+begin
+  if to_regclass('public.notifications') is not null then
+    execute 'drop trigger if exists notifications_respect_preferences on public.notifications';
+    execute 'create trigger notifications_respect_preferences before insert on public.notifications for each row execute function public.enforce_notification_preferences()';
+  end if;
+end
+$$;
+
 commit;
