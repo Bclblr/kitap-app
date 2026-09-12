@@ -162,6 +162,62 @@ export default function HomeScreen() {
   const [storyImage, setStoryImage] = useState<string | null>(null);
   const [postingStory, setPostingStory] = useState(false);
 
+
+  async function reportFeedContent(post: Post) {
+    const user = await getCurrentUser();
+    if (!user) {
+      Alert.alert('Giriş gerekli', 'İçeriği şikâyet etmek için giriş yapmalısın.');
+      return;
+    }
+    if (post.user_id === user.id) {
+      Alert.alert('Kendi içeriğin', 'Kendi içeriğini şikâyet edemezsin.');
+      return;
+    }
+
+    const targetType = post.isQuote ? 'quote' : post.isReview ? 'review' : 'post';
+
+    const submit = async (category: string) => {
+      const { error } = await supabase.from('reports').insert({
+        reporter_id: user.id,
+        target_type: targetType,
+        target_id: String(post.id),
+        category,
+        description: '',
+      });
+
+      if (error) {
+        console.error('İçerik şikâyeti gönderilemedi:', error);
+        Alert.alert('Hata', 'Şikâyet gönderilemedi.');
+        return;
+      }
+
+      Alert.alert('Şikâyet alındı', 'Bildirimin moderasyon ekibine gönderildi.');
+    };
+
+    Alert.alert('İçeriği şikâyet et', 'Şikâyet nedenini seç.', [
+      { text: 'Spam', onPress: () => submit('spam') },
+      { text: 'Taciz', onPress: () => submit('harassment') },
+      { text: 'Uygunsuz içerik', onPress: () => submit('inappropriate') },
+      { text: 'Yanıltıcı içerik', onPress: () => submit('misleading') },
+      { text: 'Diğer', onPress: () => submit('other') },
+      { text: 'Vazgeç', style: 'cancel' },
+    ]);
+  }
+
+  function openFeedContentMenu(post: Post) {
+    if (post.user_id && post.user_id === currentUserId) {
+      Alert.alert('İçerik seçenekleri', 'Bu içerik sana ait.', [
+        { text: 'Tamam', style: 'cancel' },
+      ]);
+      return;
+    }
+
+    Alert.alert('İçerik seçenekleri', undefined, [
+      { text: 'Şikâyet Et', style: 'destructive', onPress: () => reportFeedContent(post) },
+      { text: 'Vazgeç', style: 'cancel' },
+    ]);
+  }
+
   async function getCurrentUser() {
     const {
       data: { user },
@@ -1237,7 +1293,7 @@ export default function HomeScreen() {
                   <View style={styles.userRow}>
                     <View style={styles.avatar}>{post.profile_image ? <Image source={{ uri: post.profile_image }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{post.username?.trim().charAt(0).toUpperCase() || 'K'}</Text>}</View>
                     <View style={styles.userInfo}><Text style={styles.username} numberOfLines={1}>{post.full_name?.trim() || post.username}</Text><Text style={styles.handle} numberOfLines={1}>@{post.username}</Text><Text style={styles.date}>{formatDate(post.created_at)}</Text></View>
-                    <Text style={styles.moreButton}>•••</Text>
+                    <Pressable onPress={() => openFeedContentMenu(post)} accessibilityLabel="İçerik seçenekleri"><Text style={styles.moreButton}>•••</Text></Pressable>
                   </View>
 
                   {(post.isQuote || post.rating > 0) && <Text style={styles.feedTypeLabel}>{post.isQuote ? 'ALINTI' : 'KİTAP İNCELEMESİ'}</Text>}
