@@ -27,12 +27,17 @@ export default function SavedScreen() {
   const [posts, setPosts] = useState<SavedPost[]>([]);
   const [works, setWorks] = useState<SavedWork[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorText, setErrorText] = useState('');
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const loadSaved = useCallback(async () => {
     setLoading(true);
+    setErrorText('');
+
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
+
       const user = authData.user;
       if (!user) {
         setPosts([]);
@@ -55,11 +60,15 @@ export default function SavedScreen() {
           .limit(100),
       ]);
 
-      if (savedPostsResult.error) console.error('Kaydedilen gönderiler alınamadı:', savedPostsResult.error);
-      if (savedWorksResult.error) console.error('Kaydedilen eserler alınamadı:', savedWorksResult.error);
+      if (savedPostsResult.error) throw savedPostsResult.error;
+      if (savedWorksResult.error) throw savedWorksResult.error;
 
-      const postIds = (savedPostsResult.data ?? []).map((item: any) => item.post_id).filter(Boolean);
-      const workIds = (savedWorksResult.data ?? []).map((item: any) => item.work_id).filter(Boolean);
+      const postIds = (savedPostsResult.data ?? [])
+        .map((item: any) => item.post_id)
+        .filter(Boolean);
+      const workIds = (savedWorksResult.data ?? [])
+        .map((item: any) => item.work_id)
+        .filter(Boolean);
 
       const [postResult, workResult] = await Promise.all([
         postIds.length
@@ -70,8 +79,8 @@ export default function SavedScreen() {
           : Promise.resolve({ data: [], error: null } as any),
       ]);
 
-      if (postResult.error) console.error('Kaydedilen gönderi içerikleri alınamadı:', postResult.error);
-      if (workResult.error) console.error('Kaydedilen eser içerikleri alınamadı:', workResult.error);
+      if (postResult.error) throw postResult.error;
+      if (workResult.error) throw workResult.error;
 
       const postsById = new Map((postResult.data ?? []).map((post: any) => [post.id, post]));
       const worksById = new Map((workResult.data ?? []).map((work: any) => [work.id, work]));
@@ -88,8 +97,7 @@ export default function SavedScreen() {
       );
     } catch (error) {
       console.error('Kaydedilenler yüklenemedi:', error);
-      setPosts([]);
-      setWorks([]);
+      setErrorText('Kaydedilenler yüklenemedi. Tekrar deneyebilirsin.');
     } finally {
       setLoading(false);
     }
@@ -101,6 +109,64 @@ export default function SavedScreen() {
     }, [loadSaved])
   );
 
+  async function removeSavedPost(postId: string) {
+    if (removingId) return;
+    setRemovingId(`post:${postId}`);
+    setErrorText('');
+
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id;
+      if (!userId) {
+        router.replace('/login');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('saved_posts')
+        .delete()
+        .eq('user_id', userId)
+        .eq('post_id', postId);
+
+      if (error) throw error;
+      setPosts((current) => current.filter((post) => post.id !== postId));
+    } catch (error) {
+      console.error('Kaydedilen gönderi kaldırılamadı:', error);
+      setErrorText('Gönderi kaydedilenlerden çıkarılamadı.');
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
+  async function removeSavedWork(workId: string) {
+    if (removingId) return;
+    setRemovingId(`work:${workId}`);
+    setErrorText('');
+
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id;
+      if (!userId) {
+        router.replace('/login');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('saved_works')
+        .delete()
+        .eq('user_id', userId)
+        .eq('work_id', workId);
+
+      if (error) throw error;
+      setWorks((current) => current.filter((work) => work.id !== workId));
+    } catch (error) {
+      console.error('Kaydedilen eser kaldırılamadı:', error);
+      setErrorText('Eser kaydedilenlerden çıkarılamadı.');
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -108,7 +174,9 @@ export default function SavedScreen() {
           <Feather name="arrow-left" size={22} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>Kaydedilenler</Text>
-        <View style={styles.iconButton} />
+        <Pressable onPress={() => void loadSaved()} style={styles.iconButton} accessibilityLabel="Kaydedilenleri yenile">
+          <Feather name="refresh-cw" size={19} color={colors.text} />
+        </Pressable>
       </View>
 
       {loading ? (
@@ -118,22 +186,53 @@ export default function SavedScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
+          {errorText ? (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorText}>{errorText}</Text>
+              <Pressable onPress={() => void loadSaved()} style={styles.retryButton}>
+                <Text style={styles.retryText}>Tekrar dene</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <Text style={styles.sectionTitle}>Gönderiler</Text>
           {posts.length === 0 ? (
-            <Text style={styles.emptyText}>Henüz kaydedilmiş gönderin yok.</Text>
+            <View style={styles.emptyCard}>
+              <Feather name="bookmark" size={28} color={colors.primary} />
+              <Text style={styles.emptyTitle}>Kaydedilmiş gönderi yok</Text>
+              <Text style={styles.emptyText}>Ana akışta yer imi simgesine dokunduğun gönderiler burada görünür.</Text>
+              <Pressable onPress={() => router.replace('/')} style={styles.browseButton}>
+                <Text style={styles.browseButtonText}>Ana akışa git</Text>
+              </Pressable>
+            </View>
           ) : (
             posts.map((post) => (
-              <Pressable
-                key={post.id}
-                onPress={() => router.push({ pathname: '/content', params: { type: 'post', id: post.id } } as never)}
-                style={styles.card}
-              >
-                <View style={styles.cardHeader}>
-                  <Feather name="bookmark" size={17} color={colors.primary} />
-                  <Text style={styles.cardMeta}>@{post.username || 'kitapokuru'}</Text>
-                </View>
-                <Text numberOfLines={4} style={styles.cardText}>{post.text || 'Gönderi'}</Text>
-              </Pressable>
+              <View key={post.id} style={styles.card}>
+                <Pressable
+                  onPress={() => router.push({ pathname: '/content', params: { type: 'post', id: post.id } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${post.username || 'Kitap Okuru'} gönderisini aç`}
+                >
+                  <View style={styles.cardHeader}>
+                    <Feather name="bookmark" size={17} color={colors.primary} />
+                    <Text style={styles.cardMeta}>@{post.username || 'kitapokuru'}</Text>
+                  </View>
+                  <Text numberOfLines={4} style={styles.cardText}>{post.text || 'Gönderi'}</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => void removeSavedPost(post.id)}
+                  disabled={removingId !== null}
+                  style={styles.removeButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Gönderiyi kaydedilenlerden çıkar"
+                >
+                  <Feather name="bookmark" size={16} color={colors.textSecondary} />
+                  <Text style={styles.removeButtonText}>
+                    {removingId === `post:${post.id}` ? 'Kaldırılıyor…' : 'Kaydedilenlerden çıkar'}
+                  </Text>
+                </Pressable>
+              </View>
             ))
           )}
 
@@ -142,18 +241,33 @@ export default function SavedScreen() {
             <Text style={styles.emptyText}>Henüz kaydedilmiş eser yok.</Text>
           ) : (
             works.map((work) => (
-              <Pressable
-                key={work.id}
-                onPress={() => router.push({ pathname: '/work', params: { id: work.id } } as never)}
-                style={styles.card}
-              >
-                <View style={styles.cardHeader}>
-                  <Feather name="book-open" size={17} color={colors.primary} />
-                  <Text style={styles.cardMeta}>Eser</Text>
-                </View>
-                <Text style={styles.workTitle}>{work.title}</Text>
-                {work.description ? <Text numberOfLines={3} style={styles.cardText}>{work.description}</Text> : null}
-              </Pressable>
+              <View key={work.id} style={styles.card}>
+                <Pressable
+                  onPress={() => router.push({ pathname: '/work', params: { id: work.id } } as never)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${work.title} eserini aç`}
+                >
+                  <View style={styles.cardHeader}>
+                    <Feather name="book-open" size={17} color={colors.primary} />
+                    <Text style={styles.cardMeta}>Eser</Text>
+                  </View>
+                  <Text style={styles.workTitle}>{work.title}</Text>
+                  {work.description ? <Text numberOfLines={3} style={styles.cardText}>{work.description}</Text> : null}
+                </Pressable>
+
+                <Pressable
+                  onPress={() => void removeSavedWork(work.id)}
+                  disabled={removingId !== null}
+                  style={styles.removeButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Eseri kaydedilenlerden çıkar"
+                >
+                  <Feather name="bookmark" size={16} color={colors.textSecondary} />
+                  <Text style={styles.removeButtonText}>
+                    {removingId === `work:${work.id}` ? 'Kaldırılıyor…' : 'Kaydedilenlerden çıkar'}
+                  </Text>
+                </Pressable>
+              </View>
             ))
           )}
         </ScrollView>
@@ -172,10 +286,20 @@ const baseStyles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 48 },
   sectionTitle: { color: '#F5F5F8', fontSize: 18, fontWeight: '900', marginBottom: 12 },
   secondSection: { marginTop: 28 },
-  emptyText: { color: '#8E8E9D', fontSize: 14, paddingVertical: 10 },
+  emptyCard: { alignItems: 'center', borderWidth: 1, borderColor: '#292934', borderRadius: 16, padding: 22, backgroundColor: '#15151D' },
+  emptyTitle: { color: '#F5F5F8', fontSize: 16, fontWeight: '800', marginTop: 10 },
+  emptyText: { color: '#8E8E9D', fontSize: 14, lineHeight: 20, paddingVertical: 10, textAlign: 'center' },
+  browseButton: { marginTop: 5, minHeight: 44, borderRadius: 12, backgroundColor: '#302246', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  browseButtonText: { color: '#A985FF', fontWeight: '800' },
   card: { backgroundColor: '#15151D', borderWidth: 1, borderColor: '#292934', borderRadius: 16, padding: 15, marginBottom: 12 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 9 },
   cardMeta: { color: '#A985FF', fontSize: 12, fontWeight: '800' },
   cardText: { color: '#D8D8DF', fontSize: 14, lineHeight: 20 },
   workTitle: { color: '#F5F5F8', fontSize: 16, fontWeight: '800', marginBottom: 7 },
+  removeButton: { minHeight: 44, marginTop: 12, borderTopWidth: 1, borderTopColor: '#292934', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingTop: 10 },
+  removeButtonText: { color: '#A7A7B2', fontSize: 13, fontWeight: '700' },
+  errorCard: { backgroundColor: '#1A1519', borderWidth: 1, borderColor: '#49313A', borderRadius: 14, padding: 14, marginBottom: 18 },
+  errorText: { color: '#F0C7D1', fontSize: 13, lineHeight: 19 },
+  retryButton: { alignSelf: 'flex-start', marginTop: 9, minHeight: 40, justifyContent: 'center' },
+  retryText: { color: '#A985FF', fontWeight: '800' },
 });
