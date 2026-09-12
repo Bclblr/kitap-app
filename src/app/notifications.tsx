@@ -1,82 +1,78 @@
-import { useThemedStyles } from '@/theme/use-themed-styles';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Image from '@/components/SafeImage';
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
+import { useAppTheme } from '@/providers/ThemeProvider';
+import { useThemedStyles } from '@/theme/use-themed-styles';
 
-type NotificationType =
-  | 'like'
-  | 'comment'
-  | 'repost';
+type InteractionType = 'like' | 'comment' | 'repost';
 
-type AppNotification = {
+type InteractionNotification = {
+  source: 'interaction';
   id: string;
   user_id: string;
   actor_id: string | null;
-  type: NotificationType;
+  type: InteractionType;
   message: string;
   read: boolean;
   created_at: string;
-
   post_id: string | null;
   review_id: string | null;
-
   username: string;
   profile_image: string | null;
 };
 
+type AdminNotification = {
+  source: 'admin';
+  id: string;
+  title: string;
+  message: string;
+  action_route: string | null;
+  created_at: string;
+  read: boolean;
+};
+
+type NotificationItem = InteractionNotification | AdminNotification;
+
 export default function NotificationsScreen() {
+  const router = useRouter();
   const styles = useThemedStyles(baseStyles);
-  const [notifications, setNotifications] =
-    useState<AppNotification[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  // =====================================================
-  // GİRİŞ YAPMIŞ KULLANICIYI AL
-  // =====================================================
+  const { colors } = useAppTheme();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   async function getCurrentUser() {
-    const {
-      data,
-      error,
-    } = await supabase.auth.getUser();
-
+    const { data, error } = await supabase.auth.getUser();
     if (error) {
-      console.error(
-        'Kullanıcı alınamadı:',
-        error
-      );
-
+      console.error('Kullanıcı alınamadı:', error);
       return null;
     }
-
     return data.user;
   }
 
-  // =====================================================
-  // BİLDİRİMLERİ YÜKLE
-  // =====================================================
+  const loadNotifications = useCallback(async () => {
+    setLoading(true);
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        setNotifications([]);
+        return;
+      }
 
-  const loadNotifications = useCallback(
-    async () => {
-      try {
-        const user =
-          await getCurrentUser();
-
-        if (!user) {
-          setNotifications([]);
-          return;
-        }
-
-        const {
-          data,
-          error,
-        } = await supabase
+      const [interactionResult, adminResult] = await Promise.all([
+        supabase
           .from('notifications')
           .select(`
             id,
@@ -93,663 +89,319 @@ export default function NotificationsScreen() {
               profile_image
             )
           `)
-          .eq(
-            'user_id',
-            user.id
-          )
-          .order(
-            'created_at',
-            {
-              ascending: false,
-            }
-          );
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase.rpc('get_my_admin_notifications', { p_limit: 100 }),
+      ]);
 
-        if (error) {
-          console.error(
-            'Bildirimler yüklenemedi:',
-            error
-          );
-
-          setNotifications([]);
-          return;
-        }
-
-        const formattedNotifications:
-          AppNotification[] =
-          (data ?? []).map(
-            (notification: any) => ({
-              id:
-                notification.id,
-
-              user_id:
-                notification.user_id,
-
-              actor_id:
-                notification.actor_id ??
-                null,
-
-              type:
-                notification.type as NotificationType,
-
-              message:
-                notification.message,
-
-              read:
-                notification.read ??
-                false,
-
-              created_at:
-                notification.created_at,
-
-              post_id:
-                notification.post_id ??
-                null,
-
-              review_id:
-                notification.review_id ??
-                null,
-
-              username:
-                notification.profiles
-                  ?.username ??
-                'Kullanıcı',
-
-              profile_image:
-                notification.profiles
-                  ?.profile_image ??
-                null,
-            })
-          );
-
-        setNotifications(
-          formattedNotifications
-        );
-      } catch (error) {
-        console.error(
-          'Bildirimler yüklenemedi:',
-          error
-        );
-
-        setNotifications([]);
-      } finally {
-        setLoading(false);
+      if (interactionResult.error) {
+        console.error('Etkileşim bildirimleri yüklenemedi:', interactionResult.error);
       }
-    },
-    []
-  );
+      if (adminResult.error) {
+        console.error('Yönetim bildirimleri yüklenemedi:', adminResult.error);
+      }
 
-  // =====================================================
-  // SAYFA AÇILINCA YÜKLE
-  // =====================================================
+      const interactions: InteractionNotification[] = (interactionResult.data ?? []).map(
+        (notification: any) => ({
+          source: 'interaction',
+          id: String(notification.id),
+          user_id: String(notification.user_id),
+          actor_id: notification.actor_id ? String(notification.actor_id) : null,
+          type: notification.type as InteractionType,
+          message: String(notification.message ?? ''),
+          read: notification.read === true,
+          created_at: String(notification.created_at ?? ''),
+          post_id: notification.post_id ? String(notification.post_id) : null,
+          review_id: notification.review_id ? String(notification.review_id) : null,
+          username: String(notification.profiles?.username ?? 'Kullanıcı'),
+          profile_image:
+            typeof notification.profiles?.profile_image === 'string'
+              ? notification.profiles.profile_image
+              : null,
+        })
+      );
+
+      const adminNotifications: AdminNotification[] = (adminResult.data ?? []).map(
+        (notification: any) => ({
+          source: 'admin',
+          id: String(notification.id),
+          title: String(notification.title ?? 'Duyuru'),
+          message: String(notification.message ?? ''),
+          action_route:
+            typeof notification.action_route === 'string' && notification.action_route.trim()
+              ? notification.action_route.trim()
+              : null,
+          created_at: String(notification.created_at ?? ''),
+          read: notification.read === true,
+        })
+      );
+
+      setNotifications(
+        [...interactions, ...adminNotifications].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+      );
+    } catch (error) {
+      console.error('Bildirimler yüklenemedi:', error);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-
-      loadNotifications();
+      void loadNotifications();
     }, [loadNotifications])
   );
 
-  // =====================================================
-  // BİLDİRİMİ OKUNDU YAP
-  // =====================================================
+  async function markAsRead(notification: NotificationItem) {
+    if (notification.read) {
+      if (notification.source === 'admin' && notification.action_route) {
+        router.push(notification.action_route as never);
+      }
+      return;
+    }
 
-  async function markAsRead(
-    id: string
-  ) {
     try {
-      const {
-        error,
-      } = await supabase
-        .from('notifications')
-        .update({
-          read: true,
-        })
-        .eq(
-          'id',
-          id
-        );
-
-      if (error) {
-        console.error(
-          'Bildirim okunamadı:',
-          error
-        );
-
-        Alert.alert(
-          'Hata',
-          error.message
-        );
-
-        return;
+      if (notification.source === 'admin') {
+        const { error } = await supabase.rpc('mark_admin_notification_read', {
+          p_notification_id: notification.id,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('notifications')
+          .update({ read: true })
+          .eq('id', notification.id);
+        if (error) throw error;
       }
 
-      setNotifications(
-        (current) =>
-          current.map(
-            (notification) =>
-              notification.id ===
-              id
-                ? {
-                    ...notification,
-                    read: true,
-                  }
-                : notification
-          )
+      setNotifications((current) =>
+        current.map((item) =>
+          item.source === notification.source && item.id === notification.id
+            ? { ...item, read: true }
+            : item
+        )
       );
+
+      if (notification.source === 'admin' && notification.action_route) {
+        router.push(notification.action_route as never);
+      }
     } catch (error) {
-      console.error(
-        'Bildirim okundu hatası:',
-        error
-      );
+      console.error('Bildirim okundu hatası:', error);
+      Alert.alert('Hata', 'Bildirim güncellenemedi.');
     }
   }
-
-  // =====================================================
-  // TÜMÜNÜ OKUNDU YAP
-  // =====================================================
 
   async function markAllAsRead() {
+    const user = await getCurrentUser();
+    if (!user) return;
+
     try {
-      const user =
-        await getCurrentUser();
-
-      if (!user) {
-        return;
-      }
-
-      const {
-        error,
-      } = await supabase
+      const interactionPromise = supabase
         .from('notifications')
-        .update({
-          read: true,
-        })
-        .eq(
-          'user_id',
-          user.id
-        )
-        .eq(
-          'read',
-          false
+        .update({ read: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+
+      const adminPromises = notifications
+        .filter((item): item is AdminNotification => item.source === 'admin' && !item.read)
+        .map((item) =>
+          supabase.rpc('mark_admin_notification_read', {
+            p_notification_id: item.id,
+          })
         );
 
-      if (error) {
-        console.error(
-          'Bildirimler okunamadı:',
-          error
-        );
+      const [interactionResult, ...adminResults] = await Promise.all([
+        interactionPromise,
+        ...adminPromises,
+      ]);
 
-        Alert.alert(
-          'Hata',
-          error.message
-        );
+      if (interactionResult.error) throw interactionResult.error;
+      const adminError = adminResults.find((result: any) => result.error)?.error;
+      if (adminError) throw adminError;
 
-        return;
-      }
-
-      setNotifications(
-        (current) =>
-          current.map(
-            (notification) => ({
-              ...notification,
-              read: true,
-            })
-          )
-      );
+      setNotifications((current) => current.map((item) => ({ ...item, read: true })));
     } catch (error) {
-      console.error(
-        'Tüm bildirimleri okuma hatası:',
-        error
-      );
+      console.error('Tüm bildirimleri okuma hatası:', error);
+      Alert.alert('Hata', 'Bildirimlerin tamamı güncellenemedi.');
     }
   }
 
-  // =====================================================
-  // İKON
-  // =====================================================
-
-  function getIcon(
-    type: NotificationType
-  ) {
-    switch (type) {
-      case 'like':
-        return '♥';
-
-      case 'comment':
-        return '●';
-
-      case 'repost':
-        return '↻';
-
-      default:
-        return '•';
-    }
-  }
-
-  // =====================================================
-  // BİLDİRİM TÜRÜ
-  // =====================================================
-
-  function getTypeName(
-    type: NotificationType
-  ) {
-    switch (type) {
-      case 'like':
-        return 'Beğeni';
-
-      case 'comment':
-        return 'Yorum';
-
-      case 'repost':
-        return 'Yeniden paylaşım';
-
-      default:
-        return 'Bildirim';
-    }
-  }
-
-  // =====================================================
-  // BİLDİRİM MESAJI
-  // =====================================================
-
-  function getMessage(
-    notification: AppNotification
-  ) {
-    switch (notification.type) {
-      case 'like':
-        return 'gönderini beğendi';
-
-      case 'comment':
-        return 'gönderine yorum yaptı';
-
-      case 'repost':
-        return 'gönderini yeniden paylaştı';
-
-      default:
-        return notification.message;
-    }
-  }
-
-  // =====================================================
-  // TARİH
-  // =====================================================
-
-  function formatDate(
-    value: string
-  ) {
-    if (!value) {
-      return '';
-    }
-
-    const date =
-      new Date(value);
-
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return '';
-    }
-
-    return date.toLocaleDateString(
-      'tr-TR',
-      {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      }
-    );
-  }
-
-  // =====================================================
-  // BİLDİRİMLERİ TEMİZLE
-  // =====================================================
-
-  function clearNotifications() {
+  function clearInteractionNotifications() {
     Alert.alert(
-      'Bildirimleri temizle',
-      'Tüm bildirimler silinsin mi?',
+      'Etkileşim bildirimlerini temizle',
+      'Beğeni, yorum ve yeniden paylaşım bildirimlerin silinsin mi? Yönetim bildirimleri korunur.',
       [
-        {
-          text: 'Vazgeç',
-          style: 'cancel',
-        },
-
+        { text: 'Vazgeç', style: 'cancel' },
         {
           text: 'Sil',
           style: 'destructive',
+          onPress: async () => {
+            const user = await getCurrentUser();
+            if (!user) return;
 
-          onPress:
-            async () => {
-              try {
-                const user =
-                  await getCurrentUser();
+            const { error } = await supabase
+              .from('notifications')
+              .delete()
+              .eq('user_id', user.id);
 
-                if (!user) {
-                  return;
-                }
+            if (error) {
+              console.error('Bildirimler silinemedi:', error);
+              Alert.alert('Hata', error.message);
+              return;
+            }
 
-                const {
-                  error,
-                } =
-                  await supabase
-                    .from(
-                      'notifications'
-                    )
-                    .delete()
-                    .eq(
-                      'user_id',
-                      user.id
-                    );
-
-                if (error) {
-                  console.error(
-                    'Bildirimler silinemedi:',
-                    error
-                  );
-
-                  Alert.alert(
-                    'Hata',
-                    error.message
-                  );
-
-                  return;
-                }
-
-                setNotifications([]);
-              } catch (error) {
-                console.error(
-                  'Bildirim silme hatası:',
-                  error
-                );
-              }
-            },
+            setNotifications((current) => current.filter((item) => item.source === 'admin'));
+          },
         },
       ]
     );
   }
 
-  // =====================================================
-  // OKUNMAMIŞ SAYISI
-  // =====================================================
+  function interactionIcon(type: InteractionType) {
+    if (type === 'like') return 'heart' as const;
+    if (type === 'comment') return 'message-circle' as const;
+    return 'repeat' as const;
+  }
 
-  const unreadCount =
-    notifications.filter(
-      (notification) =>
-        !notification.read
-    ).length;
+  function interactionTitle(type: InteractionType) {
+    if (type === 'like') return 'Beğeni';
+    if (type === 'comment') return 'Yorum';
+    return 'Yeniden paylaşım';
+  }
 
-  // =====================================================
-  // YÜKLENİYOR
-  // =====================================================
+  function interactionMessage(notification: InteractionNotification) {
+    if (notification.type === 'like') return 'gönderini beğendi';
+    if (notification.type === 'comment') return 'gönderine yorum yaptı';
+    if (notification.type === 'repost') return 'gönderini yeniden paylaştı';
+    return notification.message;
+  }
+
+  function formatDate(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+
+  const unreadCount = useMemo(
+    () => notifications.filter((notification) => !notification.read).length,
+    [notifications]
+  );
+  const interactionCount = useMemo(
+    () => notifications.filter((notification) => notification.source === 'interaction').length,
+    [notifications]
+  );
 
   if (loading) {
     return (
-      <View
-        style={
-          styles.container
-        }
-      >
-        <View
-          style={
-            styles.loadingContainer
-          }
-        >
-          <Text
-            style={
-              styles.loadingText
-            }
-          >
-            Bildirimler yükleniyor...
-          </Text>
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={styles.loadingText}>Bildirimler yükleniyor...</Text>
         </View>
-
         <BottomNav />
       </View>
     );
   }
 
-  // =====================================================
-  // EKRAN
-  // =====================================================
-
   return (
-    <View
-      style={
-        styles.container
-      }
-    >
+    <View style={styles.container}>
       <ScrollView
-        showsVerticalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.scrollContent
-        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* HEADER */}
-
-        <View
-          style={
-            styles.header
-          }
-        >
+        <View style={styles.header}>
           <View>
-            <Text
-              style={
-                styles.pageTitle
-              }
-            >
-              Bildirimler
-            </Text>
-
-            {unreadCount > 0 && (
-              <Text
-                style={
-                  styles.unreadText
-                }
-              >
-                {unreadCount}{' '}
-                okunmamış bildirim
-              </Text>
+            <Text style={styles.pageTitle}>Bildirimler</Text>
+            {unreadCount > 0 ? (
+              <Text style={styles.unreadText}>{unreadCount} okunmamış bildirim</Text>
+            ) : (
+              <Text style={styles.unreadText}>Tüm bildirimleri okudun</Text>
             )}
           </View>
 
-          {notifications.length >
-            0 && (
-            <Pressable
-              onPress={
-                markAllAsRead
-              }
-              style={
-                styles.readAllButton
-              }
-            >
-              <Text
-                style={
-                  styles.readAllText
-                }
-              >
-                Tümünü oku
-              </Text>
+          {notifications.length > 0 ? (
+            <Pressable onPress={() => void markAllAsRead()} style={styles.readAllButton}>
+              <Text style={styles.readAllText}>Tümünü oku</Text>
             </Pressable>
-          )}
+          ) : null}
         </View>
 
-        {/* BİLDİRİM YOK */}
-
-        {notifications.length ===
-        0 ? (
-          <View
-            style={
-              styles.emptyCard
-            }
-          >
-            <Text
-              style={
-                styles.emptyIcon
-              }
-            >
-              ♡
-            </Text>
-
-            <Text
-              style={
-                styles.emptyTitle
-              }
-            >
-              Henüz bildirim yok
-            </Text>
-
-            <Text
-              style={
-                styles.emptyText
-              }
-            >
-              Beğeni, yorum ve yeniden
-              paylaşım bildirimlerin
-              burada görünecek.
+        {notifications.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Feather name="bell" size={30} color={colors.primary} />
+            <Text style={styles.emptyTitle}>Henüz bildirim yok</Text>
+            <Text style={styles.emptyText}>
+              Etkileşimlerin ve uygulama duyuruları burada görünecek.
             </Text>
           </View>
         ) : (
-          <View
-            style={
-              styles.list
-            }
-          >
-            {notifications.map(
-              (notification) => (
+          <View style={styles.list}>
+            {notifications.map((notification) => {
+              const isAdmin = notification.source === 'admin';
+              return (
                 <Pressable
-                  key={
-                    notification.id
-                  }
-                  onPress={() =>
-                    markAsRead(
-                      notification.id
-                    )
-                  }
-                  style={[
-                    styles.card,
-                    !notification.read &&
-                      styles.unreadCard,
-                  ]}
+                  key={`${notification.source}:${notification.id}`}
+                  onPress={() => void markAsRead(notification)}
+                  style={[styles.card, !notification.read && styles.unreadCard]}
                 >
-                  {/* PROFİL FOTOĞRAFI */}
-
-                  {notification.profile_image ? (
-                    <Image
-                      source={{
-                        uri: notification.profile_image,
-                      }}
-                      style={
-                        styles.profileImage
-                      }
-                    />
+                  {isAdmin ? (
+                    <View style={[styles.iconCircle, styles.adminIconCircle]}>
+                      <Feather name="bell" size={20} color={colors.primary} />
+                    </View>
+                  ) : notification.profile_image ? (
+                    <Image source={{ uri: notification.profile_image }} style={styles.profileImage} />
                   ) : (
-                    <View
-                      style={
-                        styles.iconCircle
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.icon
-                        }
-                      >
-                        {getIcon(
-                          notification.type
-                        )}
-                      </Text>
+                    <View style={styles.iconCircle}>
+                      <Feather
+                        name={interactionIcon(notification.type)}
+                        size={19}
+                        color={colors.primary}
+                      />
                     </View>
                   )}
 
-                  {/* İÇERİK */}
-
-                  <View
-                    style={
-                      styles.cardContent
-                    }
-                  >
-                    <View
-                      style={
-                        styles.topRow
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.typeText
-                        }
-                      >
-                        {getTypeName(
-                          notification.type
-                        )}
+                  <View style={styles.cardContent}>
+                    <View style={styles.topRow}>
+                      <Text style={[styles.typeText, isAdmin && styles.adminTypeText]}>
+                        {isAdmin ? notification.title : interactionTitle(notification.type)}
                       </Text>
-
-                      {!notification.read && (
-                        <View
-                          style={
-                            styles.dot
-                          }
-                        />
-                      )}
+                      {!notification.read ? <View style={styles.dot} /> : null}
                     </View>
 
-                    {/* KULLANICI + MESAJ */}
-
-                    <Text
-                      style={
-                        styles.message
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.username
-                        }
-                      >
-                        {notification.username}
-                      </Text>{' '}
-
-                      {getMessage(
-                        notification
+                    <Text style={styles.message}>
+                      {isAdmin ? (
+                        notification.message
+                      ) : (
+                        <>
+                          <Text style={styles.username}>{notification.username}</Text>{' '}
+                          {interactionMessage(notification)}
+                        </>
                       )}
                     </Text>
 
-                    {/* TARİH */}
-
-                    <Text
-                      style={
-                        styles.date
-                      }
-                    >
-                      {formatDate(
-                        notification.created_at
-                      )}
-                    </Text>
+                    <View style={styles.bottomRow}>
+                      <Text style={styles.date}>{formatDate(notification.created_at)}</Text>
+                      {isAdmin && notification.action_route ? (
+                        <Text style={styles.actionHint}>Aç ›</Text>
+                      ) : null}
+                    </View>
                   </View>
                 </Pressable>
-              )
-            )}
+              );
+            })}
 
-            {/* TEMİZLE */}
-
-            <Pressable
-              onPress={
-                clearNotifications
-              }
-              style={
-                styles.clearButton
-              }
-            >
-              <Text
-                style={
-                  styles.clearText
-                }
-              >
-                Tüm bildirimleri temizle
-              </Text>
-            </Pressable>
+            {interactionCount > 0 ? (
+              <Pressable onPress={clearInteractionNotifications} style={styles.clearButton}>
+                <Text style={styles.clearText}>Etkileşim bildirimlerini temizle</Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
       </ScrollView>
@@ -759,199 +411,169 @@ export default function NotificationsScreen() {
   );
 }
 
-// =====================================================
-// STYLES
-// =====================================================
-
 const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#090A0F',
+    backgroundColor: '#0A0A0E',
   },
-
   scrollContent: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
     paddingBottom: 110,
   },
-
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   loadingText: {
-    color: '#777',
+    marginTop: 10,
+    color: '#8E8E9D',
     fontSize: 14,
   },
-
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 18,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
+    marginBottom: 18,
   },
-
   pageTitle: {
+    color: '#F5F5F8',
     fontSize: 28,
-    fontWeight: '700',
-    color: '#222',
+    fontWeight: '900',
   },
-
   unreadText: {
     marginTop: 5,
-    fontSize: 13,
-    color: '#777',
+    color: '#8E8E9D',
+    fontSize: 12,
   },
-
   readAllButton: {
     paddingHorizontal: 12,
     paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: '#E8E8E3',
-  },
-
-  readAllText: {
-    color: '#333',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
-  emptyCard: {
-    marginHorizontal: 20,
-    marginTop: 10,
-    padding: 30,
-    borderRadius: 20,
-    backgroundColor: '#111114',
+    borderRadius: 11,
+    backgroundColor: '#21182F',
     borderWidth: 1,
-    borderColor: '#24242A',
-    alignItems: 'center',
+    borderColor: '#38284D',
   },
-
-  emptyIcon: {
-    fontSize: 46,
-    color: '#8B5CF6',
+  readAllText: {
+    color: '#A985FF',
+    fontSize: 12,
+    fontWeight: '800',
   },
-
-  emptyTitle: {
-    marginTop: 12,
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-
-  emptyText: {
-    marginTop: 7,
-    textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 21,
-    color: '#8E8E98',
-  },
-
   list: {
-    marginHorizontal: 20,
+    gap: 9,
   },
-
   card: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#111114',
-    borderRadius: 18,
-    padding: 15,
-    marginBottom: 10,
+    padding: 14,
+    borderRadius: 17,
+    backgroundColor: '#15151D',
     borderWidth: 1,
-    borderColor: '#24242A',
+    borderColor: '#292934',
   },
-
   unreadCard: {
-    backgroundColor: '#18131F',
-    borderColor: '#6D4AFF',
+    backgroundColor: '#191421',
+    borderColor: '#45315F',
   },
-
-  // ===================================================
-  // PROFİL FOTOĞRAFI
-  // ===================================================
-
   profileImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#1C1C21',
-    borderWidth: 1,
-    borderColor: '#303038',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#211F2B',
   },
-
   iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#211A31',
-    borderWidth: 1,
-    borderColor: '#6D4AFF',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#21182F',
   },
-
-  icon: {
-    fontSize: 21,
-    fontWeight: '700',
-    color: '#A78BFA',
+  adminIconCircle: {
+    borderWidth: 1,
+    borderColor: '#493465',
   },
-
   cardContent: {
     flex: 1,
     minWidth: 0,
     marginLeft: 12,
   },
-
   topRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  typeText: {
+    flex: 1,
+    color: '#D8D8E0',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  adminTypeText: {
+    color: '#A985FF',
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#A985FF',
+    marginLeft: 8,
+  },
+  message: {
+    marginTop: 5,
+    color: '#B5B5C1',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  username: {
+    color: '#F5F5F8',
+    fontWeight: '800',
+  },
+  bottomRow: {
+    marginTop: 8,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
-  typeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#A78BFA',
-    letterSpacing: 0.3,
-  },
-
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#8B5CF6',
-  },
-
-  message: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#C9C9D1',
-  },
-
-  username: {
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-
   date: {
-    marginTop: 6,
+    color: '#747483',
+    fontSize: 10,
+  },
+  actionHint: {
+    color: '#A985FF',
     fontSize: 11,
-    color: '#74747F',
+    fontWeight: '800',
   },
-
-  clearButton: {
-    paddingVertical: 16,
+  emptyCard: {
     alignItems: 'center',
+    paddingHorizontal: 26,
+    paddingVertical: 42,
+    borderRadius: 20,
+    backgroundColor: '#15151D',
+    borderWidth: 1,
+    borderColor: '#292934',
   },
-
+  emptyTitle: {
+    marginTop: 14,
+    color: '#F5F5F8',
+    fontSize: 17,
+    fontWeight: '850',
+  },
+  emptyText: {
+    marginTop: 7,
+    color: '#8E8E9D',
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  clearButton: {
+    alignSelf: 'center',
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
   clearText: {
+    color: '#8E8E9D',
     fontSize: 12,
-    fontWeight: '600',
-    color: '#777782',
+    fontWeight: '700',
   },
 });
