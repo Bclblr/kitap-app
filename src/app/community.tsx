@@ -872,7 +872,23 @@ export default function CommunityScreen() {
           )}
         </View>
 
-        <Text style={styles.section}>Üyeler</Text>
+        <View style={styles.membersSectionHeader}>
+          <Text style={styles.section}>Üyeler</Text>
+          {memberCount > 0 ? (
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/community-members",
+                  params: { id: communityId },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Tüm topluluk üyelerini gör"
+            >
+              <Text style={styles.membersSeeAll}>Tümünü Gör</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         {members.length ? (
           members.map((member) => (
@@ -1037,6 +1053,20 @@ const baseStyles = StyleSheet.create({
     marginTop: 16,
   },
   ctaText: { color: "#FFF", fontWeight: "800" },
+  membersSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 22,
+    marginBottom: 10,
+  },
+  membersSeeAll: {
+    color: "#B58AF6",
+    fontSize: 13,
+    fontWeight: "800",
+    paddingVertical: 8,
+    paddingLeft: 12,
+  },
   section: {
     color: "#F2F2F5",
     fontSize: 18,
