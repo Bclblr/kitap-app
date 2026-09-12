@@ -732,16 +732,18 @@ function SectionHeader({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const styles = useThemedStyles(baseStyles);
+
   return (
-    <View style={baseStyles.sectionHeaderRow}>
-      <View style={baseStyles.sectionHeaderTitleRow}>
-        <View style={[baseStyles.sectionAccent, { backgroundColor: accent }]} />
-        <Text style={baseStyles.sectionTitle}>{title}</Text>
+    <View style={styles.sectionHeaderRow}>
+      <View style={styles.sectionHeaderTitleRow}>
+        <View style={[styles.sectionAccent, { backgroundColor: accent }]} />
+        <Text style={styles.sectionTitle}>{title}</Text>
       </View>
       {actionLabel && onAction ? (
-        <Pressable onPress={onAction} style={baseStyles.createButton} accessibilityLabel={actionLabel}>
+        <Pressable onPress={onAction} style={styles.createButton} accessibilityLabel={actionLabel}>
           <Feather name="plus" size={15} color="#CDBBFF" />
-          <Text style={baseStyles.createButtonText}>{actionLabel}</Text>
+          <Text style={styles.createButtonText}>{actionLabel}</Text>
         </Pressable>
       ) : null}
     </View>
