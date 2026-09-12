@@ -1,0 +1,84 @@
+name: Add feed retry state
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/add-feed-retry-state.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Add retry state to home feed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/app/index.tsx')
+          s = p.read_text()
+
+          import_marker = "import ReadersList from '@/components/ReadersList';\n"
+          retry_import = "import RetryNotice from '@/components/RetryNotice';\n"
+          if retry_import not in s:
+              if import_marker not in s:
+                  raise SystemExit('ReadersList import marker missing')
+              s = s.replace(import_marker, import_marker + retry_import, 1)
+
+          state_marker = "  const [loadingPosts, setLoadingPosts] = useState(false);\n"
+          state_line = "  const [feedError, setFeedError] = useState<string | null>(null);\n"
+          if state_line not in s:
+              if state_marker not in s:
+                  raise SystemExit('loadingPosts marker missing')
+              s = s.replace(state_marker, state_marker + state_line, 1)
+
+          start_marker = "  const loadPosts = useCallback(async () => {\n    setLoadingPosts(true);\n"
+          start_replacement = "  const loadPosts = useCallback(async () => {\n    setLoadingPosts(true);\n    setFeedError(null);\n"
+          if start_replacement not in s:
+              if start_marker not in s:
+                  raise SystemExit('loadPosts start marker missing')
+              s = s.replace(start_marker, start_replacement, 1)
+
+          initial_error = "      if (error) {\n        console.error('Postlar yüklenemedi:', error);\n        return;\n      }\n"
+          initial_error_replacement = "      if (error) {\n        console.error('Postlar yüklenemedi:', error);\n        setFeedError('Akış şu anda yenilenemedi. İnternet bağlantını kontrol edip tekrar deneyebilirsin.');\n        return;\n      }\n"
+          if initial_error_replacement not in s:
+              if initial_error not in s:
+                  raise SystemExit('initial post error marker missing')
+              s = s.replace(initial_error, initial_error_replacement, 1)
+
+          catch_marker = "    } catch (error) {\n      console.error('Post yükleme hatası:', error);\n    } finally {\n"
+          catch_replacement = "    } catch (error) {\n      console.error('Post yükleme hatası:', error);\n      setFeedError('Akış yüklenirken bir sorun oluştu. Mevcut içerikler korunuyor; yeniden deneyebilirsin.');\n    } finally {\n"
+          if catch_replacement not in s:
+              if catch_marker not in s:
+                  raise SystemExit('post catch marker missing')
+              s = s.replace(catch_marker, catch_replacement, 1)
+
+          section_marker = "        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Topluluk Akışı</Text></View>\n\n        {loadingPosts ? (\n"
+          section_replacement = "        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Topluluk Akışı</Text></View>\n\n        {feedError ? (\n          <RetryNotice\n            message={feedError}\n            busy={loadingPosts}\n            onRetry={() => { void Promise.all([loadPosts(), loadReviews()]); }}\n          />\n        ) : null}\n\n        {loadingPosts && visiblePosts.length === 0 ? (\n"
+          if section_replacement not in s:
+              if section_marker not in s:
+                  raise SystemExit('feed render marker missing')
+              s = s.replace(section_marker, section_replacement, 1)
+
+          p.write_text(s)
+          PY
+      - run: npm ci
+      - name: Verify TypeScript
+        run: npm run typecheck
+      - name: Route audit
+        run: npm run audit:routes
+      - name: Reader security tests
+        run: npm run test:security
+      - name: Commit changes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/app/index.tsx
+          git commit -m "Add recoverable home feed loading errors" || true
+          git rm .github/workflows/add-feed-retry-state.yml
+          git commit -m "Remove temporary feed retry workflow" || true
+          git push
