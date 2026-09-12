@@ -1,0 +1,35 @@
+name: Add blocked users link
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-blocked-users-link.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Patch profile settings
+        run: python3 scripts/add-blocked-users-link.py
+      - run: npm ci
+      - name: Verify TypeScript
+        run: npm run typecheck
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/profile-settings.tsx
+          git commit -m "Add blocked users settings entry" || true
+          git rm .github/workflows/add-blocked-users-link.yml scripts/add-blocked-users-link.py
+          git commit -m "Remove temporary blocked users patch" || true
+          git push origin main
