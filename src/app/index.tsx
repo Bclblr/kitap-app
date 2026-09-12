@@ -273,7 +273,8 @@ export default function HomeScreen() {
       const { data, error } = await supabase
         .from('reviews')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(30);
 
       if (error) {
         console.error('Supabase incelemeleri yüklenemedi:', error);
@@ -395,7 +396,8 @@ export default function HomeScreen() {
       const { data, error } = await supabase
         .from('posts')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(30);
 
       if (error) {
         console.error('Postlar yüklenemedi:', error);
@@ -514,7 +516,8 @@ export default function HomeScreen() {
       const { data: reviewData, error: reviewError } = await supabase
         .from('reviews')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(30);
 
       if (reviewError) {
         console.error('Ana sayfa incelemeleri alınamadı:', reviewError);
@@ -555,7 +558,7 @@ export default function HomeScreen() {
         .from('quotes')
         .select('id,user_id,book_key,book_title,text,created_at')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(30);
       if (remoteQuotes.error) throw remoteQuotes.error;
 
       const remoteQuotePosts: Post[] = (remoteQuotes.data ?? [])
