@@ -47,6 +47,7 @@ function GuardedLayout() {
           </Stack.Protected>
           <Stack.Protected guard={!!session}>
             <Stack.Screen name="index" />
+            <Stack.Screen name="onboarding" />
             <Stack.Screen name="explore" />
             <Stack.Screen name="shelves" />
             <Stack.Screen name="profile" />
