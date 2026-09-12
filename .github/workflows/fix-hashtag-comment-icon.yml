@@ -1,0 +1,54 @@
+name: Fix hashtag comment icon
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-hashtag-comment-icon.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Replace empty circle with Feather comment icon
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/app/hashtag.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          import_anchor = "import HashtagText from '@/components/HashtagText';\n"
+          import_line = "import { Feather } from '@expo/vector-icons';\n"
+          if import_line not in text:
+              if import_anchor not in text:
+                  raise SystemExit('HashtagText import anchor not found')
+              text = text.replace(import_anchor, import_anchor + import_line, 1)
+
+          old = '''            <Text style={[styles.actionIcon, commentPanelOpen && styles.commentActive]}>
+              ◯
+            </Text>'''
+          new = '''            <Feather
+              name="message-circle"
+              size={18}
+              color={commentPanelOpen ? '#A985FF' : '#858792'}
+            />'''
+
+          if old not in text:
+              raise SystemExit('Comment icon anchor not found')
+
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/hashtag.tsx
+          git commit -m "Hashtag sayfasındaki yorum ikonunu düzelt"
+          git push
