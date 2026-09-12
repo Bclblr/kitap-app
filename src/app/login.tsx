@@ -28,6 +28,12 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   async function routeAfterLogin() {
+    const { data } = await supabase.auth.getUser();
+    if (data.user?.user_metadata?.onboarding_pending === true) {
+      router.replace('/onboarding');
+      return;
+    }
+
     const access = await getCurrentAdminAccess();
 
     if (access.canOpenAdmin) {
