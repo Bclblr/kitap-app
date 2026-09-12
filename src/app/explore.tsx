@@ -1,16 +1,15 @@
-import { BookCoverData, existingBookCover, openLibraryUrl } from '@/lib/open-library-cover';
 import BookCover from '@/components/BookCover';
-import { useThemedStyles } from '@/theme/use-themed-styles';
-import { useRouter } from 'expo-router';
-import AdSlot from '@/components/AdSlot';
-import { Action } from '@/components/ReaderUI';
-import { useReaderSocial } from '@/hooks/use-reader-social';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import Image from '@/components/SafeImage';
-
 import BottomNav from '@/components/BottomNav';
+import Image from '@/components/SafeImage';
+import AdSlot from '@/components/AdSlot';
+import { BookCoverData, existingBookCover, openLibraryUrl } from '@/lib/open-library-cover';
 import { supabase } from '@/lib/supabase';
+import { useReaderSocial } from '@/hooks/use-reader-social';
+import { useThemedStyles } from '@/theme/use-themed-styles';
+import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 type Book = BookCoverData & {
   key: string;
@@ -34,11 +33,13 @@ type Author = {
   top_work?: string;
   work_count?: number;
 };
-type FeaturedAuthor = Author & { featuredBookCount: number; featuredScore: number };
+
+type FeaturedAuthor = Author & {
+  featuredBookCount: number;
+  featuredScore: number;
+};
 
 type SearchType = 'books' | 'authors' | 'users';
-
-
 
 type PopularBook = BookCoverData & {
   book_key: string;
@@ -57,33 +58,41 @@ type TrendingHashtag = {
   display_hashtag: string;
   mention_count: number;
   unique_users: number;
-  post_count: number;
-  review_count: number;
-  trend_score: number;
-  latest_mention_at: string;
 };
-type UpcomingEvent = { id: string; title: string; description: string | null; event_date: string; location: string | null; image_url: string | null; created_by: string | null };
-type DiscoverCommunity = { id: string; name: string; description: string | null; image_url: string | null; member_count: number; is_member: boolean; created_at: string };
 
-const DISCOVERY_SECTIONS = [
-  ['Öne Çıkan Yazarlar', 'Okurların ilgisini çeken yazarları burada keşfedebileceksin.', '#B58AF6'],
-  ['Yaklaşan Etkinlikler', 'Söyleşi, imza günü ve canlı yayınlar burada görünecek.', '#F29A45'],
-  ['Toplulukları Keşfet', 'Kitap kulüpleri ve okuma toplulukları burada yer alacak.', '#7F8FEF'],
-] as const;
+type UpcomingEvent = {
+  id: string;
+  title: string;
+  description: string | null;
+  event_date: string;
+  location: string | null;
+  image_url: string | null;
+  created_by: string | null;
+};
+
+type DiscoverCommunity = {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  member_count: number;
+  is_member: boolean;
+  created_at: string;
+};
 
 export default function ExploreScreen() {
   const styles = useThemedStyles(baseStyles);
-  const social = useReaderSocial();
   const router = useRouter();
+  const social = useReaderSocial();
+
   const [query, setQuery] = useState('');
   const [books, setBooks] = useState<Book[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [authors, setAuthors] = useState<Author[]>([]);
+  const [activeSearchType, setActiveSearchType] = useState<SearchType>('books');
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [activeSearchType, setActiveSearchType] = useState<SearchType>('books');
-  
-  
+
   const [popularBooks, setPopularBooks] = useState<PopularBook[]>([]);
   const [popularBooksLoading, setPopularBooksLoading] = useState(false);
   const [featuredAuthors, setFeaturedAuthors] = useState<FeaturedAuthor[]>([]);
@@ -92,300 +101,210 @@ export default function ExploreScreen() {
   const [upcomingEventsLoading, setUpcomingEventsLoading] = useState(false);
   const [discoverCommunities, setDiscoverCommunities] = useState<DiscoverCommunity[]>([]);
   const [discoverCommunitiesLoading, setDiscoverCommunitiesLoading] = useState(false);
-  const [trendingHashtags, setTrendingHashtags] =
-    useState<TrendingHashtag[]>([]);
-  const [trendingHashtagsLoading, setTrendingHashtagsLoading] =
-    useState(false);
+  const [trendingHashtags, setTrendingHashtags] = useState<TrendingHashtag[]>([]);
+  const [trendingHashtagsLoading, setTrendingHashtagsLoading] = useState(false);
+
   const searchRequestIdRef = useRef(0);
   const skipNextSearchRef = useRef(false);
-  const popularBooksRequestIdRef = useRef(0);
-  const featuredAuthorsRequestIdRef = useRef(0);
-  const upcomingEventsRequestIdRef = useRef(0);
-  const discoverCommunitiesRequestIdRef = useRef(0);
-  const trendingHashtagsRequestIdRef = useRef(0);
-
   const isSearching = query.trim().length > 0;
 
-  
-
-  
-
   const loadPopularBooks = useCallback(async () => {
-    const requestId = ++popularBooksRequestIdRef.current;
-
+    setPopularBooksLoading(true);
     try {
-      setPopularBooksLoading(true);
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (requestId !== popularBooksRequestIdRef.current) return;
-
-      if (userError && userError.name !== 'AuthSessionMissingError') {
-        console.error('Popular books user error:', userError);
-        setPopularBooks([]);
-        return;
-      }
-
-      if (!user) {
-        setPopularBooks([]);
-        return;
-      }
-
       const { data, error } = await supabase.rpc('get_popular_books');
-
-      if (requestId !== popularBooksRequestIdRef.current) return;
-
-      if (error) {
-        console.error('Popular books error:', error);
-        setPopularBooks([]);
-        return;
-      }
+      if (error) throw error;
 
       const rows = Array.isArray(data) ? data.slice(0, 10) : [];
-      const normalizeNumber = (value: unknown) => {
-        const numberValue = Number(value);
-        return Number.isFinite(numberValue) ? numberValue : 0;
-      };
-      const normalizedBooks: PopularBook[] = rows.map((row) => ({
+      const normalized: PopularBook[] = rows.map((row: any) => ({
         book_key: String(row.book_key ?? ''),
-        book_title:
-          typeof row.book_title === 'string' ? row.book_title : null,
-        reading_count: normalizeNumber(row.reading_count),
-        read_count: normalizeNumber(row.read_count),
-        want_count: normalizeNumber(row.want_count),
-        total_users: normalizeNumber(row.total_users),
-        popularity_score: normalizeNumber(row.popularity_score),
+        book_title: typeof row.book_title === 'string' ? row.book_title : null,
+        reading_count: Number(row.reading_count) || 0,
+        read_count: Number(row.read_count) || 0,
+        want_count: Number(row.want_count) || 0,
+        total_users: Number(row.total_users) || 0,
+        popularity_score: Number(row.popularity_score) || 0,
         author_name: null,
         cover_i: null,
       }));
 
-      const enrichedBooks = await Promise.all(
-        normalizedBooks.map(async (book) => {
+      const enriched = await Promise.all(
+        normalized.map(async (book) => {
+          if (existingBookCover(book)) return book;
           const url = openLibraryUrl(book.book_key);
-          if (existingBookCover(book) || !url) return book;
-
+          if (!url) return book;
           try {
-            const response = await fetch(
-              url
-            );
-
-            if (!response.ok) {
-              console.warn(
-                'Popular book metadata error:',
-                book.book_key,
-                response.status
-              );
-              return book;
-            }
-
+            const response = await fetch(url);
+            if (!response.ok) return book;
             const metadata = await response.json();
-            return { ...book, coverUrl: existingBookCover(metadata) };
-          } catch (metadataError) {
-            console.warn(
-              'Popular book metadata error:',
-              book.book_key,
-              metadataError
-            );
+            return {
+              ...book,
+              coverUrl: existingBookCover(metadata),
+              author_name: Array.isArray(metadata.authors)
+                ? metadata.authors.map((item: any) => item?.name).filter(Boolean).join(', ')
+                : book.author_name,
+            };
+          } catch {
             return book;
           }
         })
       );
 
-      if (requestId !== popularBooksRequestIdRef.current) return;
-      setPopularBooks(enrichedBooks);
+      setPopularBooks(enriched);
     } catch (error) {
-      if (requestId !== popularBooksRequestIdRef.current) return;
       console.error('Popular books error:', error);
       setPopularBooks([]);
     } finally {
-      if (requestId === popularBooksRequestIdRef.current) {
-        setPopularBooksLoading(false);
-      }
+      setPopularBooksLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => void loadPopularBooks(), 0);
-
-    return () => {
-      popularBooksRequestIdRef.current += 1;
-      clearTimeout(timer);
-    };
-  }, [loadPopularBooks]);
-
-  const loadFeaturedAuthors = useCallback(async (books: PopularBook[]) => {
-    const requestId = ++featuredAuthorsRequestIdRef.current;
-    const candidates = books.slice(0, 10).filter((book) => book.book_key.startsWith('/works/'));
-    if (!candidates.length) {
-      setFeaturedAuthors([]);
-      setFeaturedAuthorsLoading(false);
-      return;
-    }
+  const loadFeaturedAuthors = useCallback(async (items: PopularBook[]) => {
     setFeaturedAuthorsLoading(true);
     try {
-      const workResults = await Promise.all(candidates.map(async (book) => {
-        try {
-          const response = await fetch(`https://openlibrary.org${book.book_key}.json`);
-          if (!response.ok) return { book, keys: [] as string[] };
-          const data = await response.json();
-          const keys = Array.isArray(data.authors)
-            ? data.authors.map((entry: { author?: { key?: unknown } }) => entry?.author?.key)
-                .filter((key: unknown): key is string => typeof key === 'string' && key.startsWith('/authors/'))
-            : [];
-          return { book, keys };
-        } catch (error) {
-          console.warn('Featured author work metadata error:', book.book_key, error);
-          return { book, keys: [] as string[] };
-        }
-      }));
+      const candidates = items
+        .filter((book) => book.book_key.startsWith('/works/'))
+        .slice(0, 10);
+
       const scores = new Map<string, { score: number; bookCount: number }>();
-      workResults.forEach(({ book, keys }) => (Array.from(new Set(keys)) as string[]).forEach((key) => {
-        const current = scores.get(key) ?? { score: 0, bookCount: 0 };
-        scores.set(key, { score: current.score + book.popularity_score, bookCount: current.bookCount + 1 });
-      }));
-      const keys: string[] = Array.from(scores.entries()).sort((a, b) => b[1].score - a[1].score || b[1].bookCount - a[1].bookCount).slice(0, 6).map(([key]) => key);
-      const results = await Promise.all(keys.map(async (key): Promise<FeaturedAuthor | null> => {
-        try {
-          const response = await fetch(`https://openlibrary.org${key}.json`);
-          if (!response.ok) return null;
-          const data = await response.json();
-          return typeof data.name === 'string' && data.name.trim()
-            ? { key, name: data.name, birth_date: typeof data.birth_date === 'string' ? data.birth_date : undefined, featuredBookCount: scores.get(key)?.bookCount ?? 0, featuredScore: scores.get(key)?.score ?? 0 }
-            : null;
-        } catch (error) {
-          console.warn('Featured author metadata error:', key, error);
-          return null;
-        }
-      }));
-      if (requestId === featuredAuthorsRequestIdRef.current) setFeaturedAuthors(results.filter((author): author is FeaturedAuthor => author !== null));
+
+      await Promise.all(
+        candidates.map(async (book) => {
+          try {
+            const response = await fetch(`https://openlibrary.org${book.book_key}.json`);
+            if (!response.ok) return;
+            const data = await response.json();
+            const authorKeys = Array.isArray(data.authors)
+              ? data.authors
+                  .map((entry: any) => entry?.author?.key)
+                  .filter((key: unknown): key is string => typeof key === 'string')
+              : [];
+
+            [...new Set(authorKeys)].forEach((key) => {
+              const current = scores.get(key) ?? { score: 0, bookCount: 0 };
+              scores.set(key, {
+                score: current.score + book.popularity_score,
+                bookCount: current.bookCount + 1,
+              });
+            });
+          } catch {
+            return;
+          }
+        })
+      );
+
+      const authorKeys = [...scores.entries()]
+        .sort((a, b) => b[1].score - a[1].score)
+        .slice(0, 6)
+        .map(([key]) => key);
+
+      const results = await Promise.all(
+        authorKeys.map(async (key): Promise<FeaturedAuthor | null> => {
+          try {
+            const response = await fetch(`https://openlibrary.org${key}.json`);
+            if (!response.ok) return null;
+            const data = await response.json();
+            if (!data?.name) return null;
+            return {
+              key,
+              name: data.name,
+              birth_date: data.birth_date,
+              featuredBookCount: scores.get(key)?.bookCount ?? 0,
+              featuredScore: scores.get(key)?.score ?? 0,
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      setFeaturedAuthors(results.filter((item): item is FeaturedAuthor => !!item));
     } finally {
-      if (requestId === featuredAuthorsRequestIdRef.current) setFeaturedAuthorsLoading(false);
+      setFeaturedAuthorsLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => void loadFeaturedAuthors(popularBooks), 0);
-    return () => { clearTimeout(timer); featuredAuthorsRequestIdRef.current += 1; };
-  }, [popularBooks, loadFeaturedAuthors]);
 
   const loadUpcomingEvents = useCallback(async () => {
-    const requestId = ++upcomingEventsRequestIdRef.current;
     setUpcomingEventsLoading(true);
     try {
-      const { data, error } = await supabase.from('events').select('id, title, description, event_date, location, image_url, created_by').gte('event_date', new Date().toISOString()).order('event_date', { ascending: true }).limit(5);
-      if (requestId !== upcomingEventsRequestIdRef.current) return;
-      if (error) { console.error('Upcoming events error:', error); setUpcomingEvents([]); return; }
+      const { data, error } = await supabase
+        .from('events')
+        .select('id, title, description, event_date, location, image_url, created_by')
+        .gte('event_date', new Date().toISOString())
+        .order('event_date', { ascending: true })
+        .limit(5);
+      if (error) throw error;
       setUpcomingEvents((data ?? []) as UpcomingEvent[]);
     } catch (error) {
-      if (requestId === upcomingEventsRequestIdRef.current) { console.error('Upcoming events error:', error); setUpcomingEvents([]); }
+      console.error('Upcoming events error:', error);
+      setUpcomingEvents([]);
     } finally {
-      if (requestId === upcomingEventsRequestIdRef.current) setUpcomingEventsLoading(false);
+      setUpcomingEventsLoading(false);
     }
   }, []);
 
-  useEffect(() => { const timer = setTimeout(() => void loadUpcomingEvents(), 0); return () => { clearTimeout(timer); upcomingEventsRequestIdRef.current += 1; }; }, [loadUpcomingEvents]);
-
   const loadDiscoverCommunities = useCallback(async () => {
-    const requestId = ++discoverCommunitiesRequestIdRef.current;
     setDiscoverCommunitiesLoading(true);
     try {
       const { data, error } = await supabase.rpc('get_discover_communities', { p_limit: 6 });
-      if (requestId !== discoverCommunitiesRequestIdRef.current) return;
-      if (error) { console.error('Discover communities error:', error); setDiscoverCommunities([]); return; }
-      const rows: Record<string, unknown>[] = Array.isArray(data) ? data : [];
-      setDiscoverCommunities(rows.map((row) => ({
-        id: String(row.id ?? ''), name: typeof row.name === 'string' ? row.name : '',
-        description: typeof row.description === 'string' ? row.description : null,
-        image_url: typeof row.image_url === 'string' ? row.image_url : null,
-        member_count: Number.isFinite(Number(row.member_count)) ? Number(row.member_count) : 0,
-        is_member: row.is_member === true, created_at: typeof row.created_at === 'string' ? row.created_at : '',
-      })).filter((community) => community.id && community.name));
-    } catch (error) { if (requestId === discoverCommunitiesRequestIdRef.current) { console.error('Discover communities error:', error); setDiscoverCommunities([]); } }
-    finally { if (requestId === discoverCommunitiesRequestIdRef.current) setDiscoverCommunitiesLoading(false); }
+      if (error) throw error;
+      const rows: any[] = Array.isArray(data) ? data : [];
+      setDiscoverCommunities(
+        rows
+          .map((row) => ({
+            id: String(row.id ?? ''),
+            name: String(row.name ?? ''),
+            description: typeof row.description === 'string' ? row.description : null,
+            image_url: typeof row.image_url === 'string' ? row.image_url : null,
+            member_count: Number(row.member_count) || 0,
+            is_member: row.is_member === true,
+            created_at: String(row.created_at ?? ''),
+          }))
+          .filter((item) => item.id && item.name)
+      );
+    } catch (error) {
+      console.error('Discover communities error:', error);
+      setDiscoverCommunities([]);
+    } finally {
+      setDiscoverCommunitiesLoading(false);
+    }
   }, []);
 
-  useEffect(() => { const timer = setTimeout(() => void loadDiscoverCommunities(), 0); return () => { clearTimeout(timer); discoverCommunitiesRequestIdRef.current += 1; }; }, [loadDiscoverCommunities]);
-
   const loadTrendingHashtags = useCallback(async () => {
-    const requestId = ++trendingHashtagsRequestIdRef.current;
-
+    setTrendingHashtagsLoading(true);
     try {
-      setTrendingHashtagsLoading(true);
-
-      if (requestId !== trendingHashtagsRequestIdRef.current) return;
-
       const { data, error } = await supabase.rpc('get_trending_hashtags');
-
-      if (requestId !== trendingHashtagsRequestIdRef.current) return;
-
-      if (error) {
-        console.error('Trending hashtags error:', error);
-        setTrendingHashtags([]);
-        return;
-      }
-
-      const rows: Record<string, unknown>[] = Array.isArray(data) ? data : [];
-      const normalizeNumber = (value: unknown) => {
-        const numberValue = Number(value);
-        return Number.isFinite(numberValue) ? numberValue : 0;
-      };
-      const normalizedHashtags = rows
-        .flatMap((row): TrendingHashtag[] => {
-          if (typeof row.hashtag !== 'string' || !row.hashtag.trim()) {
-            return [];
-          }
-
-          const hashtag = row.hashtag.replace(/^#+/, '').trim();
-          if (!hashtag) return [];
-
-          const displayHashtag =
-            typeof row.display_hashtag === 'string' &&
-            row.display_hashtag.replace(/^#+/, '').trim()
-              ? row.display_hashtag.replace(/^#+/, '').trim()
-              : hashtag;
-
-          return [
-            {
-              hashtag,
-              display_hashtag: displayHashtag,
-              mention_count: normalizeNumber(row.mention_count),
-              unique_users: normalizeNumber(row.unique_users),
-              post_count: normalizeNumber(row.post_count),
-              review_count: normalizeNumber(row.review_count),
-              trend_score: normalizeNumber(row.trend_score),
-              latest_mention_at:
-                typeof row.latest_mention_at === 'string'
-                  ? row.latest_mention_at
-                  : '',
-            },
-          ];
-        })
-        .slice(0, 10);
-
-      if (requestId !== trendingHashtagsRequestIdRef.current) return;
-      setTrendingHashtags(normalizedHashtags);
+      if (error) throw error;
+      const rows: any[] = Array.isArray(data) ? data : [];
+      setTrendingHashtags(
+        rows
+          .map((row) => ({
+            hashtag: String(row.hashtag ?? '').replace(/^#+/, ''),
+            display_hashtag: String(row.display_hashtag ?? row.hashtag ?? '').replace(/^#+/, ''),
+            mention_count: Number(row.mention_count) || 0,
+            unique_users: Number(row.unique_users) || 0,
+          }))
+          .filter((item) => item.hashtag)
+          .slice(0, 10)
+      );
     } catch (error) {
-      if (requestId !== trendingHashtagsRequestIdRef.current) return;
       console.error('Trending hashtags error:', error);
       setTrendingHashtags([]);
     } finally {
-      if (requestId === trendingHashtagsRequestIdRef.current) {
-        setTrendingHashtagsLoading(false);
-      }
+      setTrendingHashtagsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => void loadTrendingHashtags(), 0);
+    void loadPopularBooks();
+    void loadUpcomingEvents();
+    void loadDiscoverCommunities();
+    void loadTrendingHashtags();
+  }, [loadPopularBooks, loadUpcomingEvents, loadDiscoverCommunities, loadTrendingHashtags]);
 
-    return () => {
-      trendingHashtagsRequestIdRef.current += 1;
-      clearTimeout(timer);
-    };
-  }, [loadTrendingHashtags]);
+  useEffect(() => {
+    if (popularBooks.length) void loadFeaturedAuthors(popularBooks);
+    else setFeaturedAuthors([]);
+  }, [popularBooks, loadFeaturedAuthors]);
 
   const searchAll = useCallback(async () => {
     const searchText = query.trim();
@@ -399,66 +318,43 @@ export default function ExploreScreen() {
     setAuthors([]);
 
     try {
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('id, username, profile_image, bio')
-        .ilike('username', `%${searchText}%`)
-        .limit(10);
-
-      if (requestId !== searchRequestIdRef.current) return;
-      if (userError) {
-        console.error('Kullanıcı arama hatası:', userError);
-        setUsers([]);
-      } else {
-        setUsers((userData as UserProfile[]) || []);
-      }
-
-      try {
-        const response = await fetch(
+      const [userResult, bookResponse, authorResponse] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, username, profile_image, bio')
+          .ilike('username', `%${searchText}%`)
+          .limit(10),
+        fetch(
           `https://openlibrary.org/search.json?q=${encodeURIComponent(searchText)}&limit=20&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`
+        ),
+        fetch(`https://openlibrary.org/search/authors.json?q=${encodeURIComponent(searchText)}&limit=10`),
+      ]);
+
+      if (requestId !== searchRequestIdRef.current) return;
+
+      setUsers(userResult.error ? [] : ((userResult.data ?? []) as UserProfile[]));
+
+      if (bookResponse.ok) {
+        const bookData = await bookResponse.json();
+        setBooks(Array.isArray(bookData.docs) ? bookData.docs : []);
+      }
+
+      if (authorResponse.ok) {
+        const authorData = await authorResponse.json();
+        setAuthors(
+          Array.isArray(authorData.docs)
+            ? authorData.docs.map((author: any) => ({
+                key: author.key || author.author_key?.[0],
+                name: author.name,
+                birth_date: author.birth_date,
+                top_work: author.top_work,
+                work_count: author.work_count,
+              }))
+            : []
         );
-        if (requestId !== searchRequestIdRef.current) return;
-        if (!response.ok) {
-          console.warn('OpenLibrary kitap araması başarısız:', response.status);
-          setBooks([]);
-        } else {
-          const data = await response.json();
-          if (requestId !== searchRequestIdRef.current) return;
-          setBooks(Array.isArray(data.docs) ? data.docs : []);
-        }
-      } catch (error) {
-        if (requestId !== searchRequestIdRef.current) return;
-        console.warn('Kitap araması yapılamadı:', error);
-        setBooks([]);
       }
-
-      const response = await fetch(
-        `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(searchText)}&limit=10`
-      );
-      if (requestId !== searchRequestIdRef.current) return;
-      if (!response.ok) {
-        console.warn('OpenLibrary yazar araması başarısız:', response.status);
-        setAuthors([]);
-        return;
-      }
-
-      const data = await response.json();
-      if (requestId !== searchRequestIdRef.current) return;
-      const docs = Array.isArray(data.docs) ? data.docs : [];
-      setAuthors(
-        docs.map((author: Author & { author_key?: string[] }) => ({
-          key: author.key || author.author_key?.[0],
-          name: author.name,
-          birth_date: author.birth_date,
-          top_work: author.top_work,
-          work_count: author.work_count,
-        }))
-      );
     } catch (error) {
-      if (requestId !== searchRequestIdRef.current) return;
       console.error('Genel arama hatası:', error);
-      setBooks([]);
-      setAuthors([]);
     } finally {
       if (requestId === searchRequestIdRef.current) setLoading(false);
     }
@@ -467,15 +363,19 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (!query.trim()) {
       searchRequestIdRef.current += 1;
-      const timer = setTimeout(() => { setBooks([]); setUsers([]); setAuthors([]); setSearched(false); setLoading(false); }, 0);
-      return () => clearTimeout(timer);
+      setBooks([]);
+      setUsers([]);
+      setAuthors([]);
+      setSearched(false);
+      setLoading(false);
+      return;
     }
+
     if (skipNextSearchRef.current) {
       skipNextSearchRef.current = false;
       return;
     }
 
-    searchRequestIdRef.current += 1;
     const timer = setTimeout(() => void searchAll(), 600);
     return () => clearTimeout(timer);
   }, [query, searchAll]);
@@ -487,58 +387,44 @@ export default function ExploreScreen() {
   function openBook(book: Book, authorName: string) {
     router.push({
       pathname: '/book',
-      params: { key: book.key, author: authorName, title: book.title, coverUrl: existingBookCover(book) ?? undefined },
+      params: {
+        key: book.key,
+        author: authorName,
+        title: book.title,
+        coverUrl: existingBookCover(book) ?? undefined,
+      },
     });
   }
 
-  function openAuthor(author: Author) {
+  async function openAuthor(author: Author) {
     if (!author.name) return;
     skipNextSearchRef.current = true;
     setQuery(author.name);
     setActiveSearchType('books');
-    void searchAuthorBooks(author.name);
-  }
-
-  async function searchAuthorBooks(authorName: string) {
-    const requestId = ++searchRequestIdRef.current;
     setLoading(true);
     setSearched(true);
-    setBooks([]);
-    setUsers([]);
-    setAuthors([]);
     try {
       const response = await fetch(
-        `https://openlibrary.org/search.json?author=${encodeURIComponent(authorName)}&limit=20`
+        `https://openlibrary.org/search.json?author=${encodeURIComponent(author.name)}&limit=20`
       );
-      if (requestId !== searchRequestIdRef.current) return;
-      if (!response.ok) throw new Error(`Yazar kitap API hatası: ${response.status}`);
-      const data = await response.json();
-      if (requestId !== searchRequestIdRef.current) return;
+      const data = response.ok ? await response.json() : { docs: [] };
       setBooks(Array.isArray(data.docs) ? data.docs : []);
       setUsers([]);
       setAuthors([]);
-    } catch (error) {
-      if (requestId !== searchRequestIdRef.current) return;
-      console.error('Yazar kitapları yüklenemedi:', error);
-      setBooks([]);
     } finally {
-      if (requestId === searchRequestIdRef.current) setLoading(false);
+      setLoading(false);
     }
   }
 
-  const selectedCount = activeSearchType === 'books'
-    ? books.length
-    : activeSearchType === 'authors'
-      ? authors.length
-      : users.length;
-  const emptyMessage = activeSearchType === 'books'
-    ? 'Kitap bulunamadı.'
-    : activeSearchType === 'authors'
-      ? 'Yazar bulunamadı.'
-      : 'Kullanıcı bulunamadı.';
+  const selectedCount =
+    activeSearchType === 'books'
+      ? books.length
+      : activeSearchType === 'authors'
+        ? authors.length
+        : users.length;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -551,7 +437,7 @@ export default function ExploreScreen() {
           </View>
 
           <View style={styles.searchShell}>
-            <Text style={styles.searchGlyph}>⌕</Text>
+            <Feather name="search" size={21} color="#9B72F2" />
             <TextInput
               value={query}
               onChangeText={setQuery}
@@ -570,41 +456,21 @@ export default function ExploreScreen() {
           {!isSearching ? (
             <View style={styles.discovery}>
               <AdSlot />
-              <Action label="Topluluk / Kitap Kulübü Oluştur" onPress={() => router.push('/community-editor')} />
+
               <Text style={styles.discoveryTitle}>Yeni şeyler keşfet</Text>
               <Text style={styles.discoveryText}>
                 Okuma dünyandaki yeni kitaplar, insanlar ve sohbetler burada buluşacak.
               </Text>
 
-              
-
-              <View style={styles.popularBooksSection}>
-                <View style={styles.popularBooksHeader}>
-                  <View style={styles.activeReadersTitleRow}>
-                    <View style={styles.popularBooksAccent} />
-                    <Text style={styles.discoveryCardTitle}>Popüler Kitaplar</Text>
-                  </View>
-                  <Text style={styles.popularBooksCaption}>
-                    Topluluğun raflarında öne çıkan kitaplar.
-                  </Text>
-                </View>
-
+              <View style={styles.sectionCard}>
+                <SectionHeader accent="#F29A45" title="Popüler Kitaplar" />
+                <Text style={styles.sectionCaption}>Topluluğun raflarında öne çıkan kitaplar.</Text>
                 {popularBooksLoading ? (
-                  <View style={styles.popularBooksLoading}>
-                    <ActivityIndicator size="small" color="#F29A45" />
-                    <Text style={styles.activeReadersLoadingText}>
-                      Kitaplar yükleniyor...
-                    </Text>
-                  </View>
-                ) : popularBooks.length > 0 ? (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.popularBooksList}
-                  >
+                  <ActivityIndicator color="#F29A45" style={styles.sectionLoading} />
+                ) : popularBooks.length ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularBooksList}>
                     {popularBooks.map((book) => {
                       const coverUrl = existingBookCover(book);
-
                       return (
                         <Pressable
                           key={book.book_key}
@@ -622,140 +488,152 @@ export default function ExploreScreen() {
                           style={styles.popularBookCard}
                         >
                           <BookCover uri={coverUrl} style={styles.popularBookCover}>
-                            <View
-                              style={[
-                                styles.popularBookCover,
-                                styles.popularBookCoverFallback,
-                              ]}
-                            >
-                              <Text style={styles.popularBookCoverMark}>▥</Text>
+                            <View style={[styles.popularBookCover, styles.coverFallback]}>
+                              <Feather name="book-open" size={24} color="#F29A45" />
                             </View>
                           </BookCover>
                           <Text style={styles.popularBookTitle} numberOfLines={2}>
                             {book.book_title || 'Bilinmeyen kitap'}
                           </Text>
-                          {book.author_name ? (
-                            <Text style={styles.popularBookAuthor} numberOfLines={1}>
-                              {book.author_name}
-                            </Text>
-                          ) : null}
-                          <Text style={styles.popularBookStats}>
-                            {book.total_users} kişi rafında
-                          </Text>
-                          {book.reading_count > 0 ? (
-                            <Text style={styles.popularBookReading}>
-                              {book.reading_count} kişi okuyor
-                            </Text>
-                          ) : null}
+                          <Text style={styles.popularBookStats}>{book.total_users} kişi rafında</Text>
+                          {!!book.reading_count && (
+                            <Text style={styles.popularBookReading}>{book.reading_count} kişi okuyor</Text>
+                          )}
                         </Pressable>
                       );
                     })}
                   </ScrollView>
                 ) : (
-                  <Text style={styles.popularBooksEmpty}>
-                    Henüz popüler kitap verisi oluşmadı.
-                  </Text>
+                  <Text style={styles.emptySection}>Henüz popüler kitap verisi oluşmadı.</Text>
                 )}
               </View>
 
               <View style={styles.trendingSection}>
-                <View style={styles.trendingHeader}>
-                  <View style={styles.activeReadersTitleRow}>
-                    <View style={styles.trendingAccent} />
-                    <Text style={styles.discoveryCardTitle}>Gündem</Text>
-                  </View>
-                  <Text style={styles.trendingCaption}>
-                    Okuma topluluğunda şu anda konuşulanlar.
-                  </Text>
-                </View>
-
+                <SectionHeader accent="#D8799B" title="Gündem" />
+                <Text style={styles.sectionCaption}>Okuma topluluğunda şu anda konuşulanlar.</Text>
                 {trendingHashtagsLoading ? (
-                  <View style={styles.trendingLoading}>
-                    <ActivityIndicator size="small" color="#D8799B" />
-                    <Text style={styles.activeReadersLoadingText}>
-                      Gündem yükleniyor...
-                    </Text>
-                  </View>
-                ) : trendingHashtags.length > 0 ? (
-                  <View style={styles.trendingList}>
-                    {trendingHashtags.map((item, index) => (
-                      <Pressable
-                        key={item.hashtag}
-                        onPress={() =>
-                          router.push({
-                            pathname: '/hashtag',
-                            params: { tag: item.hashtag },
-                          })
-                        }
-                        style={({ pressed }) => [
-                          styles.trendingRow,
-                          index < trendingHashtags.length - 1 &&
-                            styles.trendingRowBorder,
-                          pressed && styles.trendingRowPressed,
-                        ]}
-                      >
-                        <Text style={styles.trendingRowMeta}>
-                          {index + 1} · {index < 3 ? 'Yükseliyor' : 'Gündem'}
-                        </Text>
-                        <Text style={styles.trendingHashtag} numberOfLines={1}>
-                          #{item.display_hashtag.replace(/^#+/, '')}
-                        </Text>
-                        <Text style={styles.trendingCounts}>
-                          {item.mention_count} paylaşım · {item.unique_users} okur
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  <ActivityIndicator color="#D8799B" style={styles.sectionLoading} />
+                ) : trendingHashtags.length ? (
+                  trendingHashtags.map((item, index) => (
+                    <Pressable
+                      key={item.hashtag}
+                      onPress={() => router.push({ pathname: '/hashtag', params: { tag: item.hashtag } })}
+                      style={styles.listRow}
+                    >
+                      <View style={styles.flexOne}>
+                        <Text style={styles.rowMeta}>{index + 1} · {index < 3 ? 'Yükseliyor' : 'Gündem'}</Text>
+                        <Text style={styles.hashtag}>#{item.display_hashtag}</Text>
+                        <Text style={styles.rowDescription}>{item.mention_count} paylaşım · {item.unique_users} okur</Text>
+                      </View>
+                      <Feather name="chevron-right" size={18} color="#777983" />
+                    </Pressable>
+                  ))
                 ) : (
-                  <Text style={styles.trendingEmpty}>
-                    Henüz gündem oluşturacak hashtag yok.
-                  </Text>
+                  <Text style={styles.emptySection}>Henüz gündem oluşturacak hashtag yok.</Text>
                 )}
               </View>
 
-              <View style={styles.featuredAuthorsSection}>
-                <View style={styles.activeReadersTitleRow}><View style={styles.featuredAuthorsAccent} /><Text style={styles.discoveryCardTitle}>Öne Çıkan Yazarlar</Text></View>
-                <Text style={styles.popularBooksCaption}>Okurların ilgisini çeken yazarlar</Text>
-                {featuredAuthorsLoading ? <ActivityIndicator size="small" color="#B58AF6" style={styles.featuredAuthorsLoading} /> : featuredAuthors.length ? featuredAuthors.map((author, index) => (
-                  <Pressable key={author.key || `${author.name}-${index}`} onPress={() => openAuthor(author)} style={styles.featuredAuthorRow}>
-                    <View style={styles.authorMark}><Text style={styles.authorMarkText}>{(author.name?.trim().charAt(0) || 'Y').toLocaleUpperCase('tr-TR')}</Text></View>
-                    <View style={styles.featuredAuthorInfo}><Text style={styles.resultTitle} numberOfLines={1}>{author.name}</Text><Text style={styles.featuredAuthorMeta}>{author.featuredBookCount} popüler kitap</Text></View><Text style={styles.arrow}>›</Text>
-                  </Pressable>
-                )) : <Text style={styles.popularBooksEmpty}>Henüz yeterli veri yok.</Text>}
+              <View style={styles.sectionCard}>
+                <SectionHeader accent="#B58AF6" title="Öne Çıkan Yazarlar" />
+                <Text style={styles.sectionCaption}>Okurların ilgisini çeken yazarlar</Text>
+                {featuredAuthorsLoading ? (
+                  <ActivityIndicator color="#B58AF6" style={styles.sectionLoading} />
+                ) : featuredAuthors.length ? (
+                  featuredAuthors.map((author, index) => (
+                    <Pressable key={author.key || `${author.name}-${index}`} onPress={() => void openAuthor(author)} style={styles.listRow}>
+                      <View style={styles.authorMark}>
+                        <Text style={styles.authorMarkText}>{(author.name?.charAt(0) || 'Y').toUpperCase()}</Text>
+                      </View>
+                      <View style={styles.flexOne}>
+                        <Text style={styles.resultTitle}>{author.name}</Text>
+                        <Text style={styles.rowDescription}>{author.featuredBookCount} popüler kitap</Text>
+                      </View>
+                      <Feather name="chevron-right" size={18} color="#777983" />
+                    </Pressable>
+                  ))
+                ) : (
+                  <Text style={styles.emptySection}>Henüz yeterli veri yok.</Text>
+                )}
               </View>
 
               <View style={styles.eventsSection}>
-                <View style={styles.activeReadersTitleRow}><View style={styles.eventsAccent} /><Text style={styles.discoveryCardTitle}>Yaklaşan Etkinlikler</Text></View>
-                <Text style={styles.popularBooksCaption}>Okur buluşmaları ve etkinlikler</Text>
-                {upcomingEventsLoading ? <ActivityIndicator size="small" color="#F29A45" style={styles.eventsLoading} /> : upcomingEvents.length ? upcomingEvents.map((event) => {
-                  const date = new Date(event.event_date);
-                  return <Pressable key={event.id} onPress={() => router.push({ pathname: '/event', params: { id: event.id } })} style={styles.eventRow}><View style={styles.eventDate}><Text style={styles.eventDay}>{date.toLocaleDateString('tr-TR', { day: '2-digit' })}</Text><Text style={styles.eventMonth}>{date.toLocaleDateString('tr-TR', { month: 'short' }).replace('.', '').toLocaleUpperCase('tr-TR')}</Text><Text style={styles.eventTime}>{date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</Text></View><View style={styles.eventInfo}><Text style={styles.resultTitle} numberOfLines={2}>{event.title}</Text>{event.location ? <Text style={styles.eventMeta} numberOfLines={1}>{event.location}</Text> : null}{event.description ? <Text style={styles.eventDescription} numberOfLines={2}>{event.description}</Text> : null}</View></Pressable>;
-                }) : <Text style={styles.popularBooksEmpty}>Yaklaşan etkinlik bulunmuyor.</Text>}
+                <SectionHeader
+                  accent="#F29A45"
+                  title="Yaklaşan Etkinlikler"
+                  actionLabel="Etkinlik oluştur"
+                  onAction={() => router.push('/event-editor')}
+                />
+                <Text style={styles.sectionCaption}>Okur buluşmaları ve etkinlikler</Text>
+                {upcomingEventsLoading ? (
+                  <ActivityIndicator color="#F29A45" style={styles.sectionLoading} />
+                ) : upcomingEvents.length ? (
+                  upcomingEvents.map((event) => {
+                    const date = new Date(event.event_date);
+                    return (
+                      <Pressable
+                        key={event.id}
+                        onPress={() => router.push({ pathname: '/event', params: { id: event.id } })}
+                        style={styles.eventRow}
+                      >
+                        <View style={styles.eventDate}>
+                          <Text style={styles.eventDay}>{date.toLocaleDateString('tr-TR', { day: '2-digit' })}</Text>
+                          <Text style={styles.eventMonth}>{date.toLocaleDateString('tr-TR', { month: 'short' }).replace('.', '').toUpperCase()}</Text>
+                          <Text style={styles.eventTime}>{date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</Text>
+                        </View>
+                        <View style={styles.flexOne}>
+                          <Text style={styles.resultTitle} numberOfLines={2}>{event.title}</Text>
+                          {!!event.location && <Text style={styles.eventMeta}>{event.location}</Text>}
+                          {!!event.description && <Text style={styles.rowDescription} numberOfLines={2}>{event.description}</Text>}
+                        </View>
+                        <Feather name="chevron-right" size={18} color="#777983" />
+                      </Pressable>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.emptySection}>Yaklaşan etkinlik bulunmuyor.</Text>
+                )}
               </View>
 
               <View style={styles.communitiesSection}>
-                <View style={styles.activeReadersTitleRow}><View style={styles.communitiesAccent} /><Text style={styles.discoveryCardTitle}>Toplulukları Keşfet</Text></View>
-                <Text style={styles.popularBooksCaption}>Birlikte okuyan insanlarla buluş</Text>
-                {discoverCommunitiesLoading ? <ActivityIndicator size="small" color="#7F8FEF" style={styles.communitiesLoading} /> : discoverCommunities.length ? discoverCommunities.map((community) => (
-                  <Pressable key={community.id} onPress={() => router.push({ pathname: '/community', params: { id: community.id } })} style={styles.communityRow}>
-                    {community.image_url ? <Image source={{ uri: community.image_url }} style={styles.communityImage} /> : <View style={[styles.communityImage, styles.communityMark]}><Text style={styles.communityMarkText}>{community.name.charAt(0).toLocaleUpperCase('tr-TR')}</Text></View>}
-                    <View style={styles.communityInfo}><Text style={styles.resultTitle} numberOfLines={1}>{community.name}</Text><Text style={styles.communityMeta}>{community.member_count} üye {community.is_member ? '· Üyesin' : '· Keşfet'}</Text>{community.description ? <Text style={styles.eventDescription} numberOfLines={2}>{community.description}</Text> : null}</View>
-                  </Pressable>
-                )) : <Text style={styles.popularBooksEmpty}>Henüz keşfedilecek topluluk yok.</Text>}
+                <SectionHeader
+                  accent="#7F8FEF"
+                  title="Toplulukları Keşfet"
+                  actionLabel="Topluluk / Kulüp oluştur"
+                  onAction={() => router.push('/community-editor')}
+                />
+                <Text style={styles.sectionCaption}>Birlikte okuyan insanlarla buluş</Text>
+                {discoverCommunitiesLoading ? (
+                  <ActivityIndicator color="#7F8FEF" style={styles.sectionLoading} />
+                ) : discoverCommunities.length ? (
+                  discoverCommunities.map((community) => (
+                    <Pressable
+                      key={community.id}
+                      onPress={() => router.push({ pathname: '/community', params: { id: community.id } })}
+                      style={styles.communityRow}
+                    >
+                      {community.image_url ? (
+                        <Image source={{ uri: community.image_url }} style={styles.communityImage} />
+                      ) : (
+                        <View style={[styles.communityImage, styles.communityMark]}>
+                          <Text style={styles.communityMarkText}>{community.name.charAt(0).toUpperCase()}</Text>
+                        </View>
+                      )}
+                      <View style={styles.flexOne}>
+                        <Text style={styles.resultTitle} numberOfLines={1}>{community.name}</Text>
+                        <Text style={styles.communityMeta}>
+                          {community.member_count} üye {community.is_member ? '· Üyesin' : '· Keşfet'}
+                        </Text>
+                        {!!community.description && (
+                          <Text style={styles.rowDescription} numberOfLines={2}>{community.description}</Text>
+                        )}
+                      </View>
+                      <Feather name="chevron-right" size={18} color="#777983" />
+                    </Pressable>
+                  ))
+                ) : (
+                  <Text style={styles.emptySection}>Henüz keşfedilecek topluluk yok.</Text>
+                )}
               </View>
-
-              {DISCOVERY_SECTIONS.slice(3).map(([title, description, accent]) => (
-                <View key={title} style={styles.discoveryCard}>
-                  <View style={[styles.discoveryAccent, { backgroundColor: accent }]} />
-                  <View style={styles.discoveryCardText}>
-                    <Text style={styles.discoveryCardTitle}>{title}</Text>
-                    <Text style={styles.discoveryCardDescription}>{description}</Text>
-                  </View>
-                  <View style={styles.soonPill}>
-                    <Text style={styles.soonText}>Yakında</Text>
-                  </View>
-                </View>
-              ))}
             </View>
           ) : (
             <View style={styles.resultsArea}>
@@ -767,70 +645,68 @@ export default function ExploreScreen() {
 
               {loading ? (
                 <View style={styles.messageCard}>
-                  <ActivityIndicator size="small" color="#9B72F2" />
+                  <ActivityIndicator color="#9B72F2" />
                   <Text style={styles.loadingText}>Aranıyor...</Text>
                 </View>
               ) : searched && selectedCount === 0 ? (
                 <View style={styles.messageCard}>
-                  <View style={styles.emptyDot} />
-                  <Text style={styles.emptyTitle}>{emptyMessage}</Text>
+                  <Text style={styles.emptyTitle}>Sonuç bulunamadı.</Text>
                   <Text style={styles.emptyText}>Farklı bir arama ifadesi deneyebilirsin.</Text>
                 </View>
               ) : (
                 <>
-                  {activeSearchType === 'users' && users.filter(user => !social.error && !social.blocked.includes(user.id)).map((user) => {
-                    const name = user.username?.trim() || 'Kitap Okuru';
-                    const initial = name.charAt(0).toLocaleUpperCase('tr-TR');
-                    return (
-                      <Pressable key={user.id} onPress={() => openUser(user)} style={styles.resultCard}>
-                        {user.profile_image ? (
-                          <Image source={{ uri: user.profile_image }} style={styles.avatar} />
-                        ) : (
-                          <View style={[styles.avatar, styles.avatarFallback]}>
-                            <Text style={styles.avatarText}>{initial}</Text>
-                          </View>
-                        )}
-                        <View style={styles.resultInfo}>
-                          <Text style={styles.resultTitle} numberOfLines={1}>{name}</Text>
-                          <Text style={styles.resultMeta} numberOfLines={2}>{user.bio || 'Profilini görüntüle'}</Text>
-                        </View>
-                        <Text style={styles.arrow}>›</Text>
-                      </Pressable>
-                    );
-                  })}
+                  {activeSearchType === 'users' &&
+                    users
+                      .filter((user) => !social.error && !social.blocked.includes(user.id))
+                      .map((user) => {
+                        const name = user.username?.trim() || 'Kitap Okuru';
+                        return (
+                          <Pressable key={user.id} onPress={() => openUser(user)} style={styles.resultCard}>
+                            {user.profile_image ? (
+                              <Image source={{ uri: user.profile_image }} style={styles.avatar} />
+                            ) : (
+                              <View style={[styles.avatar, styles.avatarFallback]}>
+                                <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
+                              </View>
+                            )}
+                            <View style={styles.flexOne}>
+                              <Text style={styles.resultTitle}>{name}</Text>
+                              <Text style={styles.rowDescription}>{user.bio || 'Profilini görüntüle'}</Text>
+                            </View>
+                            <Feather name="chevron-right" size={18} color="#777983" />
+                          </Pressable>
+                        );
+                      })}
 
                   {activeSearchType === 'authors' && authors.map((author, index) => (
-                    <Pressable key={author.key || `${author.name}-${index}`} onPress={() => openAuthor(author)} style={styles.resultCard}>
+                    <Pressable key={author.key || `${author.name}-${index}`} onPress={() => void openAuthor(author)} style={styles.resultCard}>
                       <View style={styles.authorMark}>
-                        <Text style={styles.authorMarkText}>{(author.name?.trim().charAt(0) || 'Y').toLocaleUpperCase('tr-TR')}</Text>
+                        <Text style={styles.authorMarkText}>{(author.name?.charAt(0) || 'Y').toUpperCase()}</Text>
                       </View>
-                      <View style={styles.resultInfo}>
-                        <Text style={styles.resultTitle} numberOfLines={1}>{author.name || 'Bilinmeyen yazar'}</Text>
-                        {author.birth_date ? <Text style={styles.resultMeta}>Doğum: {author.birth_date}</Text> : null}
-                        {author.top_work ? <Text style={styles.authorWork} numberOfLines={1}>En bilinen eseri: {author.top_work}</Text> : null}
-                        {typeof author.work_count === 'number' ? <Text style={styles.authorCount}>{author.work_count} eser</Text> : null}
+                      <View style={styles.flexOne}>
+                        <Text style={styles.resultTitle}>{author.name || 'Bilinmeyen yazar'}</Text>
+                        {!!author.birth_date && <Text style={styles.rowDescription}>Doğum: {author.birth_date}</Text>}
+                        {!!author.top_work && <Text style={styles.rowDescription}>En bilinen eseri: {author.top_work}</Text>}
                       </View>
-                      <Text style={styles.arrow}>›</Text>
+                      <Feather name="chevron-right" size={18} color="#777983" />
                     </Pressable>
                   ))}
 
                   {activeSearchType === 'books' && books.map((book, index) => {
-                    const coverUrl = existingBookCover(book);
                     const authorName = book.author_name?.join(', ') || 'Bilinmeyen yazar';
                     return (
                       <Pressable key={book.key || `${book.title}-${index}`} onPress={() => openBook(book, authorName)} style={styles.bookCard}>
-                        <BookCover uri={coverUrl} style={styles.cover}>
-                          <View style={styles.noCover}>
-                            <Text style={styles.noCoverMark}>▥</Text>
-                            <Text style={styles.noCoverText}>Kapak yok</Text>
+                        <BookCover uri={existingBookCover(book)} style={styles.cover}>
+                          <View style={[styles.cover, styles.coverFallback]}>
+                            <Feather name="book-open" size={24} color="#9870EA" />
                           </View>
                         </BookCover>
-                        <View style={styles.resultInfo}>
+                        <View style={styles.flexOne}>
                           <Text style={styles.bookTitle} numberOfLines={2}>{book.title ?? 'Bilinmeyen kitap'}</Text>
                           <Text style={styles.bookAuthor} numberOfLines={2}>{authorName}</Text>
-                          {book.first_publish_year ? <Text style={styles.year}>İlk yayın: {book.first_publish_year}</Text> : null}
+                          {!!book.first_publish_year && <Text style={styles.year}>İlk yayın: {book.first_publish_year}</Text>}
                         </View>
-                        <Text style={styles.arrow}>›</Text>
+                        <Feather name="chevron-right" size={18} color="#777983" />
                       </Pressable>
                     );
                   })}
@@ -841,7 +717,34 @@ export default function ExploreScreen() {
         </ScrollView>
         <BottomNav />
       </View>
-    </SafeAreaView>
+    </View>
+  );
+}
+
+function SectionHeader({
+  accent,
+  title,
+  actionLabel,
+  onAction,
+}: {
+  accent: string;
+  title: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <View style={baseStyles.sectionHeaderRow}>
+      <View style={baseStyles.sectionHeaderTitleRow}>
+        <View style={[baseStyles.sectionAccent, { backgroundColor: accent }]} />
+        <Text style={baseStyles.sectionTitle}>{title}</Text>
+      </View>
+      {actionLabel && onAction ? (
+        <Pressable onPress={onAction} style={baseStyles.createButton} accessibilityLabel={actionLabel}>
+          <Feather name="plus" size={15} color="#CDBBFF" />
+          <Text style={baseStyles.createButtonText}>{actionLabel}</Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -855,94 +758,58 @@ function SearchTab({ label, active, onPress }: { label: string; active: boolean;
 }
 
 const baseStyles = StyleSheet.create({
-  featuredAuthorsSection: { borderRadius: 17, borderWidth: 1, borderColor: '#332B41', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
-  featuredAuthorsAccent: { width: 4, height: 18, borderRadius: 2, backgroundColor: '#B58AF6', marginRight: 9 },
-  featuredAuthorsLoading: { marginVertical: 18 },
-  featuredAuthorRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#252630' },
-  featuredAuthorInfo: { flex: 1, marginLeft: 10 },
-  featuredAuthorMeta: { color: '#777983', fontSize: 10, marginTop: 3 },
-  eventsSection: { borderRadius: 17, borderWidth: 1, borderColor: '#3A3027', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
-  eventsAccent: { width: 4, height: 18, borderRadius: 2, backgroundColor: '#F29A45', marginRight: 9 },
-  eventsLoading: { marginVertical: 20 },
-  eventRow: { flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#252630' },
-  eventDate: { width: 58, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  eventDay: { color: '#F29A45', fontSize: 21, fontWeight: '900' },
-  eventMonth: { color: '#B58AF6', fontSize: 10, fontWeight: '900' },
-  eventTime: { color: '#777983', fontSize: 9, marginTop: 3 },
-  eventInfo: { flex: 1, justifyContent: 'center' },
-  eventMeta: { color: '#B58AF6', fontSize: 10, marginTop: 4 },
-  eventDescription: { color: '#777983', fontSize: 10, marginTop: 3 },
-  communitiesSection: { borderRadius: 17, borderWidth: 1, borderColor: '#302F4A', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
-  communitiesAccent: { width: 4, height: 18, borderRadius: 2, backgroundColor: '#7F8FEF', marginRight: 9 },
-  communitiesLoading: { marginVertical: 20 },
-  communityRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#252630' },
-  communityImage: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#24253A' },
-  communityMark: { justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#7F8FEF' },
-  communityMarkText: { color: '#D5D7FF', fontSize: 18, fontWeight: '900' },
-  communityInfo: { flex: 1, marginLeft: 11 },
-  communityMeta: { color: '#B58AF6', fontSize: 10, marginTop: 3 },
   safeArea: { flex: 1, backgroundColor: '#08090D' },
   container: { flex: 1, backgroundColor: '#08090D' },
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 124 },
   header: { paddingVertical: 12, marginBottom: 16 },
   eyebrow: { color: '#9870EA', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   title: { color: '#F7F7F9', fontSize: 30, fontWeight: '900', letterSpacing: -0.8, marginTop: 4 },
-  searchShell: { minHeight: 54, flexDirection: 'row', alignItems: 'center', borderRadius: 17, borderWidth: 1, borderColor: '#2D2E37', backgroundColor: '#111218', paddingLeft: 13, paddingRight: 6 },
-  searchGlyph: { color: '#9B72F2', fontSize: 24, lineHeight: 26, marginRight: 8 },
+  searchShell: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 17, borderWidth: 1, borderColor: '#2D2E37', backgroundColor: '#111218', paddingLeft: 14, paddingRight: 6 },
   input: { flex: 1, height: 52, color: '#F4F4F6', fontSize: 14, paddingVertical: 0 },
   searchButton: { minWidth: 62, height: 42, borderRadius: 13, backgroundColor: '#8058D9', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 14 },
   searchButtonText: { color: '#FFF', fontSize: 12, fontWeight: '900' },
   discovery: { marginTop: 24 },
   discoveryTitle: { color: '#F2F2F5', fontSize: 17, fontWeight: '900' },
   discoveryText: { color: '#7E808A', fontSize: 11, lineHeight: 17, marginTop: 5, marginBottom: 14 },
-  activeReadersSection: { minHeight: 150, borderRadius: 17, borderWidth: 1, borderColor: '#332B41', backgroundColor: '#111218', paddingVertical: 14, marginBottom: 10 },
-  activeReadersHeader: { paddingHorizontal: 14, marginBottom: 13 },
-  activeReadersTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  activeReadersAccent: { width: 4, height: 18, borderRadius: 2, backgroundColor: '#9B72F2', marginRight: 9 },
-  activeReadersCaption: { color: '#777983', fontSize: 10, lineHeight: 15, marginTop: 5, marginLeft: 13 },
-  activeReadersLoading: { minHeight: 74, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  activeReadersLoadingText: { color: '#858791', fontSize: 10, marginLeft: 8 },
-  activeReadersList: { paddingHorizontal: 14, gap: 12 },
-  activeReaderCard: { width: 72, alignItems: 'center' },
-  activeReaderAvatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#24252D', borderWidth: 2, borderColor: '#7654B5' },
-  activeReaderInitial: { color: '#E4D7FA', fontSize: 19, fontWeight: '900' },
-  activeReaderName: { width: '100%', color: '#DADAE0', fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: 7 },
-  activeReadersEmpty: { color: '#777983', fontSize: 11, lineHeight: 17, textAlign: 'center', paddingHorizontal: 20, paddingVertical: 23 },
-  popularBooksSection: { minHeight: 196, borderRadius: 17, borderWidth: 1, borderColor: '#3A3027', backgroundColor: '#111218', paddingVertical: 14, marginBottom: 10 },
-  popularBooksHeader: { paddingHorizontal: 14, marginBottom: 13 },
-  popularBooksAccent: { width: 4, height: 18, borderRadius: 2, backgroundColor: '#F29A45', marginRight: 9 },
-  popularBooksCaption: { color: '#777983', fontSize: 10, lineHeight: 15, marginTop: 5, marginLeft: 13 },
-  popularBooksLoading: { minHeight: 118, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  popularBooksList: { paddingHorizontal: 14, gap: 12 },
+  sectionCard: { borderRadius: 17, borderWidth: 1, borderColor: '#332B41', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
+  eventsSection: { borderRadius: 17, borderWidth: 1, borderColor: '#3A3027', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
+  communitiesSection: { borderRadius: 17, borderWidth: 1, borderColor: '#302F4A', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
+  trendingSection: { borderRadius: 17, borderWidth: 1, borderColor: '#3B2933', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  sectionHeaderTitleRow: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
+  sectionAccent: { width: 4, height: 18, borderRadius: 2, marginRight: 9 },
+  sectionTitle: { color: '#ECECF0', fontSize: 13, fontWeight: '800', flexShrink: 1 },
+  createButton: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32, paddingHorizontal: 10, borderRadius: 11, backgroundColor: '#1D1728', borderWidth: 1, borderColor: '#302342' },
+  createButtonText: { color: '#CDBBFF', fontSize: 9, fontWeight: '800' },
+  sectionCaption: { color: '#777983', fontSize: 10, lineHeight: 15, marginTop: 5, marginLeft: 13, marginBottom: 10 },
+  sectionLoading: { marginVertical: 20 },
+  popularBooksList: { gap: 12, paddingVertical: 2 },
   popularBookCard: { width: 106, borderRadius: 14, borderWidth: 1, borderColor: '#2D2E37', backgroundColor: '#17181F', padding: 8 },
   popularBookCover: { width: '100%', height: 126, borderRadius: 9, backgroundColor: '#1D1E25' },
-  popularBookCoverFallback: { justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#34353E' },
-  popularBookCoverMark: { color: '#F29A45', fontSize: 25 },
+  coverFallback: { justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#34353E' },
   popularBookTitle: { color: '#EEEFF2', fontSize: 11, lineHeight: 15, fontWeight: '800', marginTop: 8 },
-  popularBookAuthor: { color: '#898B95', fontSize: 9, marginTop: 4 },
   popularBookStats: { color: '#D49A65', fontSize: 9, fontWeight: '700', marginTop: 7 },
   popularBookReading: { color: '#777983', fontSize: 8, marginTop: 3 },
-  popularBooksEmpty: { color: '#777983', fontSize: 11, lineHeight: 17, textAlign: 'center', paddingHorizontal: 20, paddingVertical: 45 },
-  trendingSection: { minHeight: 150, borderRadius: 17, borderWidth: 1, borderColor: '#3B2933', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
-  trendingHeader: { marginBottom: 12 },
-  trendingAccent: { width: 4, height: 18, borderRadius: 2, backgroundColor: '#D8799B', marginRight: 9 },
-  trendingCaption: { color: '#777983', fontSize: 10, lineHeight: 15, marginTop: 5, marginLeft: 13 },
-  trendingLoading: { minHeight: 92, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  trendingList: { marginHorizontal: -14, marginBottom: -14 },
-  trendingRow: { minHeight: 82, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 11 },
-  trendingRowBorder: { borderBottomWidth: 1, borderBottomColor: '#292A32' },
-  trendingRowPressed: { opacity: 0.68 },
-  trendingRowMeta: { color: '#777983', fontSize: 9, fontWeight: '700' },
-  trendingHashtag: { color: '#F1F1F4', fontSize: 14, fontWeight: '900', marginTop: 5 },
-  trendingCounts: { color: '#8B7D92', fontSize: 9, marginTop: 6 },
-  trendingEmpty: { color: '#777983', fontSize: 11, lineHeight: 17, textAlign: 'center', paddingHorizontal: 20, paddingVertical: 34 },
-  discoveryCard: { minHeight: 82, flexDirection: 'row', alignItems: 'center', borderRadius: 17, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
-  discoveryAccent: { width: 4, height: 38, borderRadius: 2, marginRight: 12 },
-  discoveryCardText: { flex: 1, paddingRight: 9 },
-  discoveryCardTitle: { color: '#ECECF0', fontSize: 13, fontWeight: '800' },
-  discoveryCardDescription: { color: '#777983', fontSize: 10, lineHeight: 15, marginTop: 5 },
-  soonPill: { borderRadius: 10, backgroundColor: '#25202F', paddingHorizontal: 8, paddingVertical: 5 },
-  soonText: { color: '#B89BF0', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  emptySection: { color: '#777983', fontSize: 11, lineHeight: 17, textAlign: 'center', paddingVertical: 24 },
+  listRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#252630' },
+  eventRow: { minHeight: 78, flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#252630' },
+  eventDate: { width: 58, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  eventDay: { color: '#F29A45', fontSize: 21, fontWeight: '900' },
+  eventMonth: { color: '#B58AF6', fontSize: 10, fontWeight: '900' },
+  eventTime: { color: '#777983', fontSize: 9, marginTop: 3 },
+  eventMeta: { color: '#B58AF6', fontSize: 10, marginTop: 4 },
+  communityRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#252630' },
+  communityImage: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#24253A' },
+  communityMark: { justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#7F8FEF' },
+  communityMarkText: { color: '#D5D7FF', fontSize: 18, fontWeight: '900' },
+  communityMeta: { color: '#B58AF6', fontSize: 10, marginTop: 3 },
+  authorMark: { width: 52, height: 52, borderRadius: 18, backgroundColor: '#2B2140', borderWidth: 1, borderColor: '#5C438B', justifyContent: 'center', alignItems: 'center' },
+  authorMarkText: { color: '#DCC9FA', fontSize: 19, fontWeight: '900' },
+  flexOne: { flex: 1, minWidth: 0 },
+  rowMeta: { color: '#777983', fontSize: 9, fontWeight: '700' },
+  hashtag: { color: '#F1F1F4', fontSize: 14, fontWeight: '900', marginTop: 4 },
+  rowDescription: { color: '#777983', fontSize: 10, lineHeight: 15, marginTop: 4 },
+  resultTitle: { color: '#F0F0F3', fontSize: 15, fontWeight: '900' },
   resultsArea: { marginTop: 18 },
   tabs: { flexDirection: 'row', borderRadius: 15, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#101116', padding: 4, marginBottom: 16 },
   tab: { flex: 1, height: 38, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
@@ -951,27 +818,15 @@ const baseStyles = StyleSheet.create({
   activeTabText: { color: '#D7C4FA', fontWeight: '900' },
   messageCard: { minHeight: 140, borderRadius: 18, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', justifyContent: 'center', alignItems: 'center', padding: 20 },
   loadingText: { color: '#858791', fontSize: 11, marginTop: 10 },
-  emptyDot: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#2B2140', borderWidth: 1, borderColor: '#573F82', marginBottom: 12 },
   emptyTitle: { color: '#ECECF0', fontSize: 14, fontWeight: '900' },
   emptyText: { color: '#777983', fontSize: 11, marginTop: 6 },
-  resultCard: { minHeight: 82, flexDirection: 'row', alignItems: 'center', borderRadius: 17, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', padding: 13, marginBottom: 10 },
+  resultCard: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 17, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', padding: 13, marginBottom: 10 },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#24252D', borderWidth: 1, borderColor: '#694CA3' },
   avatarFallback: { justifyContent: 'center', alignItems: 'center' },
   avatarText: { color: '#E4D7FA', fontSize: 19, fontWeight: '900' },
-  authorMark: { width: 52, height: 52, borderRadius: 18, backgroundColor: '#2B2140', borderWidth: 1, borderColor: '#5C438B', justifyContent: 'center', alignItems: 'center' },
-  authorMarkText: { color: '#DCC9FA', fontSize: 19, fontWeight: '900' },
-  resultInfo: { flex: 1, marginLeft: 13, paddingVertical: 3 },
-  resultTitle: { color: '#F0F0F3', fontSize: 15, fontWeight: '900' },
-  resultMeta: { color: '#7E808A', fontSize: 11, lineHeight: 16, marginTop: 5 },
-  authorWork: { color: '#9B83C7', fontSize: 10, marginTop: 4 },
-  authorCount: { color: '#686A74', fontSize: 9, marginTop: 4 },
-  bookCard: { minHeight: 132, flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', padding: 11, marginBottom: 11 },
+  bookCard: { minHeight: 132, flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 18, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', padding: 11, marginBottom: 11 },
   cover: { width: 72, height: 108, borderRadius: 10, backgroundColor: '#1B1C23' },
-  noCover: { width: 72, height: 108, borderRadius: 10, borderWidth: 1, borderColor: '#30313A', backgroundColor: '#191A21', justifyContent: 'center', alignItems: 'center' },
-  noCoverMark: { color: '#9870EA', fontSize: 24 },
-  noCoverText: { color: '#686A74', fontSize: 9, marginTop: 6 },
   bookTitle: { color: '#F2F2F5', fontSize: 15, lineHeight: 20, fontWeight: '900' },
   bookAuthor: { color: '#9698A1', fontSize: 11, lineHeight: 16, marginTop: 7 },
   year: { color: '#656771', fontSize: 9, marginTop: 9 },
-  arrow: { color: '#706579', fontSize: 25, marginLeft: 8 },
 });
