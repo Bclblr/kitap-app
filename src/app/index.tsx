@@ -1100,18 +1100,12 @@ export default function HomeScreen() {
     onPanResponderRelease: (_event, gesture) => { if (gesture.dy > 70) closeStory(); },
   });
 
-  const visiblePosts = social.error ? [] : posts.filter(post =>
-    !social.blocked.includes(post.user_id ?? '') &&
-    (feedTab !== 'following' || social.following.includes(post.user_id ?? ''))
-  ).sort((a, b) => {
-    if (feedTab === 'following') return Date.parse(b.created_at) - Date.parse(a.created_at);
-    const score = (post: Post) => {
-      const review = post.isReview ? reviews.find(item => item.id === post.id) : undefined;
-      const age = Math.max(0, (Date.now() - Date.parse(post.created_at)) / 3600000);
-      return (1 + Math.log1p((review?.likes ?? post.likes ?? 0) + 2 * (review?.comments?.length ?? post.comments?.length ?? 0) + 3 * (review?.reposts ?? post.reposts ?? 0))) / Math.pow(2 + age, .7) * (post.user_id === social.userId ? .65 : 1);
-    };
-    return score(b) - score(a) || a.id.localeCompare(b.id);
-  });
+  const visiblePosts = social.error ? [] : posts
+    .filter(post =>
+      !social.blocked.includes(post.user_id ?? '') &&
+      (feedTab !== 'following' || social.following.includes(post.user_id ?? ''))
+    )
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
   return (
     <View style={styles.container}>
