@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Action, Busy, Field, ReaderScreen, useReaderStyles } from '@/components/ReaderUI';
 import { supabase } from '@/lib/supabase';
+import { getRuntimeControls, hasActiveRestriction, settingBoolean } from '@/lib/runtime-controls';
 import { requirePermanentImage } from '@/lib/image-policy';
 export default function CommunityEditor() {
   const ui = useReaderStyles();
@@ -11,6 +12,9 @@ export default function CommunityEditor() {
   const [ready, setReady] = useState(false); const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   useEffect(() => { let alive = true; async function load() { try {
     const auth = await supabase.auth.getUser(); if (!auth.data.user) throw Error('Topluluk oluşturmak için giriş yapmalısın.');
+    const controls = await getRuntimeControls();
+    if (hasActiveRestriction(controls,'ban','suspension','community_restriction')) throw Error('Topluluk işlemleri hesabın için kısıtlandı.');
+    if (!id && !settingBoolean(controls,'community_creation_enabled',true)) throw Error('Yeni topluluk oluşturma geçici olarak kapalı.');
     if (id) {
       const permission = await supabase.rpc('community_admin', { cid: id });
       if (permission.error || !permission.data) throw Error('Bu topluluğu düzenleme yetkin yok.');
@@ -26,11 +30,14 @@ export default function CommunityEditor() {
     lock.current = true; setBusy(true); setError('');
     try {
       const auth = await supabase.auth.getUser(); if (!auth.data.user) throw Error();
+      const controls = await getRuntimeControls();
+      if (hasActiveRestriction(controls,'ban','suspension','community_restriction')) throw Error('Topluluk işlemleri hesabın için kısıtlandı.');
+      if (!id && !settingBoolean(controls,'community_creation_enabled',true)) throw Error('Yeni topluluk oluşturma geçici olarak kapalı.');
       const payload = { ...form, name: form.name.trim(), image_url: requirePermanentImage(form.image_url), tags: form.tags.map(tag => tag.trim()).filter(Boolean) };
       const result = id ? await supabase.from('communities').update(payload).eq('id', id).select('id').single() : await supabase.from('communities').insert({ ...payload, created_by: auth.data.user.id }).select('id').single();
       if (result.error) throw result.error;
       router.replace({ pathname: '/community', params: { id: result.data.id } });
-    } catch { setError('Topluluk kaydedilemedi. Bağlantını ve yetkilerini kontrol et.'); }
+    } catch (e) { setError(e instanceof Error && e.message ? e.message : 'Topluluk kaydedilemedi. Bağlantını ve yetkilerini kontrol et.'); }
     finally { lock.current = false; setBusy(false); }
   }
   return <ReaderScreen title={id ? 'Topluluğu düzenle' : 'Topluluk oluştur'}>{loading ? <Busy /> : <>
