@@ -1,4 +1,6 @@
 import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useAppTheme } from '@/providers/ThemeProvider';
+import { Feather } from '@expo/vector-icons';
 import { supabase } from "@/lib/supabase";
 import { Action } from '@/components/ReaderUI';
 import { readerDate } from '@/lib/reader-date';
@@ -47,6 +49,7 @@ type CommunityPost = {
 
 export default function CommunityScreen() {
   const styles = useThemedStyles(baseStyles);
+  const { colors } = useAppTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const communityId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -722,25 +725,35 @@ export default function CommunityScreen() {
                   <Pressable
                     disabled={pendingLikePostIds.has(post.id)}
                     onPress={() => void toggleCommunityPostLike(post)}
+                    style={[styles.socialAction, post.liked && styles.socialActionActive]}
+                    accessibilityLabel={post.liked ? 'Beğeniyi kaldır' : 'Beğen'}
                   >
-                    <Text
-                      style={[styles.likeText, post.liked && styles.likedText]}
-                    >
-                      {post.liked ? "♥ Beğen" : "♡ Beğen"} · {post.likes_count}
+                    <Feather
+                      name="heart"
+                      size={20}
+                      color={post.liked ? colors.primary : colors.textSecondary}
+                    />
+                    <Text style={[styles.socialCount, post.liked && styles.likedText]}>
+                      {post.likes_count}
                     </Text>
                   </Pressable>
 
-                  <Pressable onPress={() => void togglePostComments(post.id)}>
-                    <Text style={styles.likeText}>
-                      💬 Yorum · {post.comments_count}
-                    </Text>
+                  <Pressable
+                    onPress={() => void togglePostComments(post.id)}
+                    style={styles.socialAction}
+                    accessibilityLabel="Yorumlar"
+                  >
+                    <Feather name="message-circle" size={20} color={colors.textSecondary} />
+                    <Text style={styles.socialCount}>{post.comments_count}</Text>
                   </Pressable>
 
                   {post.user_id === currentUserId ? (
-                    <Pressable onPress={() => void deleteCommunityPost(post)}>
-                      <Text style={styles.deleteText}>
-                        {deletingPostId === post.id ? "Siliniyor..." : "Sil"}
-                      </Text>
+                    <Pressable
+                      onPress={() => void deleteCommunityPost(post)}
+                      style={styles.socialAction}
+                      accessibilityLabel="Gönderiyi sil"
+                    >
+                      <Feather name="trash-2" size={19} color="#D87987" />
                     </Pressable>
                   ) : null}
                 </View>
@@ -1066,12 +1079,33 @@ const baseStyles = StyleSheet.create({
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    marginTop: 10,
+    gap: 10,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#25262E",
   },
-  likeText: { color: "#777983", fontSize: 11 },
+  socialAction: {
+    minWidth: 46,
+    height: 38,
+    paddingHorizontal: 10,
+    borderRadius: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+  socialActionActive: {
+    backgroundColor: "#1D1728",
+    borderWidth: 1,
+    borderColor: "#302342",
+  },
+  socialCount: {
+    color: "#777983",
+    fontSize: 11,
+    fontWeight: "700",
+  },
   likedText: { color: "#9B72F2" },
-  deleteText: { color: "#D87987", fontSize: 11 },
   emptySmall: { color: "#8A8C96", paddingVertical: 15 },
   member: {
     flexDirection: "row",
