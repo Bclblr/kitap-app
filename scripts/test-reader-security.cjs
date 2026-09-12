@@ -6,10 +6,10 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
  const db = new PGlite();
  try {
  await db.exec(`create role authenticated; create role anon; create schema auth;
- create table auth.users(id uuid primary key);
+ create table auth.users(id uuid primary key, created_at timestamptz not null default now());
  create schema storage;
  create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
- create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text);
+ create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,owner_id uuid,metadata jsonb default '{}'::jsonb,created_at timestamptz default now(),updated_at timestamptz default now(),last_accessed_at timestamptz default now());
  alter table storage.objects enable row level security;
  create function storage.foldername(text) returns text[] language sql immutable as $$ select string_to_array($1,'/') $$;
  grant usage on schema storage to authenticated,anon;
@@ -18,7 +18,16 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
  create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
  grant usage on schema auth,public to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;
  insert into auth.users values('${A}'),('${B}'),('${C}');
- create table public.conversations(id uuid primary key default gen_random_uuid(),user1_id uuid references auth.users(id),user2_id uuid references auth.users(id),updated_at timestamptz default now(),created_at timestamptz default now());
+ create table public.profiles(id uuid primary key references auth.users(id) on delete cascade,username text,full_name text,bio text default '',profile_image text,cover_image text,created_at timestamptz default now(),updated_at timestamptz default now());
+ insert into public.profiles(id,username,full_name) values('${A}','reader_a','Reader A'),('${B}','reader_b','Reader B'),('${C}','reader_c','Reader C');
+ create table public.posts(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id) on delete cascade,username text,text text,image_url text,book_key text,book_title text,rating integer default 0,created_at timestamptz default now());
+ create table public.reviews(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id) on delete cascade,book_key text,book_title text,rating integer default 0,text text,created_at timestamptz default now());
+ create table public.comments(id uuid primary key default gen_random_uuid(),review_id uuid references public.reviews(id) on delete cascade,user_id uuid references auth.users(id) on delete cascade,text text,created_at timestamptz default now());
+ create table public.post_comments(id uuid primary key default gen_random_uuid(),post_id uuid references public.posts(id) on delete cascade,user_id uuid references auth.users(id) on delete cascade,text text,created_at timestamptz default now());
+ create table public.follows(id uuid primary key default gen_random_uuid(),follower_id uuid references auth.users(id) on delete cascade,following_id uuid references auth.users(id) on delete cascade,created_at timestamptz default now(),unique(follower_id,following_id));
+ create table public.events(id uuid primary key default gen_random_uuid(),title text not null,description text default '',event_date timestamptz not null default now(),location text default '',image_url text,created_by uuid not null references auth.users(id) on delete cascade,created_at timestamptz default now(),updated_at timestamptz default now());
+ create table public.event_attendees(event_id uuid references public.events(id) on delete cascade,user_id uuid references auth.users(id) on delete cascade,created_at timestamptz default now(),primary key(event_id,user_id));
+  create table public.conversations(id uuid primary key default gen_random_uuid(),user1_id uuid references auth.users(id),user2_id uuid references auth.users(id),updated_at timestamptz default now(),created_at timestamptz default now());
  create table public.messages(id uuid primary key default gen_random_uuid(),conversation_id uuid references public.conversations(id),sender_id uuid references auth.users(id),content text,created_at timestamptz default now(),is_read boolean default false);
  create table public.stories(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id),expires_at timestamptz default now()+interval '1 day');
  create table public.community_posts(id uuid primary key default gen_random_uuid(),community_id uuid,user_id uuid,text text);
