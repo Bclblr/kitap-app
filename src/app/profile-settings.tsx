@@ -325,6 +325,11 @@ export default function ProfileSettingsScreen() {
           </Pressable>
         </View>
 
+        <Pressable onPress={() => router.push('/blocked-users')} style={styles.adminButton}>
+          <Text style={styles.adminButtonText}>🚫 Engellenen Kullanıcılar</Text>
+          <Text style={styles.adminButtonArrow}>›</Text>
+        </Pressable>
+
         {canOpenAdmin ? (
           <Pressable onPress={() => router.push('/admin')} style={styles.adminButton}>
             <Text style={styles.adminButtonText}>🛡 Yönetim Paneli</Text>
