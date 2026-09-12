@@ -1156,6 +1156,10 @@ export default function HomeScreen() {
             </View>
             <View style={styles.drawerDivider} />
             <View style={styles.drawerSection}>
+              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/saved'); }} style={styles.drawerItem}>
+                <View style={styles.drawerIconWrap}><Feather name="bookmark" size={22} color={colors.text} /></View>
+                <Text style={styles.drawerItemText}>Kaydedilenler</Text>
+              </Pressable>
               <Pressable onPress={() => { setShowAuthMenu(false); router.push('/profile-settings'); }} style={styles.drawerItem}>
                 <View style={styles.drawerIconWrap}><Feather name="settings" size={22} color={colors.text} /></View>
                 <Text style={styles.drawerItemText}>Profil ayarları</Text>
