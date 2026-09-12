@@ -233,24 +233,21 @@ export default function ChatScreen() {
   const loadMessages =
     useCallback(
       async (
-        activeConversationId: string
+        activeConversationId: string,
+        viewerId: string
       ) => {
         const { data, error } =
           await supabase
             .from('messages')
             .select(
-  'id, conversation_id, sender_id, content, created_at, is_read'
-)
+              'id, conversation_id, sender_id, content, created_at, is_read'
+            )
             .eq(
               'conversation_id',
               activeConversationId
             )
-            .order(
-              'created_at',
-              {
-                ascending: true,
-              }
-            );
+            .order('created_at', { ascending: false })
+            .limit(100);
 
         if (error) {
           console.error(
@@ -266,38 +263,21 @@ export default function ChatScreen() {
           return;
         }
 
-        if (currentUserId) {
-  const { error: readError } = await supabase
-    .from('messages')
-    .update({
-      is_read: true,
-    })
-    .eq(
-      'conversation_id',
-      activeConversationId
-    )
-    .neq(
-      'sender_id',
-      currentUserId
-    )
-    .eq(
-      'is_read',
-      false
-    );
+        const { error: readError } = await supabase
+          .from('messages')
+          .update({ is_read: true })
+          .eq('conversation_id', activeConversationId)
+          .neq('sender_id', viewerId)
+          .eq('is_read', false);
 
-  if (readError) {
-    console.error(
-      'Mesajlar okundu olarak işaretlenemedi:',
-      readError
-    );
-  }
-}
+        if (readError) {
+          console.error('Mesajlar okundu olarak işaretlenemedi:', readError);
+        }
 
-        setMessages(
-          (data as Message[]) || []
-        );
+        const ordered = ((data as Message[]) || []).slice().reverse();
+        setMessages(ordered);
       },
-      [currentUserId]
+      []
     );
       useEffect(() => {
     if (
@@ -442,7 +422,8 @@ export default function ChatScreen() {
           );
 
           await loadMessages(
-            conversationIdParam
+            conversationIdParam,
+            user.id
           );
 
           return;
@@ -488,7 +469,7 @@ export default function ChatScreen() {
 
         setConversationId(id);
 
-        await loadMessages(id);
+        await loadMessages(id, user.id);
       } catch (error) {
         console.error(
           'Chat başlatılırken hata:',
@@ -555,7 +536,7 @@ export default function ChatScreen() {
               cleanText,
           })
           .select(
-            'id, conversation_id, sender_id, content, created_at'
+            'id, conversation_id, sender_id, content, created_at, is_read'
           )
           .single();
 
@@ -830,9 +811,10 @@ export default function ChatScreen() {
               ? styles.emptyList
               : styles.messageList
           }
-          showsVerticalScrollIndicator={
-            false
-        }
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={24}
+          maxToRenderPerBatch={24}
+          windowSize={9}
           ListEmptyComponent={
             <View
               style={
