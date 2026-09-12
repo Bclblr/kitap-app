@@ -1,4 +1,5 @@
 import BookCover from '@/components/BookCover';
+import BookDiscoveryRecommendations from '@/components/BookDiscoveryRecommendations';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -480,6 +481,14 @@ export default function BookScreen() {
               </View>
               <Text style={styles.description}>{description}</Text>
             </View>
+          ) : null}
+
+          {key ? (
+            <BookDiscoveryRecommendations
+              bookKey={key}
+              title={book.title ?? 'Bilinmeyen kitap'}
+              author={authorNames}
+            />
           ) : null}
 
           <Pressable onPress={() => void addToShelf()} style={[styles.addButton, added && styles.addedButton]}>
