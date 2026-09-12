@@ -298,7 +298,7 @@ const baseStyles = StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   bookIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#21182F' },
   cardCopy: { flex: 1 },
-  bookTitle: { color: '#F5F5F8', fontSize: 15, fontWeight: '850' },
+  bookTitle: { color: '#F5F5F8', fontSize: 15, fontWeight: '800' },
   author: { color: '#8E8E9D', fontSize: 12, marginTop: 3 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 9 },
   publishedBadge: { backgroundColor: '#173020' },

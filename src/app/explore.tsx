@@ -173,7 +173,7 @@ export default function ExploreScreen() {
             const response = await fetch(`https://openlibrary.org${book.book_key}.json`);
             if (!response.ok) return;
             const data = await response.json();
-            const authorKeys = Array.isArray(data.authors)
+            const authorKeys: string[] = Array.isArray(data.authors)
               ? data.authors
                   .map((entry: any) => entry?.author?.key)
                   .filter((key: unknown): key is string => typeof key === 'string')

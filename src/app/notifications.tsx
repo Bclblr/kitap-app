@@ -556,7 +556,7 @@ const baseStyles = StyleSheet.create({
     marginTop: 14,
     color: '#F5F5F8',
     fontSize: 17,
-    fontWeight: '850',
+    fontWeight: '800',
   },
   emptyText: {
     marginTop: 7,

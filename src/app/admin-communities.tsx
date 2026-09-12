@@ -356,7 +356,7 @@ const baseStyles = StyleSheet.create({
   iconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#21182F' },
   cardCopy: { flex: 1, marginLeft: 12 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardTitle: { color: '#F5F5F8', fontSize: 16, fontWeight: '850', flexShrink: 1 },
+  cardTitle: { color: '#F5F5F8', fontSize: 16, fontWeight: '800', flexShrink: 1 },
   meta: { color: '#8E8E9D', fontSize: 11, marginTop: 3 },
   description: { color: '#A5A5B3', fontSize: 13, lineHeight: 19, marginTop: 12 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
