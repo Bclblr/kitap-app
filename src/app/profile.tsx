@@ -2303,7 +2303,28 @@ export default function ProfileScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingVertical:12}}>
             {([['post','Gönderiler'],['review','İncelemeler'],['quote','Alıntılar'],['repost','Tekrar Paylaşımlar']] as const).map(([tab,label])=><Pressable key={tab} accessibilityRole="tab" accessibilityState={{selected:profileTab===tab}} onPress={()=>setProfileTab(tab)} style={{minHeight:44,padding:10,borderBottomWidth:3,borderBottomColor:profileTab===tab?'#9467E8':'transparent'}}><Text style={styles.feedType}>{label}</Text></Pressable>)}
           </ScrollView>
-          {visibleFeed.length === 0 ? (
+          {!canViewProfileContent ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyIcon}>🔒</Text>
+              <Text style={styles.emptyTitle}>Bu hesap gizli</Text>
+              <Text style={styles.emptyText}>
+                Bu hesabın gönderilerini, incelemelerini, alıntılarını ve tekrar paylaşımlarını görmek için takip isteğinin onaylanması gerekiyor.
+              </Text>
+              {!isOwnProfile && (
+                <Pressable
+                  onPress={toggleFollow}
+                  disabled={followLoading}
+                  style={[styles.followButton, { width: '100%', marginTop: 16 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={followRequestPending ? 'Takip isteğini iptal et' : 'Takip isteği gönder'}
+                >
+                  <Text style={styles.followButtonText}>
+                    {followLoading ? '...' : followRequestPending ? 'İstek Gönderildi' : 'Takip İsteği Gönder'}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          ) : visibleFeed.length === 0 ? (
             <View
               style={
                 styles.emptyCard
