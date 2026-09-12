@@ -10,6 +10,7 @@ export default function PrivacySettingsScreen() {
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const [discoverable, setDiscoverable] = useState(true);
+  const [isPrivate, setIsPrivate] = useState(false);
   const [messagePermission, setMessagePermission] = useState<MessagePermission>('everyone');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,12 +27,13 @@ export default function PrivacySettingsScreen() {
 
       const { data, error } = await supabase
         .from('profile_privacy_settings')
-        .select('discoverable, message_permission')
+        .select('discoverable, is_private, message_permission')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (error) throw error;
       setDiscoverable(data?.discoverable ?? true);
+      setIsPrivate(data?.is_private ?? false);
       setMessagePermission((data?.message_permission as MessagePermission) ?? 'everyone');
     } catch (error) {
       console.error('Gizlilik ayarları yüklenemedi:', error);
@@ -47,7 +49,11 @@ export default function PrivacySettingsScreen() {
     }, [loadSettings])
   );
 
-  async function saveSettings(nextDiscoverable = discoverable, nextPermission = messagePermission) {
+  async function saveSettings(
+    nextDiscoverable = discoverable,
+    nextPermission = messagePermission,
+    nextPrivate = isPrivate
+  ) {
     setSaving(true);
     try {
       const { data: authData } = await supabase.auth.getUser();
@@ -63,6 +69,7 @@ export default function PrivacySettingsScreen() {
           {
             user_id: user.id,
             discoverable: nextDiscoverable,
+            is_private: nextPrivate,
             message_permission: nextPermission,
           },
           { onConflict: 'user_id' }
@@ -80,12 +87,17 @@ export default function PrivacySettingsScreen() {
 
   function changeDiscoverable(value: boolean) {
     setDiscoverable(value);
-    void saveSettings(value, messagePermission);
+    void saveSettings(value, messagePermission, isPrivate);
+  }
+
+  function changePrivate(value: boolean) {
+    setIsPrivate(value);
+    void saveSettings(discoverable, messagePermission, value);
   }
 
   function changePermission(value: MessagePermission) {
     setMessagePermission(value);
-    void saveSettings(discoverable, value);
+    void saveSettings(discoverable, value, isPrivate);
   }
 
   const options: { key: MessagePermission; title: string; description: string }[] = [
@@ -110,6 +122,27 @@ export default function PrivacySettingsScreen() {
         ) : (
           <>
             <View style={styles.card}>
+              <View style={styles.rowText}>
+                <Text style={styles.cardTitle}>Özel hesap</Text>
+                <Text style={styles.cardDescription}>Açık olduğunda yeni takipçiler önce istek gönderir. İçeriklerini yalnızca onayladığın takipçiler görür.</Text>
+              </View>
+              <Switch value={isPrivate} onValueChange={changePrivate} disabled={saving} />
+            </View>
+
+            <Pressable
+              onPress={() => router.push('/follow-requests')}
+              style={styles.linkCard}
+              accessibilityRole="button"
+              accessibilityLabel="Takip isteklerini aç"
+            >
+              <View style={styles.rowText}>
+                <Text style={styles.cardTitle}>Takip İstekleri</Text>
+                <Text style={styles.cardDescription}>Bekleyen istekleri kabul et veya reddet.</Text>
+              </View>
+              <Text style={styles.arrow}>›</Text>
+            </Pressable>
+
+            <View style={[styles.card, styles.cardSpacing]}>
               <View style={styles.rowText}>
                 <Text style={styles.cardTitle}>Arama ve Keşfet'te görün</Text>
                 <Text style={styles.cardDescription}>Kapalı olduğunda kullanıcı adı aramalarında hesabın gösterilmez.</Text>
@@ -157,6 +190,9 @@ const baseStyles = StyleSheet.create({
   title: { color: '#F5F5F7', fontSize: 20, fontWeight: '800' },
   spacer: { width: 42 },
   card: { flexDirection: 'row', alignItems: 'center', gap: 16, borderRadius: 18, padding: 16, backgroundColor: '#15151D', borderWidth: 1, borderColor: '#282833' },
+  cardSpacing: { marginTop: 12 },
+  linkCard: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, padding: 16, backgroundColor: '#15151D', borderWidth: 1, borderColor: '#282833' },
+  arrow: { color: '#A985FF', fontSize: 28, fontWeight: '600' },
   rowText: { flex: 1 },
   cardTitle: { color: '#F5F5F7', fontSize: 16, fontWeight: '800', marginBottom: 5 },
   cardDescription: { color: '#A7A7B2', fontSize: 13, lineHeight: 19 },
