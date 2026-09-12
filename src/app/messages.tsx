@@ -1,8 +1,18 @@
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, ScrollView, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import Image from '@/components/SafeImage';
 
 import BottomNav from '@/components/BottomNav';
@@ -15,6 +25,15 @@ type Conversation = {
   user2_id: string;
   created_at: string;
   updated_at: string;
+};
+
+type InboxMessage = {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  is_read: boolean;
 };
 
 type ConversationItem = {
@@ -34,15 +53,14 @@ export default function MessagesScreen() {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function getCurrentUserId() {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.id ?? null;
-  }
-
   const loadConversations = useCallback(async () => {
     try {
       setLoading(true);
-      const currentUserId = await getCurrentUserId();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const currentUserId = user?.id ?? null;
 
       if (!currentUserId) {
         setConversations([]);
@@ -53,7 +71,8 @@ export default function MessagesScreen() {
         .from('conversations')
         .select('id, user1_id, user2_id, created_at, updated_at')
         .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false })
+        .limit(100);
 
       if (error) {
         console.error('Konuşmalar yüklenemedi:', error);
@@ -61,62 +80,106 @@ export default function MessagesScreen() {
         return;
       }
 
-      if (!conversationData) {
+      const rows = (conversationData ?? []) as Conversation[];
+      if (!rows.length) {
         setConversations([]);
         return;
       }
 
-      const items: ConversationItem[] = [];
-      const hidden = await supabase.from('conversation_hidden').select('conversation_id,hidden_at').eq('user_id', currentUserId);
-      if (hidden.error) throw hidden.error;
+      const conversationIds = rows.map((item) => item.id);
+      const otherUserIds = [
+        ...new Set(
+          rows.map((item) =>
+            item.user1_id === currentUserId ? item.user2_id : item.user1_id
+          )
+        ),
+      ];
 
-      for (const conversation of conversationData as Conversation[]) {
-        const otherUserId =
-          conversation.user1_id === currentUserId
-            ? conversation.user2_id
-            : conversation.user1_id;
-
-        const { data: profileData } = await supabase
+      const [hiddenResult, profilesResult, messagesResult] = await Promise.all([
+        supabase
+          .from('conversation_hidden')
+          .select('conversation_id, hidden_at')
+          .eq('user_id', currentUserId)
+          .in('conversation_id', conversationIds),
+        supabase
           .from('profiles')
           .select('id, username, full_name, profile_image')
-          .eq('id', otherUserId)
-          .maybeSingle();
-
-        const { data: lastMessageData } = await supabase
+          .in('id', otherUserIds),
+        supabase
           .from('messages')
-          .select('content, created_at')
-          .eq('conversation_id', conversation.id)
+          .select('id, conversation_id, sender_id, content, created_at, is_read')
+          .in('conversation_id', conversationIds)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .limit(2000),
+      ]);
 
-        const { count: unreadCount, error: unreadError } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('conversation_id', conversation.id)
-          .eq('is_read', false)
-          .neq('sender_id', currentUserId);
+      if (hiddenResult.error) throw hiddenResult.error;
+      if (profilesResult.error) throw profilesResult.error;
+      if (messagesResult.error) throw messagesResult.error;
 
-        if (unreadError) {
-          console.error('Okunmamış mesajlar alınamadı:', unreadError);
+      const hiddenMap = new Map<string, string>();
+      for (const item of hiddenResult.data ?? []) {
+        hiddenMap.set(String(item.conversation_id), String(item.hidden_at));
+      }
+
+      const profileMap = new Map<string, any>();
+      for (const item of profilesResult.data ?? []) {
+        profileMap.set(String(item.id), item);
+      }
+
+      const latestMessageMap = new Map<string, InboxMessage>();
+      const unreadMap = new Map<string, number>();
+
+      for (const raw of (messagesResult.data ?? []) as InboxMessage[]) {
+        const hiddenAt = hiddenMap.get(raw.conversation_id);
+        if (hiddenAt && Date.parse(raw.created_at) <= Date.parse(hiddenAt)) continue;
+
+        if (!latestMessageMap.has(raw.conversation_id)) {
+          latestMessageMap.set(raw.conversation_id, raw);
         }
 
-        const hiddenAt = hidden.data?.find(row => row.conversation_id === conversation.id)?.hidden_at;
-        if (hiddenAt && (!lastMessageData || Date.parse(lastMessageData.created_at) <= Date.parse(hiddenAt))) continue;
-        items.push({
-          id: conversation.id,
-          otherUserId,
-          username: [profileData?.full_name, profileData?.username].filter(Boolean).join(' · ') || 'Kitap Okuru',
-          profileImage: profileData?.profile_image || null,
-          lastMessage: lastMessageData?.content || 'Henüz mesaj yok',
-          updatedAt: lastMessageData?.created_at || conversation.updated_at,
-          unreadCount: unreadCount ?? 0,
-        });
+        if (!raw.is_read && raw.sender_id !== currentUserId) {
+          unreadMap.set(
+            raw.conversation_id,
+            (unreadMap.get(raw.conversation_id) ?? 0) + 1
+          );
+        }
       }
+
+      const items = rows
+        .map((conversation): ConversationItem | null => {
+          const otherUserId =
+            conversation.user1_id === currentUserId
+              ? conversation.user2_id
+              : conversation.user1_id;
+          const profileData = profileMap.get(otherUserId);
+          const lastMessage = latestMessageMap.get(conversation.id);
+          const hiddenAt = hiddenMap.get(conversation.id);
+
+          if (hiddenAt && !lastMessage) return null;
+
+          return {
+            id: conversation.id,
+            otherUserId,
+            username:
+              [profileData?.full_name, profileData?.username]
+                .filter(Boolean)
+                .join(' · ') || 'Kitap Okuru',
+            profileImage: profileData?.profile_image || null,
+            lastMessage: lastMessage?.content || 'Henüz mesaj yok',
+            updatedAt: lastMessage?.created_at || conversation.updated_at,
+            unreadCount: unreadMap.get(conversation.id) ?? 0,
+          };
+        })
+        .filter((item): item is ConversationItem => item !== null)
+        .sort(
+          (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)
+        );
 
       setConversations(items);
     } catch (error) {
       console.error('Konuşmalar yüklenirken hata:', error);
+      Alert.alert('Hata', 'Mesajlar yüklenemedi. Tekrar deneyebilirsin.');
     } finally {
       setLoading(false);
     }
@@ -124,8 +187,19 @@ export default function MessagesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadConversations();
+      void loadConversations();
     }, [loadConversations])
+  );
+
+  const normalizedQuery = query.trim().toLocaleLowerCase('tr-TR');
+  const matchingConversations = useMemo(
+    () =>
+      normalizedQuery
+        ? conversations.filter((item) =>
+            item.username.toLocaleLowerCase('tr-TR').includes(normalizedQuery)
+          )
+        : conversations,
+    [conversations, normalizedQuery]
   );
 
   function openChat(conversation: ConversationItem) {
@@ -161,6 +235,8 @@ export default function MessagesScreen() {
 
     return (
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${item.username} ile sohbet`}
         onPress={() => openChat(item)}
         style={({ pressed }) => [
           styles.conversationItem,
@@ -223,13 +299,26 @@ export default function MessagesScreen() {
       </View>
 
       <View style={styles.divider} />
-      <TextInput accessibilityLabel="Sohbet veya okur ara" value={query} onChangeText={setQuery} placeholder="Ad veya kullanıcı adı ara" placeholderTextColor="#999" style={{ color: '#fff', padding: 14, margin: 12, borderWidth: 1, borderColor: '#333', borderRadius: 12 }} />
-      {query.trim() ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 14, gap: 12 }}>
-        {conversations.filter(item => item.username.toLocaleLowerCase('tr-TR').includes(query.toLocaleLowerCase('tr-TR'))).map(item => <View key={item.id}>{renderConversation({ item })}</View>)}
-        <ReadersList query={query} />
-      </ScrollView> : <>
+      <TextInput
+        accessibilityLabel="Sohbet veya okur ara"
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Ad veya kullanıcı adı ara"
+        placeholderTextColor="#999"
+        style={styles.searchInput}
+      />
 
-      {loading ? (
+      {normalizedQuery ? (
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.searchContent}
+        >
+          {matchingConversations.map((item) => (
+            <View key={item.id}>{renderConversation({ item })}</View>
+          ))}
+          <ReadersList query={query} />
+        </ScrollView>
+      ) : loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator color="#A985FF" />
           <Text style={styles.loadingText}>Mesajlar yükleniyor...</Text>
@@ -251,10 +340,12 @@ export default function MessagesScreen() {
           renderItem={renderConversation}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={7}
         />
       )}
 
-      </>}
       <BottomNav />
     </View>
   );
@@ -300,6 +391,19 @@ const baseStyles = StyleSheet.create({
     height: 1,
     backgroundColor: '#1D1D23',
     marginHorizontal: 18,
+  },
+  searchInput: {
+    color: '#fff',
+    padding: 14,
+    margin: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 12,
+  },
+  searchContent: {
+    padding: 14,
+    gap: 12,
+    paddingBottom: 110,
   },
   loadingContainer: {
     flex: 1,
