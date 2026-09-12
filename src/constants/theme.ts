@@ -1,7 +1,6 @@
 /**
  * Shared Expo theme compatibility values.
- * The app's full semantic palette lives in src/theme/palette.ts; these values
- * keep legacy/Themed components visually aligned with the Bordo & Gece theme.
+ * The app's full semantic palette lives in src/theme/palette.ts.
  */
 
 import '@/global.css';
@@ -10,18 +9,18 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#241B1E',
-    background: '#F8F6F5',
+    text: '#261A1E',
+    background: '#F3EFF0',
     backgroundElement: '#FFFFFF',
-    backgroundSelected: '#F1ECEC',
-    textSecondary: '#6F6266',
+    backgroundSelected: '#ECE6E8',
+    textSecondary: '#6D5E63',
   },
   dark: {
-    text: '#F7F2F3',
-    background: '#0C0A0B',
-    backgroundElement: '#151113',
-    backgroundSelected: '#21191C',
-    textSecondary: '#C0B2B6',
+    text: '#F7F3F4',
+    background: '#090909',
+    backgroundElement: '#121212',
+    backgroundSelected: '#1C1A1B',
+    textSecondary: '#BEB4B7',
   },
 } as const;
 
