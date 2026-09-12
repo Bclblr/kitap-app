@@ -264,8 +264,6 @@ export default function HomeScreen() {
   }
 
   const loadReviews = useCallback(async () => {
-    console.log('LOAD REVIEWS ÇALIŞTI');
-
     try {
       const userId = await getCurrentUserId();
       const blockedUserIds = await getBlockedUserIds(userId);
@@ -282,106 +280,96 @@ export default function HomeScreen() {
         return;
       }
 
-      if (!data) {
-        setReviews([]);
-        return;
-      }
+      const visibleReviews = (data ?? []).filter(
+        (review: any) => !review.user_id || !blockedUserIds.has(review.user_id)
+      );
+      const reviewIds = visibleReviews.map((review: any) => review.id);
 
-      const { data: reviewProfileData } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, profile_image');
+      const [profileResult, likesResult, repostsResult, commentsResult] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, username, profile_image'),
+        reviewIds.length
+          ? supabase.from('likes').select('review_id, user_id').in('review_id', reviewIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        reviewIds.length
+          ? supabase.from('reposts').select('review_id, user_id').in('review_id', reviewIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        reviewIds.length
+          ? supabase
+              .from('comments')
+              .select('id, text, created_at, user_id, review_id')
+              .in('review_id', reviewIds)
+              .order('created_at', { ascending: true })
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      if (profileResult.error) console.error('İnceleme profilleri alınamadı:', profileResult.error);
+      if (likesResult.error) console.error('İnceleme beğenileri alınamadı:', likesResult.error);
+      if (repostsResult.error) console.error('İnceleme repostları alınamadı:', repostsResult.error);
+      if (commentsResult.error) console.error('İnceleme yorumları alınamadı:', commentsResult.error);
 
       const reviewProfiles = new Map(
-        (reviewProfileData ?? []).map((profile: any) => [profile.id, profile])
+        (profileResult.data ?? []).map((profile: any) => [profile.id, profile])
       );
+      const likesByReview = new Map<string, any[]>();
+      const repostsByReview = new Map<string, any[]>();
+      const commentsByReview = new Map<string, any[]>();
 
-      const preparedReviews: Review[] = await Promise.all(
-        data.filter((review: any) => !review.user_id || !blockedUserIds.has(review.user_id)).map(async (review: any) => {
-          let likesCount = 0;
-          let liked = false;
-          let repostsCount = 0;
-          let reposted = false;
-          let preparedComments: Comment[] = [];
+      for (const like of likesResult.data ?? []) {
+        const items = likesByReview.get(like.review_id) ?? [];
+        items.push(like);
+        likesByReview.set(like.review_id, items);
+      }
+      for (const repost of repostsResult.data ?? []) {
+        const items = repostsByReview.get(repost.review_id) ?? [];
+        items.push(repost);
+        repostsByReview.set(repost.review_id, items);
+      }
+      for (const comment of commentsResult.data ?? []) {
+        if (comment.user_id && blockedUserIds.has(comment.user_id)) continue;
+        const items = commentsByReview.get(comment.review_id) ?? [];
+        items.push(comment);
+        commentsByReview.set(comment.review_id, items);
+      }
 
-          const { count: likeCount } = await supabase
-            .from('likes')
-            .select('id', { count: 'exact', head: true })
-            .eq('review_id', review.id);
-          likesCount = likeCount ?? 0;
+      const preparedReviews: Review[] = visibleReviews.map((review: any) => {
+        const reviewAuthor = reviewProfiles.get(review.user_id);
+        const reviewLikes = likesByReview.get(review.id) ?? [];
+        const reviewReposts = repostsByReview.get(review.id) ?? [];
+        const reviewComments = commentsByReview.get(review.id) ?? [];
 
-          const { count: repostCount } = await supabase
-            .from('reposts')
-            .select('id', { count: 'exact', head: true })
-            .eq('review_id', review.id);
-          repostsCount = repostCount ?? 0;
+        return {
+          id: review.id,
+          user_id: review.user_id,
+          bookKey: review.book_key,
+          coverUrl: review.coverUrl,
+          cover_url: review.cover_url,
+          isbn: review.isbn,
+          key: review.key,
+          workKey: review.workKey,
+          cover_i: review.cover_i,
+          covers: review.covers,
+          edition_key: review.edition_key,
+          bookTitle: review.book_title,
+          rating: Number(review.rating) || 0,
+          text: review.text || '',
+          createdAt: review.created_at,
+          username: reviewAuthor?.username || CURRENT_USERNAME,
+          full_name: reviewAuthor?.full_name ?? null,
+          profile_image: reviewAuthor?.profile_image ?? null,
+          likes: reviewLikes.length,
+          liked: !!userId && reviewLikes.some((item: any) => item.user_id === userId),
+          comments: reviewComments.map((comment: any) => ({
+            id: comment.id,
+            user_id: comment.user_id,
+            username: reviewProfiles.get(comment.user_id)?.username || CURRENT_USERNAME,
+            text: comment.text,
+            createdAt: comment.created_at,
+          })),
+          reposts: reviewReposts.length,
+          reposted: !!userId && reviewReposts.some((item: any) => item.user_id === userId),
+        };
+      });
 
-          if (userId) {
-            const { data: likeData } = await supabase
-              .from('likes')
-              .select('id')
-              .eq('review_id', review.id)
-              .eq('user_id', userId)
-              .maybeSingle();
-            liked = !!likeData;
-
-            const { data: repostData } = await supabase
-              .from('reposts')
-              .select('id')
-              .eq('review_id', review.id)
-              .eq('user_id', userId)
-              .maybeSingle();
-            reposted = !!repostData;
-          }
-
-          const { data: commentData } = await supabase
-            .from('comments')
-            .select(`id, text, created_at, user_id`)
-            .eq('review_id', review.id)
-            .order('created_at', { ascending: true });
-
-          if (commentData) {
-            preparedComments = commentData
-              .filter((comment: any) => !comment.user_id || !blockedUserIds.has(comment.user_id))
-              .map((comment: any) => ({
-              id: comment.id,
-              user_id: comment.user_id,
-              username: comment.user_id === userId ? CURRENT_USERNAME : 'Kitap Okuru',
-              text: comment.text,
-              createdAt: comment.created_at,
-            }));
-          }
-
-          const reviewAuthor = reviewProfiles.get(review.user_id);
-
-          return {
-            id: review.id,
-            user_id: review.user_id,
-            bookKey: review.book_key,
-            coverUrl: review.coverUrl,
-            cover_url: review.cover_url,
-            isbn: review.isbn,
-            key: review.key,
-            workKey: review.workKey,
-            cover_i: review.cover_i,
-            covers: review.covers,
-            edition_key: review.edition_key,
-            bookTitle: review.book_title,
-            rating: Number(review.rating) || 0,
-            text: review.text || '',
-            createdAt: review.created_at,
-            username: reviewAuthor?.username || CURRENT_USERNAME,
-            full_name: reviewAuthor?.full_name ?? null,
-            profile_image: reviewAuthor?.profile_image ?? null,
-            likes: likesCount,
-            liked,
-            comments: preparedComments,
-            reposts: repostsCount,
-            reposted,
-          };
-        })
-      );
-
-      console.log('SUPABASE REVIEWS:', preparedReviews);
       setReviews(preparedReviews);
     } catch (error) {
       console.error('İncelemeler yüklenemedi:', error);
@@ -404,187 +392,170 @@ export default function HomeScreen() {
         return;
       }
 
-      if (!data) {
-        setPosts([]);
-        return;
-      }
-
       const userId = await getCurrentUserId();
       setCurrentUserId(userId);
       const blockedUserIds = await getBlockedUserIds(userId);
+      const visiblePosts = (data ?? []).filter(
+        (post: any) => !post.user_id || !blockedUserIds.has(post.user_id)
+      );
+      const postIds = visiblePosts.map((post: any) => post.id);
 
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, profile_image');
+      const [profileResult, likesResult, repostsResult, commentsResult, savedResult] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, username, profile_image'),
+        postIds.length
+          ? supabase.from('post_likes').select('post_id, user_id').in('post_id', postIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        postIds.length
+          ? supabase.from('post_reposts').select('post_id, user_id').in('post_id', postIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        postIds.length
+          ? supabase
+              .from('post_comments')
+              .select('id, text, created_at, user_id, post_id')
+              .in('post_id', postIds)
+              .order('created_at', { ascending: true })
+          : Promise.resolve({ data: [], error: null } as any),
+        userId && postIds.length
+          ? supabase
+              .from('saved_posts')
+              .select('post_id')
+              .eq('user_id', userId)
+              .in('post_id', postIds)
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      if (profileResult.error) console.error('Post profilleri alınamadı:', profileResult.error);
+      if (likesResult.error) console.error('Post beğenileri alınamadı:', likesResult.error);
+      if (repostsResult.error) console.error('Post repostları alınamadı:', repostsResult.error);
+      if (commentsResult.error) console.error('Post yorumları alınamadı:', commentsResult.error);
+      if (savedResult.error) console.error('Kaydedilen postlar alınamadı:', savedResult.error);
 
       const profilesByUserId = new Map(
-        (profileData ?? []).map((profile: any) => [profile.id, profile])
+        (profileResult.data ?? []).map((profile: any) => [profile.id, profile])
       );
-
       const currentProfile = userId ? profilesByUserId.get(userId) : null;
-      setStoryProfile({
-        userId,
-        imageUrl: currentProfile?.profile_image?.trim() || null,
-      });
+      setStoryProfile({ userId, imageUrl: currentProfile?.profile_image?.trim() || null });
 
-      const preparedPosts: Post[] = await Promise.all(
-        data.filter((post: any) => !post.user_id || !blockedUserIds.has(post.user_id)).map(async (post: any) => {
-          let liked = false;
-          let saved = false;
-          let reposted = false;
-          let likes = 0;
-          let reposts = 0;
-          let comments: Comment[] = [];
+      const likesByPost = new Map<string, any[]>();
+      const repostsByPost = new Map<string, any[]>();
+      const commentsByPost = new Map<string, any[]>();
+      const savedPostIds = new Set<string>((savedResult.data ?? []).map((item: any) => item.post_id));
 
-          const { count: likeCount } = await supabase
-            .from('post_likes')
-            .select('id', { count: 'exact', head: true })
-            .eq('post_id', post.id);
-          likes = likeCount ?? 0;
-
-          const { count: repostCount } = await supabase
-            .from('post_reposts')
-            .select('id', { count: 'exact', head: true })
-            .eq('post_id', post.id);
-          reposts = repostCount ?? 0;
-
-          const { data: commentData, error: commentError } = await supabase
-            .from('post_comments')
-            .select(`id, text, created_at, user_id`)
-            .eq('post_id', post.id)
-            .order('created_at', { ascending: true });
-
-          if (commentError) {
-            console.error('Post yorumları alınamadı:', commentError);
-          }
-
-          if (commentData) {
-            comments = commentData
-              .filter((comment: any) => !comment.user_id || !blockedUserIds.has(comment.user_id))
-              .map((comment: any) => ({
-              id: comment.id,
-              user_id: comment.user_id,
-              username: comment.user_id === userId ? CURRENT_USERNAME : 'Kitap Okuru',
-              text: comment.text,
-              createdAt: comment.created_at,
-            }));
-          }
-
-          if (userId) {
-            const { data: likeData } = await supabase
-              .from('post_likes')
-              .select('id')
-              .eq('post_id', post.id)
-              .eq('user_id', userId)
-              .maybeSingle();
-            liked = !!likeData;
-
-            const { data: repostData } = await supabase
-              .from('post_reposts')
-              .select('id')
-              .eq('post_id', post.id)
-              .eq('user_id', userId)
-              .maybeSingle();
-            reposted = !!repostData;
-
-            const { data: savedData } = await supabase
-              .from('saved_posts')
-              .select('id')
-              .eq('post_id', post.id)
-              .eq('user_id', userId)
-              .maybeSingle();
-            saved = !!savedData;
-          }
-
-          const postAuthor = post.user_id ? profilesByUserId.get(post.user_id) : null;
-
-          return {
-            ...post,
-            username: postAuthor?.username || post.username || CURRENT_USERNAME,
-            full_name: postAuthor?.full_name ?? null,
-            profile_image: postAuthor?.profile_image ?? null,
-            liked,
-            likes,
-            reposted,
-            reposts,
-            comments,
-            saved,
-          } as Post;
-        })
-      );
-
-      const { data: reviewData, error: reviewError } = await supabase
-        .from('reviews')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(30);
-
-      if (reviewError) {
-        console.error('Ana sayfa incelemeleri alınamadı:', reviewError);
+      for (const like of likesResult.data ?? []) {
+        const items = likesByPost.get(like.post_id) ?? [];
+        items.push(like);
+        likesByPost.set(like.post_id, items);
+      }
+      for (const repost of repostsResult.data ?? []) {
+        const items = repostsByPost.get(repost.post_id) ?? [];
+        items.push(repost);
+        repostsByPost.set(repost.post_id, items);
+      }
+      for (const comment of commentsResult.data ?? []) {
+        if (comment.user_id && blockedUserIds.has(comment.user_id)) continue;
+        const items = commentsByPost.get(comment.post_id) ?? [];
+        items.push(comment);
+        commentsByPost.set(comment.post_id, items);
       }
 
-      const reviewPosts: Post[] = (reviewData ?? [])
+      const preparedPosts: Post[] = visiblePosts.map((post: any) => {
+        const postAuthor = post.user_id ? profilesByUserId.get(post.user_id) : null;
+        const postLikes = likesByPost.get(post.id) ?? [];
+        const postReposts = repostsByPost.get(post.id) ?? [];
+        const postComments = commentsByPost.get(post.id) ?? [];
+
+        return {
+          ...post,
+          username: postAuthor?.username || post.username || CURRENT_USERNAME,
+          full_name: postAuthor?.full_name ?? null,
+          profile_image: postAuthor?.profile_image ?? null,
+          liked: !!userId && postLikes.some((item: any) => item.user_id === userId),
+          likes: postLikes.length,
+          reposted: !!userId && postReposts.some((item: any) => item.user_id === userId),
+          reposts: postReposts.length,
+          comments: postComments.map((comment: any) => ({
+            id: comment.id,
+            user_id: comment.user_id,
+            username: profilesByUserId.get(comment.user_id)?.username || CURRENT_USERNAME,
+            text: comment.text,
+            createdAt: comment.created_at,
+          })),
+          saved: savedPostIds.has(post.id),
+        } as Post;
+      });
+
+      const [reviewResult, quoteResult] = await Promise.all([
+        supabase
+          .from('reviews')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(30),
+        supabase
+          .from('quotes')
+          .select('id,user_id,book_key,book_title,text,created_at')
+          .order('created_at', { ascending: false })
+          .limit(30),
+      ]);
+
+      if (reviewResult.error) console.error('Ana sayfa incelemeleri alınamadı:', reviewResult.error);
+      if (quoteResult.error) throw quoteResult.error;
+
+      const reviewPosts: Post[] = (reviewResult.data ?? [])
         .filter((review: any) => !review.user_id || !blockedUserIds.has(review.user_id))
         .map((review: any) => ({
-        id: review.id,
-        user_id: review.user_id ?? null,
-        username: profilesByUserId.get(review.user_id)?.username || CURRENT_USERNAME,
-        full_name: profilesByUserId.get(review.user_id)?.full_name ?? null,
-        profile_image: profilesByUserId.get(review.user_id)?.profile_image ?? null,
-        text: review.text,
-        image_url: null,
-        coverUrl: review.coverUrl,
-        cover_url: review.cover_url,
-        cover_i: review.cover_i,
-        covers: review.covers,
-        edition_key: review.edition_key,
-        isbn: review.isbn,
-        key: review.key,
-        workKey: review.workKey,
-        book_key: review.book_key,
-        book_title: review.book_title,
-        rating: review.rating,
-        created_at: review.created_at,
-        saved: false,
-        likes: 0,
-        liked: false,
-        comments: [],
-        reposts: 0,
-        reposted: false,
-        isReview: true,
-      }));
+          id: review.id,
+          user_id: review.user_id ?? null,
+          username: profilesByUserId.get(review.user_id)?.username || CURRENT_USERNAME,
+          full_name: profilesByUserId.get(review.user_id)?.full_name ?? null,
+          profile_image: profilesByUserId.get(review.user_id)?.profile_image ?? null,
+          text: review.text,
+          image_url: null,
+          coverUrl: review.coverUrl,
+          cover_url: review.cover_url,
+          cover_i: review.cover_i,
+          covers: review.covers,
+          edition_key: review.edition_key,
+          isbn: review.isbn,
+          key: review.key,
+          workKey: review.workKey,
+          book_key: review.book_key,
+          book_title: review.book_title,
+          rating: review.rating,
+          created_at: review.created_at,
+          saved: false,
+          likes: 0,
+          liked: false,
+          comments: [],
+          reposts: 0,
+          reposted: false,
+          isReview: true,
+        }));
 
-      const remoteQuotes = await supabase
-        .from('quotes')
-        .select('id,user_id,book_key,book_title,text,created_at')
-        .order('created_at', { ascending: false })
-        .limit(30);
-      if (remoteQuotes.error) throw remoteQuotes.error;
-
-      const remoteQuotePosts: Post[] = (remoteQuotes.data ?? [])
-        .filter(quote => !quote.user_id || !blockedUserIds.has(quote.user_id))
-        .map(quote => ({
-        id: `quote-${quote.id}`,
-        user_id: quote.user_id,
-        username: profilesByUserId.get(quote.user_id)?.username || CURRENT_USERNAME,
-        full_name: profilesByUserId.get(quote.user_id)?.full_name,
-        profile_image: profilesByUserId.get(quote.user_id)?.profile_image,
-        text: quote.text,
-        image_url: null,
-        book_key: quote.book_key,
-        book_title: quote.book_title,
-        rating: 0,
-        created_at: quote.created_at,
-        isQuote: true,
-      }));
+      const remoteQuotePosts: Post[] = (quoteResult.data ?? [])
+        .filter((quote: any) => !quote.user_id || !blockedUserIds.has(quote.user_id))
+        .map((quote: any) => ({
+          id: `quote-${quote.id}`,
+          user_id: quote.user_id,
+          username: profilesByUserId.get(quote.user_id)?.username || CURRENT_USERNAME,
+          full_name: profilesByUserId.get(quote.user_id)?.full_name,
+          profile_image: profilesByUserId.get(quote.user_id)?.profile_image,
+          text: quote.text,
+          image_url: null,
+          book_key: quote.book_key,
+          book_title: quote.book_title,
+          rating: 0,
+          created_at: quote.created_at,
+          isQuote: true,
+        }));
 
       const allFeedItems: Post[] = [
         ...preparedPosts,
         ...reviewPosts,
         ...remoteQuotePosts,
-      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      ]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 60);
 
-      console.log('ANA SAYFA TÜM AKIŞ:', allFeedItems);
       setPosts(allFeedItems);
     } catch (error) {
       console.error('Post yükleme hatası:', error);
