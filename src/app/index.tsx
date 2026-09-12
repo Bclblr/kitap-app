@@ -16,6 +16,7 @@ import StoryActions from '@/components/StoryActions';
 import StoryTransition from '@/components/StoryTransition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReadersList from '@/components/ReadersList';
+import RetryNotice from '@/components/RetryNotice';
 import ThemePicker from '@/components/ThemePicker';
 import { requirePermanentImage } from '@/lib/image-policy';
 import AdSlot from '@/components/AdSlot';
@@ -180,6 +181,7 @@ export default function HomeScreen() {
 
   const [loading, setLoading] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
   const [loadingStories, setLoadingStories] = useState(false);
   const [feedLimit, setFeedLimit] = useState(30);
 
@@ -419,6 +421,7 @@ export default function HomeScreen() {
 
   const loadPosts = useCallback(async () => {
     setLoadingPosts(true);
+    setFeedError(null);
 
     try {
       const { data, error } = await supabase
@@ -429,6 +432,7 @@ export default function HomeScreen() {
 
       if (error) {
         console.error('Postlar yüklenemedi:', error);
+        setFeedError('Akış şu anda yenilenemedi. İnternet bağlantını kontrol edip tekrar deneyebilirsin.');
         return;
       }
 
@@ -599,6 +603,7 @@ export default function HomeScreen() {
       setPosts(allFeedItems);
     } catch (error) {
       console.error('Post yükleme hatası:', error);
+      setFeedError('Akış yüklenirken bir sorun oluştu. Mevcut içerikler korunuyor; yeniden deneyebilirsin.');
     } finally {
       setLoadingPosts(false);
     }
@@ -1320,7 +1325,15 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Topluluk Akışı</Text></View>
 
-        {loadingPosts ? (
+        {feedError ? (
+          <RetryNotice
+            message={feedError}
+            busy={loadingPosts}
+            onRetry={() => { void Promise.all([loadPosts(), loadReviews()]); }}
+          />
+        ) : null}
+
+        {loadingPosts && visiblePosts.length === 0 ? (
           <View style={styles.loadingBox}><ActivityIndicator /><Text style={styles.info}>Gönderiler yükleniyor...</Text></View>
         ) : visiblePosts.length === 0 ? (
           <View style={styles.empty}>
