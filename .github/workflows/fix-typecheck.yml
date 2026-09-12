@@ -1,0 +1,75 @@
+name: Fix TypeScript errors
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-typecheck.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply safe TypeScript fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          for path in Path('src/app').glob('*.tsx'):
+              text = path.read_text(encoding='utf-8')
+              updated = text.replace("fontWeight: '850'", "fontWeight: '800'")
+              updated = updated.replace("fontWeight: '750'", "fontWeight: '700'")
+              if updated != text:
+                  path.write_text(updated, encoding='utf-8')
+
+          explore = Path('src/app/explore.tsx')
+          text = explore.read_text(encoding='utf-8')
+          text = text.replace(
+              '            const authorKeys = Array.isArray(data.authors)',
+              '            const authorKeys: string[] = Array.isArray(data.authors)',
+          )
+          explore.write_text(text, encoding='utf-8')
+
+          types = Path('src/types')
+          types.mkdir(parents=True, exist_ok=True)
+          Path('src/types/css.d.ts').write_text(
+              "declare module '*.css' {\n  const classes: Record<string, string>;\n  export default classes;\n}\n",
+              encoding='utf-8',
+          )
+
+          workflow = Path('.github/workflows/fix-typecheck.yml')
+          if workflow.exists():
+              workflow.unlink()
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify TypeScript
+        run: npm run typecheck
+
+      - name: Commit fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Fix TypeScript typecheck errors"
+            git push origin main
+          fi
