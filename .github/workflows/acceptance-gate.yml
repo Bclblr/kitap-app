@@ -21,3 +21,4 @@ jobs:
         run: npm run audit:routes
       - name: Reader security tests
         run: npm run test:security
+      # Physical-device acceptance is intentionally tracked separately.
