@@ -335,6 +335,11 @@ export default function ProfileSettingsScreen() {
           <Text style={styles.adminButtonArrow}>›</Text>
         </Pressable>
 
+        <Pressable onPress={() => router.push('/privacy-data')} style={styles.adminButton}>
+          <Text style={styles.adminButtonText}>🔐 Gizlilik ve Verilerim</Text>
+          <Text style={styles.adminButtonArrow}>›</Text>
+        </Pressable>
+
         {canOpenAdmin ? (
           <Pressable onPress={() => router.push('/admin')} style={styles.adminButton}>
             <Text style={styles.adminButtonText}>🛡 Yönetim Paneli</Text>
