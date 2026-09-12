@@ -1,0 +1,48 @@
+name: Apply hashtag text renderer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-hashtag-text.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch home feed hashtag rendering
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/app/index.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          import_anchor = "import BookCover from '@/components/BookCover';\n"
+          import_line = "import HashtagText from '@/components/HashtagText';\n"
+          if import_line not in text:
+              if import_anchor not in text:
+                  raise SystemExit('BookCover import anchor not found')
+              text = text.replace(import_anchor, import_anchor + import_line, 1)
+
+          old = "                  {post.text && <Text style={[styles.postText, post.isQuote && styles.quotePostText]}>{post.isQuote ? `“${post.text}”` : post.text}</Text>}"
+          new = "                  {post.text && <HashtagText text={post.isQuote ? `“${post.text}”` : post.text} style={[styles.postText, post.isQuote && styles.quotePostText]} />}"
+
+          if old not in text:
+              raise SystemExit('Post text render anchor not found')
+
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/index.tsx
+          git commit -m "Gönderilerde hashtagleri tıklanabilir yap"
+          git push
