@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { Action, ui } from './ReaderUI';
+import { Action, useReaderStyles } from './ReaderUI';
 export default function StoryActions({ storyId, ownerId, onDeleted, onClose }: { storyId: string; ownerId?: string | null; onDeleted: () => void; onClose: () => void }) {
+  const ui = useReaderStyles();
   const router = useRouter(); const lock = useRef(false);
   const [userId, setUserId] = useState(''); const [liked, setLiked] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   useEffect(() => { let alive = true; void (async () => { try {

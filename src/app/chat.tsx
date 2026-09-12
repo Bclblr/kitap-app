@@ -1,3 +1,4 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -29,6 +30,7 @@ type Message = {
 };
 
 export default function ChatScreen() {
+  const styles = useThemedStyles(baseStyles);
   const insets = useSafeAreaInsets();
   const list = useRef<FlatList<Message>>(null);
   const sendLock = useRef(false);
@@ -504,7 +506,8 @@ export default function ChatScreen() {
     ]);
 
   useEffect(() => {
-    initializeChat();
+    const timer = setTimeout(() => void initializeChat(), 0);
+    return () => clearTimeout(timer);
   }, [initializeChat]);
 
   /*
@@ -907,7 +910,7 @@ export default function ChatScreen() {
  * =====================================================
  */
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#09090D',

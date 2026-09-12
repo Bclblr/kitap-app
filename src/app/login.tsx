@@ -1,3 +1,5 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -13,8 +15,12 @@ import {
   View,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { signInWithGoogle } from '../lib/google-auth';
+import { signInWithApple } from '../lib/apple-auth';
 
 export default function LoginScreen() {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, scheme } = useAppTheme();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,8 +55,61 @@ export default function LoginScreen() {
     }
   }
 
-  function pendingProvider(provider: 'Google' | 'Apple') {
-    Alert.alert(provider, provider + ' ile giriş altyapısını birazdan bağlayacağız.');
+  async function handleGoogleLogin() {
+    setLoading(true);
+
+    try {
+      const session = await signInWithGoogle();
+
+      if (session) {
+        router.replace('/');
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+
+      Alert.alert(
+        'Google girişi başarısız',
+        error instanceof Error
+          ? error.message
+          : 'Google ile giriş sırasında bir hata oluştu.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAppleLogin() {
+    setLoading(true);
+
+    try {
+      const session = await signInWithApple();
+
+      if (session) {
+        router.replace('/');
+      }
+    } catch (error) {
+      const errorCode =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error
+          ? String(error.code)
+          : '';
+
+      if (errorCode === 'ERR_REQUEST_CANCELED') {
+        return;
+      }
+
+      console.error('Apple login error:', error);
+
+      Alert.alert(
+        'Apple girişi başarısız',
+        error instanceof Error
+          ? error.message
+          : 'Apple ile giriş sırasında bir hata oluştu.'
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -58,7 +117,7 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Feather name="arrow-left" size={22} color="#F1F1F5" />
+            <Feather name="arrow-left" size={22} color={colors.text} />
           </Pressable>
         </View>
 
@@ -74,27 +133,12 @@ export default function LoginScreen() {
           <Text style={styles.title}>Giriş Yap</Text>
           <Text style={styles.subtitle}>Sana en uygun giriş yöntemini seç.</Text>
 
-          <Pressable onPress={() => pendingProvider('Google')} style={styles.providerButton}>
-            <Text style={styles.providerLetter}>G</Text>
-            <Text style={styles.providerText}>Google ile devam et</Text>
-          </Pressable>
-
-          <Pressable onPress={() => pendingProvider('Apple')} style={styles.providerButton}>
-            <Feather name="smartphone" size={19} color="#F4F4F7" />
-            <Text style={styles.providerText}>Apple ile devam et</Text>
-          </Pressable>
-
-          <View style={styles.orRow}>
-            <View style={styles.orLine} />
-            <Text style={styles.orText}>veya</Text>
-            <View style={styles.orLine} />
-          </View>
-
           <Text style={styles.label}>E-posta</Text>
           <View style={styles.inputWrap}>
             <Feather name="mail" size={18} color="#777783" />
             <TextInput
               value={email}
+              keyboardAppearance={scheme}
               onChangeText={setEmail}
               placeholder="ornek@email.com"
               placeholderTextColor="#686873"
@@ -110,6 +154,7 @@ export default function LoginScreen() {
             <Feather name="lock" size={18} color="#777783" />
             <TextInput
               value={password}
+              keyboardAppearance={scheme}
               onChangeText={setPassword}
               placeholder="Şifren"
               placeholderTextColor="#686873"
@@ -130,6 +175,22 @@ export default function LoginScreen() {
             <Text style={styles.buttonText}>{loading ? 'Giriş yapılıyor...' : 'E-posta ile Giriş Yap'}</Text>
           </Pressable>
 
+          <View style={styles.orRow}>
+            <View style={styles.orLine} />
+            <Text style={styles.orText}>veya</Text>
+            <View style={styles.orLine} />
+          </View>
+
+          <Pressable onPress={handleGoogleLogin} style={styles.providerButton}>
+            <Text style={styles.providerLetter}>G</Text>
+            <Text style={styles.providerText}>Google ile devam et</Text>
+          </Pressable>
+
+          <Pressable onPress={handleAppleLogin} style={styles.providerButton}>
+            <Feather name="smartphone" size={19} color={colors.text} />
+            <Text style={styles.providerText}>Apple ile devam et</Text>
+          </Pressable>
+
           <View style={styles.switchRow}>
             <Text style={styles.switchText}>Hesabın yok mu?</Text>
             <Pressable onPress={() => router.replace('/register')}>
@@ -142,7 +203,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#09090D' },
   scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 32 },
   topBar: { paddingTop: 18, minHeight: 62, justifyContent: 'center' },

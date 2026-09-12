@@ -1,16 +1,10 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
+import { permanentImageUrl } from '@/lib/image-policy';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Image from '@/components/SafeImage';
 
 import { supabase } from '@/lib/supabase';
 
@@ -33,6 +27,7 @@ const EMPTY_PROFILE: Profile = {
 };
 
 export default function ProfileSettingsScreen() {
+  const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
   const [username, setUsername] = useState('');
@@ -100,8 +95,8 @@ export default function ProfileSettingsScreen() {
           username: username.trim() || merged.username || 'Kitap Okuru',
           full_name: fullName.trim(),
           bio: bio.trim(),
-          profile_image: merged.profileImage,
-          cover_image: merged.coverImage,
+          profile_image: permanentImageUrl(merged.profileImage),
+          cover_image: permanentImageUrl(merged.coverImage),
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'id' }
@@ -146,7 +141,7 @@ export default function ProfileSettingsScreen() {
     }
 
     const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-    return `${data.publicUrl}?v=${Date.now()}`;
+    return permanentImageUrl(`${data.publicUrl}?v=${Date.now()}`);
   }
 
   async function pickImage(type: 'profile' | 'cover') {
@@ -286,7 +281,7 @@ export default function ProfileSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#090A0F',

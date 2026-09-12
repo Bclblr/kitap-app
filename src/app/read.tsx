@@ -1,18 +1,10 @@
+import { BookCoverData, existingBookCover } from '@/lib/open-library-cover';
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  View as SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Image from '@/components/SafeImage';
 
 import { supabase } from '@/lib/supabase';
 
@@ -20,7 +12,7 @@ type Author = string | { name?: string };
 
 type BookStatus = 'reading' | 'read' | 'want';
 
-type Book = {
+type Book = BookCoverData & {
   key?: string;
   title?: string;
   authors?: Author[];
@@ -62,13 +54,7 @@ function getAuthorName(book: Book) {
   return authorName || 'Bilinmeyen yazar';
 }
 
-function getCoverUrl(book: Book) {
-  const coverId = book.covers?.[0];
-
-  return coverId
-    ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
-    : null;
-}
+const getCoverUrl = existingBookCover;
 
 function getDeviceTimezone() {
   try {
@@ -80,6 +66,7 @@ function getDeviceTimezone() {
 }
 
 export default function ReadScreen() {
+  const styles = useThemedStyles(baseStyles);
   const router = useRouter();
 
   const [readingBooks, setReadingBooks] = useState<Book[]>([]);
@@ -113,7 +100,7 @@ export default function ReadScreen() {
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) {
+      if (userError && userError.name !== 'AuthSessionMissingError') {
         console.error('Okuma paneli kullanıcısı alınamadı:', userError);
         setTodayPagesRead(0);
         setDailyPageGoal(0);
@@ -183,7 +170,7 @@ export default function ReadScreen() {
           error: userError,
         } = await supabase.auth.getUser();
 
-        if (userError) {
+        if (userError && userError.name !== 'AuthSessionMissingError') {
           console.error('İlerleme kullanıcısı alınamadı:', userError);
           return;
         }
@@ -250,7 +237,7 @@ export default function ReadScreen() {
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) {
+      if (userError && userError.name !== 'AuthSessionMissingError') {
         console.error('Same book readers user error:', userError);
         return;
       }
@@ -378,7 +365,7 @@ export default function ReadScreen() {
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) {
+      if (userError && userError.name !== 'AuthSessionMissingError') {
         console.error('Hedef kullanıcısı alınamadı:', userError);
         Alert.alert('Hata', 'Kullanıcı bilgisi alınamadı. Lütfen tekrar dene.');
         return;
@@ -480,7 +467,7 @@ export default function ReadScreen() {
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) {
+      if (userError && userError.name !== 'AuthSessionMissingError') {
         console.error('İlerleme kullanıcısı alınamadı:', userError);
         Alert.alert('Hata', 'Kullanıcı bilgisi alınamadı. Lütfen tekrar dene.');
         return;
@@ -978,6 +965,7 @@ type EmptyFeatureCardProps = {
 };
 
 function DashboardLoading() {
+  const styles = useThemedStyles(baseStyles);
   return (
     <View style={styles.dashboardLoading}>
       <ActivityIndicator size="small" color="#9B72F2" />
@@ -992,6 +980,7 @@ function EmptyFeatureCard({
   description,
   compact = false,
 }: EmptyFeatureCardProps) {
+  const styles = useThemedStyles(baseStyles);
   return (
     <View style={[styles.featureCard, compact && styles.compactFeatureCard]}>
       <View style={styles.featureIconWrap}>
@@ -1011,6 +1000,7 @@ type ShelfButtonProps = {
 };
 
 function ShelfButton({ accent, label, symbol, onPress }: ShelfButtonProps) {
+  const styles = useThemedStyles(baseStyles);
   return (
     <Pressable onPress={onPress} style={styles.shelfButton}>
       <View style={[styles.shelfIconWrap, { borderColor: accent }]}>
@@ -1021,7 +1011,7 @@ function ShelfButton({ accent, label, symbol, onPress }: ShelfButtonProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#08090D',

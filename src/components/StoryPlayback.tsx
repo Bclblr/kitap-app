@@ -5,10 +5,10 @@ import { Animated, AppState, Easing, Pressable, StyleSheet, View } from 'react-n
 export default function StoryPlayback({ storyId, count, index, onNext, onPrevious }: {
   storyId: string; count: number; index: number; onNext: () => void; onPrevious: () => void;
 }) {
-  const progress = useRef(new Animated.Value(0)).current;
+  const [progress] = useState(() => new Animated.Value(0));
   const elapsed = useRef(0);
   const next = useRef(onNext);
-  next.current = onNext;
+  useEffect(() => { next.current = onNext; }, [onNext]);
   const [held, setHeld] = useState(false);
   const [active, setActive] = useState(AppState.currentState === 'active');
   const longPress = useRef(false);
@@ -19,7 +19,6 @@ export default function StoryPlayback({ storyId, count, index, onNext, onPreviou
   useEffect(() => {
     elapsed.current = 0;
     progress.setValue(0);
-    setHeld(false);
   }, [storyId, progress]);
   useEffect(() => {
     if (held || !active) return;

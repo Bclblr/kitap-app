@@ -1,7 +1,9 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppTheme } from '@/providers/ThemeProvider';
 
 type NavRoute = '/' | '/read' | '/messages' | '/explore' | '/profile';
 type NavIcon = 'home' | 'book-open' | 'message-circle' | 'search' | 'user';
@@ -14,10 +16,15 @@ type NavItemProps = {
 };
 
 function NavItem({ href, pathname, icon, onPress }: NavItemProps) {
+  const styles = useThemedStyles(baseStyles);
   const active = pathname === href;
+  const { colors } = useAppTheme();
 
   return (
     <Pressable
+      accessibilityRole="tab"
+      accessibilityLabel={{ '/': 'Ana sayfa', '/read': 'Okumalarım', '/messages': 'Mesajlar', '/explore': 'Keşfet', '/profile': 'Profil' }[href]}
+      accessibilityState={{ selected: active }}
       onPress={onPress}
       style={({ pressed }) => [styles.tab, pressed && styles.pressedTab]}
       hitSlop={8}
@@ -26,7 +33,7 @@ function NavItem({ href, pathname, icon, onPress }: NavItemProps) {
         <Feather
           name={icon}
           size={23}
-          color={active ? '#A985FF' : '#85858F'}
+          color={active ? colors.primary : colors.textSecondary}
         />
       </View>
     </Pressable>
@@ -34,6 +41,7 @@ function NavItem({ href, pathname, icon, onPress }: NavItemProps) {
 }
 
 export default function BottomNav() {
+  const styles = useThemedStyles(baseStyles);
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const router = useRouter();
@@ -49,7 +57,7 @@ export default function BottomNav() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   bottomBar: {
     height: 76,
     backgroundColor: '#0A0A0E',

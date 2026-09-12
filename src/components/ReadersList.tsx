@@ -1,11 +1,17 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Image, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import Image from '@/components/SafeImage';
 import { supabase } from '@/lib/supabase';
 import { notifySocialChanged, useReaderSocial } from '@/hooks/use-reader-social';
-import { Action, Busy, ui } from './ReaderUI';
+import { Action, Busy, useReaderStyles } from './ReaderUI';
+import ReaderSuggestions from './ReaderSuggestions';
 type Reader = { id: string; username: string; full_name: string | null; profile_image: string | null };
 export default function ReadersList({ targetId, mode, query, limit = 8 }: { targetId?: string; mode?: 'followers' | 'following'; query?: string; limit?: number }) {
+  return !mode && !query ? <ReaderSuggestions limit={limit} /> : <ReaderDirectory targetId={targetId} mode={mode} query={query} limit={limit} />;
+}
+function ReaderDirectory({ targetId, mode, query, limit }: { targetId?: string; mode?: 'followers' | 'following'; query?: string; limit: number }) {
+  const ui = useReaderStyles();
   const router = useRouter();
   const social = useReaderSocial();
   const [readers, setReaders] = useState<Reader[]>([]);
@@ -34,14 +40,7 @@ export default function ReadersList({ targetId, mode, query, limit = 8 }: { targ
         }
         const result = await request;
         if (result.error) throw result.error;
-        let ranked = result.data ?? [];
-        if (!mode && !query) {
-          const activity = await supabase.from('posts').select('user_id,created_at').order('created_at', { ascending: false }).limit(100);
-          const recent = new Map<string, number>();
-          for (const post of activity.data ?? []) if (!recent.has(post.user_id)) recent.set(post.user_id, Date.parse(post.created_at));
-          ranked = [...ranked].sort((a, b) => (recent.get(b.id) ?? 0) - (recent.get(a.id) ?? 0) || a.id.localeCompare(b.id));
-        }
-        if (alive) setReaders(ranked);
+        if (alive) setReaders(result.data ?? []);
       } catch { if (alive) setError('Okurlar yüklenemedi.'); }
       finally { if (alive) setLoading(false); }
     }

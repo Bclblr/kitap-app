@@ -1,19 +1,11 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
+import { permanentImageUrl } from '@/lib/image-policy';
 import * as ImagePicker from 'expo-image-picker';
-import WorksList from '@/components/WorksList';
-import { Action } from '@/components/ReaderUI';
+import ReadersList from '@/components/ReadersList';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Image from '@/components/SafeImage';
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
@@ -98,6 +90,8 @@ const DEFAULT_PROFILE: ProfileData = {
 };
 
 export default function ProfileScreen() {
+  const [profileTab, setProfileTab] = useState<'post'|'review'|'quote'|'repost'>('post');
+  const styles = useThemedStyles(baseStyles);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const router = useRouter();
 
@@ -131,6 +125,7 @@ export default function ProfileScreen() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
+  const visibleFeed = feed.filter(item => profileTab === 'repost' ? item.reposted : !item.reposted && item.type === profileTab);
 
   const [selectedPost, setSelectedPost] =
     useState<Post | null>(null);
@@ -948,7 +943,10 @@ export default function ProfileScreen() {
           ? userId
           : loggedInUserId;
 
-      if (!targetUserId) {
+      console.log('PROFILE QUOTES USER ID:', loggedInUserId);
+      console.log('PROFILE QUOTES TARGET USER ID:', targetUserId);
+
+      if (!targetUserId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetUserId)) {
         setBookCount(0);
         setReviewCount(0);
         setQuoteCount(0);
@@ -1092,6 +1090,9 @@ export default function ProfileScreen() {
        * ALINTILAR
        */
 
+      console.log('PROFILE QUOTES DATA:', quotesResult.data);
+      console.log('PROFILE QUOTES ERROR:', quotesResult.error);
+
       if (quotesResult.error) {
         console.error(
           'Alıntılar yüklenemedi:',
@@ -1109,9 +1110,7 @@ export default function ProfileScreen() {
               item.id
             ),
 
-            userId: String(
-              item.user_id
-            ),
+            userId: item.user_id,
 
             bookKey:
               String(
@@ -1627,10 +1626,10 @@ export default function ProfileScreen() {
             cleanBio,
 
           profile_image:
-            profile.profileImage,
+            permanentImageUrl(profile.profileImage),
 
           cover_image:
-            profile.coverImage,
+            permanentImageUrl(profile.coverImage),
 
           updated_at:
             new Date().toISOString(),
@@ -1743,7 +1742,7 @@ export default function ProfileScreen() {
         return null;
       }
 
-      return `${data.publicUrl}?v=${Date.now()}`;
+      return permanentImageUrl(`${data.publicUrl}?v=${Date.now()}`);
     } catch (error) {
       console.error(
         'Fotoğraf yükleme hatası:',
@@ -1814,10 +1813,10 @@ export default function ProfileScreen() {
             profile.bio,
 
           profile_image:
-            url,
+            permanentImageUrl(url),
 
           cover_image:
-            profile.coverImage,
+            permanentImageUrl(profile.coverImage),
 
           updated_at:
             new Date().toISOString(),
@@ -1904,10 +1903,10 @@ export default function ProfileScreen() {
             profile.bio,
 
           profile_image:
-            profile.profileImage,
+            permanentImageUrl(profile.profileImage),
 
           cover_image:
-            url,
+            permanentImageUrl(url),
 
           updated_at:
             new Date().toISOString(),
@@ -2252,6 +2251,11 @@ export default function ProfileScreen() {
 
         {/* İSTATİSTİKLER */}
         <View style={styles.stats}>
+          <View style={styles.stat} accessibilityLabel={`${bookCount} farklı kitap hakkında paylaşım`}>
+            <Text style={styles.statNumber}>{bookCount}</Text>
+            <Text style={styles.statLabel}>Kitap</Text>
+          </View>
+          <View style={styles.statDivider} />
           <Pressable onPress={() => router.push({ pathname: '/readers', params: { id: profile.id, mode: 'followers' } })} style={styles.stat}>
             <Text style={styles.statNumber}>{followerCount}</Text>
             <Text style={styles.statLabel}>Takipçi</Text>
@@ -2293,10 +2297,13 @@ export default function ProfileScreen() {
               styles.sectionTitle
             }
           >
-            Paylaşımlar
+            {profileTab === 'post' ? 'Gönderiler' : profileTab === 'review' ? 'İncelemeler' : profileTab === 'quote' ? 'Alıntılar' : 'Tekrar Paylaşımlar'}
           </Text>
 
-          {feed.length === 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingVertical:12}}>
+            {([['post','Gönderiler'],['review','İncelemeler'],['quote','Alıntılar'],['repost','Tekrar Paylaşımlar']] as const).map(([tab,label])=><Pressable key={tab} accessibilityRole="tab" accessibilityState={{selected:profileTab===tab}} onPress={()=>setProfileTab(tab)} style={{minHeight:44,padding:10,borderBottomWidth:3,borderBottomColor:profileTab===tab?'#9467E8':'transparent'}}><Text style={styles.feedType}>{label}</Text></Pressable>)}
+          </ScrollView>
+          {visibleFeed.length === 0 ? (
             <View
               style={
                 styles.emptyCard
@@ -2329,7 +2336,7 @@ export default function ProfileScreen() {
               </Text>
             </View>
           ) : (
-            feed.map(
+            visibleFeed.map(
               (item) => {
                 /*
                  * ================================================
@@ -2738,8 +2745,7 @@ export default function ProfileScreen() {
           )}
         </View>
         <View style={{ padding: 16, gap: 12 }}>
-          {isOwnProfile && <Action label="Yazdıklarım / Kitap yaz" onPress={() => router.push('/my-works')} />}
-          {profile.id && <WorksList authorId={profile.id} />}
+          <ReadersList limit={6} />
         </View>
       </ScrollView>
       <Modal visible={avatarOpen} transparent animationType="fade" onRequestClose={() => setAvatarOpen(false)}>
@@ -3087,7 +3093,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#090A0F',

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
-import { Action, Busy, Field, ReaderScreen, ui } from '@/components/ReaderUI';
+import { Action, Busy, Field, ReaderScreen, useReaderStyles } from '@/components/ReaderUI';
 import { supabase } from '@/lib/supabase';
+import { requirePermanentImage } from '@/lib/image-policy';
 export default function CommunityEditor() {
+  const ui = useReaderStyles();
   const { id } = useLocalSearchParams<{ id?: string }>(); const router = useRouter(); const lock = useRef(false);
   const [form, setForm] = useState({ name: '', description: '', image_url: '', kind: 'community', visibility: 'public', rules: '', tags: [] as string[], current_book: '' });
   const [ready, setReady] = useState(false); const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
@@ -24,7 +26,7 @@ export default function CommunityEditor() {
     lock.current = true; setBusy(true); setError('');
     try {
       const auth = await supabase.auth.getUser(); if (!auth.data.user) throw Error();
-      const payload = { ...form, name: form.name.trim(), image_url: form.image_url || null, tags: form.tags.map(tag => tag.trim()).filter(Boolean) };
+      const payload = { ...form, name: form.name.trim(), image_url: requirePermanentImage(form.image_url), tags: form.tags.map(tag => tag.trim()).filter(Boolean) };
       const result = id ? await supabase.from('communities').update(payload).eq('id', id).select('id').single() : await supabase.from('communities').insert({ ...payload, created_by: auth.data.user.id }).select('id').single();
       if (result.error) throw result.error;
       router.replace({ pathname: '/community', params: { id: result.data.id } });

@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Text } from 'react-native';
-import { Action, Field, ReaderScreen, ui } from '@/components/ReaderUI';
+import { Action, Field, ReaderScreen, useReaderStyles } from '@/components/ReaderUI';
 import { supabase } from '@/lib/supabase';
 export default function QuoteCreate() {
+  const ui = useReaderStyles();
   const router = useRouter(); const lock = useRef(false);
   const [book, setBook] = useState(''); const [text, setText] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   async function save() {

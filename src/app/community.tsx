@@ -1,20 +1,11 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import { supabase } from "@/lib/supabase";
 import { Action } from '@/components/ReaderUI';
 import { readerDate } from '@/lib/reader-date';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  View as SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Image from '@/components/SafeImage';
 
 type CommunityDetail = {
   id: string;
@@ -55,6 +46,7 @@ type CommunityPost = {
 };
 
 export default function CommunityScreen() {
+  const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const communityId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -519,7 +511,8 @@ export default function CommunityScreen() {
   }
 
   useEffect(() => {
-    void loadCommunityPosts();
+    const timer = setTimeout(() => void loadCommunityPosts(), 0);
+    return () => clearTimeout(timer);
   }, [communityId]);
 
   async function createCommunityPost() {
@@ -905,7 +898,7 @@ export default function CommunityScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#08090D" },
   commentsBox: {
     marginTop: 12,

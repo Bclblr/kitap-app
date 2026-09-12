@@ -1,14 +1,8 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import {
-    Alert,
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Image from '@/components/SafeImage';
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
@@ -35,6 +29,7 @@ type AppNotification = {
 };
 
 export default function NotificationsScreen() {
+  const styles = useThemedStyles(baseStyles);
   const [notifications, setNotifications] =
     useState<AppNotification[]>([]);
 
@@ -768,7 +763,7 @@ export default function NotificationsScreen() {
 // STYLES
 // =====================================================
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#090A0F',

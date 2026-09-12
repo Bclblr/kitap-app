@@ -1,3 +1,5 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -13,8 +15,12 @@ import {
   View,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { signInWithGoogle } from '../lib/google-auth';
+import { signInWithApple } from '../lib/apple-auth';
 
 export default function RegisterScreen() {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, scheme } = useAppTheme();
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -75,8 +81,61 @@ export default function RegisterScreen() {
     }
   }
 
-  function pendingProvider(provider: 'Google' | 'Apple') {
-    Alert.alert(provider, provider + ' ile kayıt altyapısını birazdan bağlayacağız.');
+  async function handleGoogleRegister() {
+    setLoading(true);
+
+    try {
+      const session = await signInWithGoogle();
+
+      if (session) {
+        router.replace('/');
+      }
+    } catch (error) {
+      console.error('Google register error:', error);
+
+      Alert.alert(
+        'Google kaydı başarısız',
+        error instanceof Error
+          ? error.message
+          : 'Google ile kayıt sırasında bir hata oluştu.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAppleRegister() {
+    setLoading(true);
+
+    try {
+      const session = await signInWithApple();
+
+      if (session) {
+        router.replace('/');
+      }
+    } catch (error) {
+      const errorCode =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error
+          ? String(error.code)
+          : '';
+
+      if (errorCode === 'ERR_REQUEST_CANCELED') {
+        return;
+      }
+
+      console.error('Apple register error:', error);
+
+      Alert.alert(
+        'Apple kaydı başarısız',
+        error instanceof Error
+          ? error.message
+          : 'Apple ile kayıt sırasında bir hata oluştu.'
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -84,7 +143,7 @@ export default function RegisterScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Feather name="arrow-left" size={22} color="#F1F1F5" />
+            <Feather name="arrow-left" size={22} color={colors.text} />
           </Pressable>
         </View>
 
@@ -100,13 +159,13 @@ export default function RegisterScreen() {
           <Text style={styles.title}>Hesap Oluştur</Text>
           <Text style={styles.subtitle}>Sana en uygun kayıt yöntemini seç.</Text>
 
-          <Pressable onPress={() => pendingProvider('Google')} style={styles.providerButton}>
+          <Pressable onPress={handleGoogleRegister} style={styles.providerButton}>
             <Text style={styles.providerLetter}>G</Text>
             <Text style={styles.providerText}>Google ile kaydol</Text>
           </Pressable>
 
-          <Pressable onPress={() => pendingProvider('Apple')} style={styles.providerButton}>
-            <Feather name="smartphone" size={19} color="#F4F4F7" />
+          <Pressable onPress={handleAppleRegister} style={styles.providerButton}>
+            <Feather name="smartphone" size={19} color={colors.text} />
             <Text style={styles.providerText}>Apple ile kaydol</Text>
           </Pressable>
 
@@ -121,6 +180,7 @@ export default function RegisterScreen() {
             <Feather name="user" size={18} color="#777783" />
             <TextInput
               value={username}
+              keyboardAppearance={scheme}
               onChangeText={setUsername}
               placeholder="Kullanıcı adın"
               placeholderTextColor="#686873"
@@ -134,6 +194,7 @@ export default function RegisterScreen() {
             <Feather name="mail" size={18} color="#777783" />
             <TextInput
               value={email}
+              keyboardAppearance={scheme}
               onChangeText={setEmail}
               placeholder="ornek@email.com"
               placeholderTextColor="#686873"
@@ -149,6 +210,7 @@ export default function RegisterScreen() {
             <Feather name="lock" size={18} color="#777783" />
             <TextInput
               value={password}
+              keyboardAppearance={scheme}
               onChangeText={setPassword}
               placeholder="En az 6 karakter"
               placeholderTextColor="#686873"
@@ -181,7 +243,7 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#09090D' },
   scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 32 },
   topBar: { paddingTop: 18, minHeight: 62, justifyContent: 'center' },

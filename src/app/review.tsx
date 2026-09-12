@@ -1,3 +1,4 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -14,6 +15,7 @@ import {
 import { supabase } from '@/lib/supabase';
 
 export default function ReviewScreen() {
+  const styles = useThemedStyles(baseStyles);
   const router = useRouter();
 
   const { key, title } =
@@ -61,7 +63,7 @@ export default function ReviewScreen() {
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) {
+      if (userError && userError.name !== 'AuthSessionMissingError') {
         console.error(
           'Kullanıcı bilgisi alınamadı:',
           userError
@@ -239,7 +241,7 @@ export default function ReviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0A0A0E',

@@ -87,24 +87,22 @@ replaceOnce(
 // Eski story stillerini yeni viewer stilleriyle değiştir.
 replaceOnce(
   'story modal stilleri',
-  /storyModalOverlay: \{[\s\S]*?storyViewerText: \{[\s\S]*?\n\s*\},\n\n\s*sectionHeader:/,
+  /storyModalOverlay: \{[\s\S]*?storyViewerText: \{[\s\S]*?\r?\n\s*\},\r?\n\r?\n\s*sectionHeader:/,
   `storyModalOverlay: {\n    flex: 1,\n    backgroundColor: '#000',\n  },\n\n  storyViewer: {\n    flex: 1,\n    backgroundColor: '#050507',\n    paddingTop: 14,\n    paddingBottom: 18,\n  },\n\n  storyProgressRow: {\n    flexDirection: 'row',\n    gap: 4,\n    paddingHorizontal: 10,\n    marginBottom: 10,\n  },\n\n  storyProgressTrack: {\n    flex: 1,\n    height: 3,\n    borderRadius: 3,\n    backgroundColor: 'rgba(255,255,255,0.24)',\n  },\n\n  storyProgressActive: {\n    backgroundColor: '#F5F5F7',\n  },\n\n  storyViewerHeader: {\n    height: 52,\n    paddingHorizontal: 12,\n    flexDirection: 'row',\n    alignItems: 'center',\n    justifyContent: 'space-between',\n    zIndex: 20,\n  },\n\n  storyViewerIdentity: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    flex: 1,\n  },\n\n  storyViewerAvatar: {\n    width: 36,\n    height: 36,\n    borderRadius: 18,\n    marginRight: 10,\n  },\n\n  storyViewerAvatarFallback: {\n    width: 36,\n    height: 36,\n    borderRadius: 18,\n    marginRight: 10,\n    backgroundColor: '#2B2140',\n    alignItems: 'center',\n    justifyContent: 'center',\n  },\n\n  storyViewerAvatarText: {\n    color: '#F4EEFF',\n    fontWeight: '900',\n  },\n\n  storyViewerUsername: {\n    color: '#FFF',\n    fontSize: 14,\n    fontWeight: '800',\n  },\n\n  storyViewerCounter: {\n    color: '#9B9BA4',\n    fontSize: 10,\n    marginTop: 2,\n  },\n\n  storyCloseButton: {\n    width: 38,\n    height: 38,\n    borderRadius: 19,\n    backgroundColor: 'rgba(20,20,26,0.78)',\n    justifyContent: 'center',\n    alignItems: 'center',\n    marginLeft: 10,\n  },\n\n  storyCloseText: {\n    color: '#FFF',\n    fontSize: 27,\n    lineHeight: 29,\n  },\n\n  storyMediaArea: {\n    flex: 1,\n    marginHorizontal: 8,\n    borderRadius: 18,\n    overflow: 'hidden',\n    backgroundColor: '#0D0D12',\n    position: 'relative',\n  },\n\n  storyViewerImage: {\n    width: '100%',\n    height: '100%',\n    backgroundColor: '#0D0D12',\n  },\n\n  storyTextOnlyCard: {\n    flex: 1,\n    alignItems: 'center',\n    justifyContent: 'center',\n    backgroundColor: '#15111E',\n  },\n\n  storyTextOnlyIcon: {\n    fontSize: 58,\n  },\n\n  storyTextOverlay: {\n    position: 'absolute',\n    left: 18,\n    right: 18,\n    bottom: 38,\n    backgroundColor: 'rgba(0,0,0,0.48)',\n    borderRadius: 16,\n    paddingHorizontal: 16,\n    paddingVertical: 13,\n    zIndex: 5,\n  },\n\n  storyViewerText: {\n    color: '#FFF',\n    fontSize: 17,\n    lineHeight: 24,\n    textAlign: 'center',\n    fontWeight: '600',\n  },\n\n  storyTapLeft: {\n    position: 'absolute',\n    left: 0,\n    top: 0,\n    bottom: 0,\n    width: '42%',\n    zIndex: 10,\n  },\n\n  storyTapRight: {\n    position: 'absolute',\n    right: 0,\n    top: 0,\n    bottom: 0,\n    width: '58%',\n    zIndex: 10,\n  },\n\n  storySwipeHint: {\n    height: 34,\n    alignItems: 'center',\n    justifyContent: 'flex-end',\n  },\n\n  storySwipeHandle: {\n    width: 34,\n    height: 4,\n    borderRadius: 3,\n    backgroundColor: '#4A4A52',\n    marginBottom: 4,\n  },\n\n  storySwipeText: {\n    color: '#66666F',\n    fontSize: 9,\n  },\n\n  sectionHeader:`
 );
 
 // Hikaye halka stillerini değiştir.
 replaceOnce(
   'story circle stilleri',
-  /storyItem: \{[\s\S]*?storyName: \{[\s\S]*?\n\s*\},\n\n\s*storyCreateBox:/,
+  /storyItem: \{[\s\S]*?storyName: \{[\s\S]*?\r?\n\s*\},\r?\n\r?\n\s*storyCreateBox:/,
   `storyItem: {\n    width: 74,\n    alignItems: 'center',\n  },\n\n  addStoryCircle: {\n    width: 64,\n    height: 64,\n    borderRadius: 32,\n    borderWidth: 2,\n    borderColor: '#F28A2E',\n    backgroundColor: '#14151C',\n    justifyContent: 'center',\n    alignItems: 'center',\n  },\n\n  addStoryIcon: {\n    fontSize: 26,\n    fontWeight: '300',\n    color: '#F28A2E',\n  },\n\n  storyRing: {\n    width: 66,\n    height: 66,\n    borderRadius: 33,\n    borderWidth: 3,\n    padding: 2,\n    position: 'relative',\n  },\n\n  storyRingUnseen: {\n    borderColor: '#A985FF',\n    backgroundColor: '#17131F',\n  },\n\n  storyRingSeen: {\n    borderColor: 'rgba(145,145,155,0.42)',\n    backgroundColor: 'rgba(40,40,46,0.42)',\n  },\n\n  storyCircleInner: {\n    width: '100%',\n    height: '100%',\n    borderRadius: 29,\n    backgroundColor: '#171820',\n  },\n\n  storyTextCircle: {\n    justifyContent: 'center',\n    alignItems: 'center',\n  },\n\n  storyFallbackIcon: {\n    fontSize: 21,\n  },\n\n  storyCountBadge: {\n    position: 'absolute',\n    right: -5,\n    bottom: -3,\n    minWidth: 20,\n    height: 20,\n    borderRadius: 10,\n    paddingHorizontal: 5,\n    backgroundColor: '#A985FF',\n    borderWidth: 2,\n    borderColor: '#08090D',\n    alignItems: 'center',\n    justifyContent: 'center',\n  },\n\n  storyCountText: {\n    color: '#0C0812',\n    fontSize: 9,\n    fontWeight: '900',\n  },\n\n  storyName: {\n    marginTop: 7,\n    fontSize: 10,\n    color: '#D0D0D6',\n    fontWeight: '700',\n    maxWidth: 72,\n    textAlign: 'center',\n  },\n\n  storyNameSeen: {\n    color: 'rgba(160,160,170,0.58)',\n  },\n\n  storyCreateBox:`
 );
 
-// Basit güvenlik kontrolleri.
-const forbiddenMarkers = ['<<<<<<<', '=======', '>>>>>>>'];
-for (const marker of forbiddenMarkers) {
-  if (source.includes(marker)) {
-    console.error(`HATA: index.tsx içinde çözülmemiş conflict işareti var: ${marker}`);
-    process.exit(1);
-  }
+// Basit güvenlik kontrolleri. Sadece gerçek Git conflict satırlarını yakala.
+const conflictMatch = source.match(/^\s*(<<<<<<<|=======|>>>>>>>)(?:\s.*)?$/m);
+if (conflictMatch) {
+  console.error(`HATA: index.tsx içinde çözülmemiş conflict işareti var: ${conflictMatch[1]}`);
+  process.exit(1);
 }
 
 if (source === original) {

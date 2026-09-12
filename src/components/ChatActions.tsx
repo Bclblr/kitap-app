@@ -3,8 +3,9 @@ import { useRouter } from 'expo-router';
 import { Modal, ScrollView, Text, View } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { notifySocialChanged } from '@/hooks/use-reader-social';
-import { Action, Field, ui } from './ReaderUI';
+import { Action, Field, useReaderStyles } from './ReaderUI';
 export default function ChatActions({ conversationId, onBlocked }: { conversationId: string | null; onBlocked: (blocked: boolean) => void }) {
+  const ui = useReaderStyles();
   const router = useRouter();
   const [open, setOpen] = useState(false); const [report, setReport] = useState(false);
   const [userId, setUserId] = useState(''); const [otherId, setOtherId] = useState('');

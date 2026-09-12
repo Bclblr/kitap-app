@@ -4,11 +4,9 @@
  */
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAppTheme } from '@/providers/ThemeProvider';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme ?? 'light';
-
-  return Colors[theme];
+  const { scheme, colors } = useAppTheme();
+  return { ...Colors[scheme], ...colors, backgroundElement: colors.surface, backgroundSelected: colors.surfaceElevated };
 }

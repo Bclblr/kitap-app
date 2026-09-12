@@ -1,26 +1,18 @@
+import { BookCoverData, existingBookCover, openLibraryUrl } from '@/lib/open-library-cover';
+import BookCover from '@/components/BookCover';
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useRouter } from 'expo-router';
-import ReadersList from '@/components/ReadersList';
 import AdSlot from '@/components/AdSlot';
-import WorksList from '@/components/WorksList';
 import { Action } from '@/components/ReaderUI';
 import { useReaderSocial } from '@/hooks/use-reader-social';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  View as SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Image from '@/components/SafeImage';
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
 
-type Book = {
+type Book = BookCoverData & {
   key: string;
   title?: string;
   author_name?: string[];
@@ -46,13 +38,9 @@ type FeaturedAuthor = Author & { featuredBookCount: number; featuredScore: numbe
 
 type SearchType = 'books' | 'authors' | 'users';
 
-type ActiveReader = {
-  user_id: string;
-  username: string | null;
-  profile_image: string | null;
-};
 
-type PopularBook = {
+
+type PopularBook = BookCoverData & {
   book_key: string;
   book_title: string | null;
   reading_count: number;
@@ -84,6 +72,7 @@ const DISCOVERY_SECTIONS = [
 ] as const;
 
 export default function ExploreScreen() {
+  const styles = useThemedStyles(baseStyles);
   const social = useReaderSocial();
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -93,8 +82,8 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [activeSearchType, setActiveSearchType] = useState<SearchType>('books');
-  const [activeReaders, setActiveReaders] = useState<ActiveReader[]>([]);
-  const [activeReadersLoading, setActiveReadersLoading] = useState(false);
+  
+  
   const [popularBooks, setPopularBooks] = useState<PopularBook[]>([]);
   const [popularBooksLoading, setPopularBooksLoading] = useState(false);
   const [featuredAuthors, setFeaturedAuthors] = useState<FeaturedAuthor[]>([]);
@@ -117,46 +106,9 @@ export default function ExploreScreen() {
 
   const isSearching = query.trim().length > 0;
 
-  const loadActiveReaders = useCallback(async () => {
-    try {
-      setActiveReadersLoading(true);
+  
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        console.error('Active readers user error:', userError);
-        setActiveReaders([]);
-        return;
-      }
-
-      if (!user) {
-        setActiveReaders([]);
-        return;
-      }
-
-      const { data, error } = await supabase.rpc('get_active_readers');
-
-      if (error) {
-        console.error('Active readers error:', error);
-        setActiveReaders([]);
-        return;
-      }
-
-      setActiveReaders((data ?? []) as ActiveReader[]);
-    } catch (error) {
-      console.error('Active readers error:', error);
-      setActiveReaders([]);
-    } finally {
-      setActiveReadersLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadActiveReaders();
-  }, [loadActiveReaders]);
+  
 
   const loadPopularBooks = useCallback(async () => {
     const requestId = ++popularBooksRequestIdRef.current;
@@ -171,7 +123,7 @@ export default function ExploreScreen() {
 
       if (requestId !== popularBooksRequestIdRef.current) return;
 
-      if (userError) {
+      if (userError && userError.name !== 'AuthSessionMissingError') {
         console.error('Popular books user error:', userError);
         setPopularBooks([]);
         return;
@@ -212,11 +164,12 @@ export default function ExploreScreen() {
 
       const enrichedBooks = await Promise.all(
         normalizedBooks.map(async (book) => {
-          if (!book.book_key.startsWith('/works/')) return book;
+          const url = openLibraryUrl(book.book_key);
+          if (existingBookCover(book) || !url) return book;
 
           try {
             const response = await fetch(
-              `https://openlibrary.org${book.book_key}.json`
+              url
             );
 
             if (!response.ok) {
@@ -229,17 +182,7 @@ export default function ExploreScreen() {
             }
 
             const metadata = await response.json();
-            const coverId = Array.isArray(metadata.covers)
-              ? Number(metadata.covers[0])
-              : null;
-
-            return {
-              ...book,
-              cover_i:
-                coverId !== null && Number.isFinite(coverId)
-                  ? coverId
-                  : null,
-            };
+            return { ...book, coverUrl: existingBookCover(metadata) };
           } catch (metadataError) {
             console.warn(
               'Popular book metadata error:',
@@ -265,10 +208,11 @@ export default function ExploreScreen() {
   }, []);
 
   useEffect(() => {
-    void loadPopularBooks();
+    const timer = setTimeout(() => void loadPopularBooks(), 0);
 
     return () => {
       popularBooksRequestIdRef.current += 1;
+      clearTimeout(timer);
     };
   }, [loadPopularBooks]);
 
@@ -323,8 +267,8 @@ export default function ExploreScreen() {
   }, []);
 
   useEffect(() => {
-    void loadFeaturedAuthors(popularBooks);
-    return () => { featuredAuthorsRequestIdRef.current += 1; };
+    const timer = setTimeout(() => void loadFeaturedAuthors(popularBooks), 0);
+    return () => { clearTimeout(timer); featuredAuthorsRequestIdRef.current += 1; };
   }, [popularBooks, loadFeaturedAuthors]);
 
   const loadUpcomingEvents = useCallback(async () => {
@@ -342,7 +286,7 @@ export default function ExploreScreen() {
     }
   }, []);
 
-  useEffect(() => { void loadUpcomingEvents(); return () => { upcomingEventsRequestIdRef.current += 1; }; }, [loadUpcomingEvents]);
+  useEffect(() => { const timer = setTimeout(() => void loadUpcomingEvents(), 0); return () => { clearTimeout(timer); upcomingEventsRequestIdRef.current += 1; }; }, [loadUpcomingEvents]);
 
   const loadDiscoverCommunities = useCallback(async () => {
     const requestId = ++discoverCommunitiesRequestIdRef.current;
@@ -363,7 +307,7 @@ export default function ExploreScreen() {
     finally { if (requestId === discoverCommunitiesRequestIdRef.current) setDiscoverCommunitiesLoading(false); }
   }, []);
 
-  useEffect(() => { void loadDiscoverCommunities(); return () => { discoverCommunitiesRequestIdRef.current += 1; }; }, [loadDiscoverCommunities]);
+  useEffect(() => { const timer = setTimeout(() => void loadDiscoverCommunities(), 0); return () => { clearTimeout(timer); discoverCommunitiesRequestIdRef.current += 1; }; }, [loadDiscoverCommunities]);
 
   const loadTrendingHashtags = useCallback(async () => {
     const requestId = ++trendingHashtagsRequestIdRef.current;
@@ -371,23 +315,7 @@ export default function ExploreScreen() {
     try {
       setTrendingHashtagsLoading(true);
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
       if (requestId !== trendingHashtagsRequestIdRef.current) return;
-
-      if (userError) {
-        console.error('Trending hashtags user error:', userError);
-        setTrendingHashtags([]);
-        return;
-      }
-
-      if (!user) {
-        setTrendingHashtags([]);
-        return;
-      }
 
       const { data, error } = await supabase.rpc('get_trending_hashtags');
 
@@ -451,10 +379,11 @@ export default function ExploreScreen() {
   }, []);
 
   useEffect(() => {
-    void loadTrendingHashtags();
+    const timer = setTimeout(() => void loadTrendingHashtags(), 0);
 
     return () => {
       trendingHashtagsRequestIdRef.current += 1;
+      clearTimeout(timer);
     };
   }, [loadTrendingHashtags]);
 
@@ -486,7 +415,7 @@ export default function ExploreScreen() {
 
       try {
         const response = await fetch(
-          `https://openlibrary.org/search.json?q=${encodeURIComponent(searchText)}&limit=20`
+          `https://openlibrary.org/search.json?q=${encodeURIComponent(searchText)}&limit=20&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`
         );
         if (requestId !== searchRequestIdRef.current) return;
         if (!response.ok) {
@@ -538,12 +467,8 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (!query.trim()) {
       searchRequestIdRef.current += 1;
-      setBooks([]);
-      setUsers([]);
-      setAuthors([]);
-      setSearched(false);
-      setLoading(false);
-      return;
+      const timer = setTimeout(() => { setBooks([]); setUsers([]); setAuthors([]); setSearched(false); setLoading(false); }, 0);
+      return () => clearTimeout(timer);
     }
     if (skipNextSearchRef.current) {
       skipNextSearchRef.current = false;
@@ -562,7 +487,7 @@ export default function ExploreScreen() {
   function openBook(book: Book, authorName: string) {
     router.push({
       pathname: '/book',
-      params: { key: book.key, author: authorName },
+      params: { key: book.key, author: authorName, title: book.title, coverUrl: existingBookCover(book) ?? undefined },
     });
   }
 
@@ -644,8 +569,6 @@ export default function ExploreScreen() {
 
           {!isSearching ? (
             <View style={styles.discovery}>
-              <ReadersList />
-              <WorksList />
               <AdSlot />
               <Action label="Topluluk / Kitap Kulübü Oluştur" onPress={() => router.push('/community-editor')} />
               <Text style={styles.discoveryTitle}>Yeni şeyler keşfet</Text>
@@ -653,77 +576,7 @@ export default function ExploreScreen() {
                 Okuma dünyandaki yeni kitaplar, insanlar ve sohbetler burada buluşacak.
               </Text>
 
-              <View style={styles.activeReadersSection}>
-                <View style={styles.activeReadersHeader}>
-                  <View style={styles.activeReadersTitleRow}>
-                    <View style={styles.activeReadersAccent} />
-                    <Text style={styles.discoveryCardTitle}>Aktif Okuyucular</Text>
-                  </View>
-                  <Text style={styles.activeReadersCaption}>
-                    Okuma topluluğunda şu anda aktif olan okurlar.
-                  </Text>
-                </View>
-
-                {activeReadersLoading ? (
-                  <View style={styles.activeReadersLoading}>
-                    <ActivityIndicator size="small" color="#9B72F2" />
-                    <Text style={styles.activeReadersLoadingText}>
-                      Okuyucular yükleniyor...
-                    </Text>
-                  </View>
-                ) : activeReaders.length > 0 ? (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.activeReadersList}
-                  >
-                    {activeReaders.filter(reader => !social.error && reader.user_id !== social.userId && !social.blocked.includes(reader.user_id)).map((reader) => {
-                      const name = reader.username?.trim() || 'Okuyucu';
-                      const initial = name
-                        .charAt(0)
-                        .toLocaleUpperCase('tr-TR');
-
-                      return (
-                        <Pressable
-                          key={reader.user_id}
-                          onPress={() =>
-                            router.push({
-                              pathname: '/profile',
-                              params: { userId: reader.user_id },
-                            })
-                          }
-                          style={styles.activeReaderCard}
-                        >
-                          {reader.profile_image ? (
-                            <Image
-                              source={{ uri: reader.profile_image }}
-                              style={styles.activeReaderAvatar}
-                            />
-                          ) : (
-                            <View
-                              style={[
-                                styles.activeReaderAvatar,
-                                styles.avatarFallback,
-                              ]}
-                            >
-                              <Text style={styles.activeReaderInitial}>
-                                {initial}
-                              </Text>
-                            </View>
-                          )}
-                          <Text style={styles.activeReaderName} numberOfLines={1}>
-                            {name}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-                ) : (
-                  <Text style={styles.activeReadersEmpty}>
-                    Şu anda aktif okuyucu görünmüyor.
-                  </Text>
-                )}
-              </View>
+              
 
               <View style={styles.popularBooksSection}>
                 <View style={styles.popularBooksHeader}>
@@ -750,9 +603,7 @@ export default function ExploreScreen() {
                     contentContainerStyle={styles.popularBooksList}
                   >
                     {popularBooks.map((book) => {
-                      const coverUrl = book.cover_i
-                        ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
-                        : null;
+                      const coverUrl = existingBookCover(book);
 
                       return (
                         <Pressable
@@ -762,19 +613,15 @@ export default function ExploreScreen() {
                               pathname: '/book',
                               params: {
                                 key: book.book_key,
+                                title: book.book_title ?? undefined,
+                                coverUrl: coverUrl ?? undefined,
                                 author: book.author_name ?? '',
                               },
                             })
                           }
                           style={styles.popularBookCard}
                         >
-                          {coverUrl ? (
-                            <Image
-                              source={{ uri: coverUrl }}
-                              style={styles.popularBookCover}
-                              resizeMode="cover"
-                            />
-                          ) : (
+                          <BookCover uri={coverUrl} style={styles.popularBookCover}>
                             <View
                               style={[
                                 styles.popularBookCover,
@@ -783,7 +630,7 @@ export default function ExploreScreen() {
                             >
                               <Text style={styles.popularBookCoverMark}>▥</Text>
                             </View>
-                          )}
+                          </BookCover>
                           <Text style={styles.popularBookTitle} numberOfLines={2}>
                             {book.book_title || 'Bilinmeyen kitap'}
                           </Text>
@@ -968,18 +815,16 @@ export default function ExploreScreen() {
                   ))}
 
                   {activeSearchType === 'books' && books.map((book, index) => {
-                    const coverUrl = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : null;
+                    const coverUrl = existingBookCover(book);
                     const authorName = book.author_name?.join(', ') || 'Bilinmeyen yazar';
                     return (
                       <Pressable key={book.key || `${book.title}-${index}`} onPress={() => openBook(book, authorName)} style={styles.bookCard}>
-                        {coverUrl ? (
-                          <Image source={{ uri: coverUrl }} style={styles.cover} resizeMode="cover" />
-                        ) : (
+                        <BookCover uri={coverUrl} style={styles.cover}>
                           <View style={styles.noCover}>
                             <Text style={styles.noCoverMark}>▥</Text>
                             <Text style={styles.noCoverText}>Kapak yok</Text>
                           </View>
-                        )}
+                        </BookCover>
                         <View style={styles.resultInfo}>
                           <Text style={styles.bookTitle} numberOfLines={2}>{book.title ?? 'Bilinmeyen kitap'}</Text>
                           <Text style={styles.bookAuthor} numberOfLines={2}>{authorName}</Text>
@@ -1001,6 +846,7 @@ export default function ExploreScreen() {
 }
 
 function SearchTab({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const styles = useThemedStyles(baseStyles);
   return (
     <Pressable onPress={onPress} style={[styles.tab, active && styles.activeTab]}>
       <Text style={[styles.tabText, active && styles.activeTabText]}>{label}</Text>
@@ -1008,7 +854,7 @@ function SearchTab({ label, active, onPress }: { label: string; active: boolean;
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   featuredAuthorsSection: { borderRadius: 17, borderWidth: 1, borderColor: '#332B41', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
   featuredAuthorsAccent: { width: 4, height: 18, borderRadius: 2, backgroundColor: '#B58AF6', marginRight: 9 },
   featuredAuthorsLoading: { marginVertical: 18 },

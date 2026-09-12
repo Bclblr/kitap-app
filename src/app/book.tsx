@@ -1,25 +1,20 @@
+import BookCover from '@/components/BookCover';
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 
 import { supabase } from '@/lib/supabase';
+import { BookCoverData, existingBookCover, openLibraryUrl } from '@/lib/open-library-cover';
 
 // BOOK_DARK_PREMIUM_V1
 
 type Author = string | { name?: string };
 
-type Book = {
+type Book = BookCoverData & {
   key?: string;
   title?: string;
   authors?: Author[];
@@ -29,13 +24,6 @@ type Book = {
   status?: 'reading' | 'read' | 'want';
 };
 
-type Quote = {
-  id: string;
-  bookKey: string;
-  bookTitle: string;
-  text: string;
-  createdAt: string;
-};
 
 async function syncBookStatusToSupabase(
   bookKey: string,
@@ -48,7 +36,7 @@ async function syncBookStatusToSupabase(
       error: userError,
     } = await supabase.auth.getUser();
 
-    if (userError) {
+    if (userError && userError.name !== 'AuthSessionMissingError') {
       console.error(
         'Kitap durumu kullanıcı kontrolü başarısız:',
         userError
@@ -81,9 +69,11 @@ async function syncBookStatusToSupabase(
 }
 
 export default function BookScreen() {
-  const { key, author } = useLocalSearchParams<{
-    key?: string;
-    author?: string;
+  const styles = useThemedStyles(baseStyles);
+  const { key, author, title, description: routeDescription, coverUrl: routeCoverUrl,
+    cover_url: routeCover, cover_i: routeCoverId, isbn, edition_key: editionKey } = useLocalSearchParams<{
+    key?: string; author?: string; title?: string; description?: string;
+    coverUrl?: string; cover_url?: string; cover_i?: string; isbn?: string; edition_key?: string;
   }>();
 
   const router = useRouter();
@@ -99,49 +89,63 @@ export default function BookScreen() {
   const [quoteSaved, setQuoteSaved] = useState(false);
 
   useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
     async function getBook() {
-      if (!key) {
-        setLoading(false);
-        return;
-      }
-
+      const bookKey = key;
+      const url = openLibraryUrl(bookKey);
+      console.log('BOOK KEY:', bookKey);
+      console.log('BOOK FETCH URL:', url);
+      setAdded(false);
+      setStatus('want');
+      let availableBook: Book | null = url || title ? {
+        key: bookKey, title: title || 'Bilinmeyen kitap',
+        authors: author ? [author] : [], description: routeDescription,
+        coverUrl: routeCoverUrl, cover_url: routeCover, cover_i: routeCoverId,
+        isbn, edition_key: editionKey,
+      } : null;
+      setBook(availableBook);
+      setLoading(true);
       try {
-        const response = await fetch(
-          `https://openlibrary.org${key}.json`
-        );
-
-        if (!response.ok) {
-          throw new Error('Kitap bilgisi alınamadı');
-        }
-
-        const data = await response.json();
-
-        const savedBooks =
-          await AsyncStorage.getItem('myBooks');
-
-        if (savedBooks) {
-          const books: Book[] = JSON.parse(savedBooks);
-
-          const savedBook = books.find(
-            (item) => item.key === key
-          );
-
+        try {
+          const stored = await AsyncStorage.getItem('myBooks');
+          const saved: unknown = stored ? JSON.parse(stored) : [];
+          const savedBook: Book | undefined = url && Array.isArray(saved)
+            ? saved.find(item => item && openLibraryUrl(item.key) === url) : undefined;
+          if (!active) return;
           if (savedBook) {
+            availableBook = { ...availableBook, ...savedBook };
+            setBook(availableBook);
             setAdded(true);
             setStatus(savedBook.status ?? 'want');
           }
+        } catch (error) {
+          console.warn('Kay?tl? kitap bilgisi okunamad?:', error);
         }
-
-        setBook(data);
+        if (!active || !url) return;
+        const hasDescription = typeof availableBook?.description === 'string'
+          ? !!availableBook.description.trim() : !!availableBook?.description?.value;
+        if (availableBook?.title && availableBook.title !== 'Bilinmeyen kitap' &&
+          availableBook.authors?.length && existingBookCover(availableBook) && hasDescription) return;
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error('Open Library HTTP ' + response.status);
+        const data = await response.json();
+        if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Ge?ersiz Open Library kitap yan?t?');
+        if (active) setBook({ ...availableBook, ...data });
       } catch (error) {
-        console.error('Kitap detay hatası:', error);
+        if (!active) return;
+        if (error instanceof TypeError || (error instanceof Error && error.message.startsWith('Open Library HTTP'))) {
+          console.warn('Kitap detay iste?i tamamlanamad?:', url, error);
+        } else {
+          console.error('Kitap detay hatas?:', error);
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
-
-    getBook();
-  }, [key]);
+    void getBook();
+    return () => { active = false; controller.abort(); };
+  }, [key, author, title, routeDescription, routeCoverUrl, routeCover, routeCoverId, isbn, editionKey]);
 
   async function addToShelf() {
     if (!book || !key) {
@@ -256,36 +260,26 @@ export default function BookScreen() {
   async function saveQuote() {
     const cleanQuote = quoteText.trim();
 
-    if (!cleanQuote || !book || !key) {
+    if (savingQuote || !cleanQuote || !book || !key) {
       return;
     }
 
     setSavingQuote(true);
 
     try {
-      const savedQuotes =
-        await AsyncStorage.getItem('quotes');
-
-      const quotes: Quote[] = savedQuotes
-        ? JSON.parse(savedQuotes)
-        : [];
-
-      const newQuote: Quote = {
-        id:
-          Date.now().toString() +
-          Math.random().toString(36).slice(2),
-        bookKey: key,
-        bookTitle: book.title ?? 'Bilinmeyen kitap',
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!user) {
+        Alert.alert('Giri? gerekli', 'Al?nt? payla?mak i?in giri? yapmal?s?n.');
+        return;
+      }
+      const { error } = await supabase.from('quotes').insert({
+        user_id: user.id,
+        book_key: key,
+        book_title: book.title ?? 'Bilinmeyen kitap',
         text: cleanQuote,
-        createdAt: new Date().toISOString(),
-      };
-
-      quotes.unshift(newQuote);
-
-      await AsyncStorage.setItem(
-        'quotes',
-        JSON.stringify(quotes)
-      );
+      });
+      if (error) throw error;
 
       setQuoteText('');
       setShowQuoteBox(false);
@@ -318,7 +312,7 @@ export default function BookScreen() {
     });
   }
 
-  if (loading) {
+  if (loading && !book) {
     return (
       <View style={styles.center}>
         <ActivityIndicator
@@ -361,7 +355,7 @@ export default function BookScreen() {
             color="#F4F5F7"
           />
           <Text style={styles.backButtonText}>
-            Keşfet'e dön
+            Keşfet’e dön
 
           </Text>
         </Pressable>
@@ -369,9 +363,7 @@ export default function BookScreen() {
     );
   }
 
-  const coverUrl = book.covers?.[0]
-    ? `https://covers.openlibrary.org/b/id/${book.covers[0]}-L.jpg`
-    : null;
+  const coverUrl = existingBookCover(book);
 
   const description =
     typeof book.description === 'string'
@@ -420,13 +412,7 @@ export default function BookScreen() {
 
           <View style={styles.heroCard}>
             <View style={styles.coverShadow}>
-              {coverUrl ? (
-                <Image
-                  source={{ uri: coverUrl }}
-                  style={styles.cover}
-                  resizeMode="cover"
-                />
-              ) : (
+              <BookCover uri={coverUrl} style={styles.cover}>
                 <View style={styles.noCover}>
                   <Feather
                     name="book-open"
@@ -437,7 +423,7 @@ export default function BookScreen() {
                     Kapak yok
                   </Text>
                 </View>
-              )}
+              </BookCover>
             </View>
 
             <View style={styles.bookInfo}>
@@ -824,7 +810,7 @@ export default function BookScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#08090C',

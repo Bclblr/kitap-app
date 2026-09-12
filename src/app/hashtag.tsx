@@ -1,17 +1,8 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  RefreshControl,
-  View as SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, View as SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Image from '@/components/SafeImage';
 
 import { supabase } from '@/lib/supabase';
 
@@ -139,6 +130,7 @@ function formatRelativeTime(value: string) {
 }
 
 export default function HashtagScreen() {
+  const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const { tag } = useLocalSearchParams<{ tag?: string | string[] }>();
   const rawTag = Array.isArray(tag) ? tag[0] : tag;
@@ -303,7 +295,7 @@ export default function HashtagScreen() {
 
         if (requestId !== requestIdRef.current) return;
 
-        if (userError) {
+        if (userError && userError.name !== 'AuthSessionMissingError') {
           console.error('Hashtag content user error:', userError);
           setCurrentUserId(null);
           setContent([]);
@@ -362,10 +354,11 @@ export default function HashtagScreen() {
   );
 
   useEffect(() => {
-    void loadInitialContent();
+    const timer = setTimeout(() => void loadInitialContent(), 0);
 
     return () => {
       requestIdRef.current += 1;
+      clearTimeout(timer);
     };
   }, [loadInitialContent]);
 
@@ -1059,6 +1052,7 @@ function ScreenMessage({
   title: string;
   debugText?: string;
 }) {
+  const styles = useThemedStyles(baseStyles);
   return (
     <View style={styles.centerState}>
       <View style={styles.emptyMark} />
@@ -1068,7 +1062,7 @@ function ScreenMessage({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#08090D' },
   container: { flex: 1, backgroundColor: '#08090D' },
   header: { minHeight: 78, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#24252D', paddingHorizontal: 14, paddingVertical: 10 },

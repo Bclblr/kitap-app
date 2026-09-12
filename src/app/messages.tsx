@@ -1,18 +1,9 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  ScrollView,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, ScrollView, View } from 'react-native';
+import Image from '@/components/SafeImage';
 
 import BottomNav from '@/components/BottomNav';
 import ReadersList from '@/components/ReadersList';
@@ -37,6 +28,7 @@ type ConversationItem = {
 };
 
 export default function MessagesScreen() {
+  const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
@@ -268,7 +260,7 @@ export default function MessagesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0A0A0E',

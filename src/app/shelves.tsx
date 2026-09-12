@@ -1,22 +1,18 @@
+import { BookCoverData, existingBookCover } from '@/lib/open-library-cover';
+import BookCover from '@/components/BookCover';
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
 
 type Author = string | { name?: string };
 
-type Book = {
+type Book = BookCoverData & {
   key?: string;
   title?: string;
   authors?: Author[];
@@ -38,7 +34,7 @@ async function syncBookStatusToSupabase(
       error: userError,
     } = await supabase.auth.getUser();
 
-    if (userError) {
+    if (userError && userError.name !== 'AuthSessionMissingError') {
       console.error(
         'Kitap durumu kullanıcı kontrolü başarısız:',
         userError
@@ -72,6 +68,7 @@ async function syncBookStatusToSupabase(
 }
 
 export default function ShelvesScreen() {
+  const styles = useThemedStyles(baseStyles);
   const router = useRouter();
 
   const [books, setBooks] = useState<Book[]>([]);
@@ -369,10 +366,7 @@ export default function ShelvesScreen() {
             </Text>
 
             {filteredBooks.map((book, index) => {
-              const coverUrl =
-                book.covers?.[0]
-                  ? `https://covers.openlibrary.org/b/id/${book.covers[0]}-M.jpg`
-                  : null;
+              const coverUrl = existingBookCover(book);
 
               const bookKey =
                 book.key ??
@@ -394,23 +388,20 @@ export default function ShelvesScreen() {
                         pathname: '/book',
                         params: {
                           key: book.key,
+                          title: book.title,
+                          coverUrl: existingBookCover(book) ?? undefined,
                           author: getAuthorName(book),
                         },
                       });
                     }}
                   >
-                    {coverUrl ? (
-                      <Image
-                        source={{ uri: coverUrl }}
-                        style={styles.cover}
-                      />
-                    ) : (
+                    <BookCover uri={coverUrl} style={styles.cover}>
                       <View style={styles.noCover}>
                         <Text style={styles.noCoverText}>
                           Kapak yok
                         </Text>
                       </View>
-                    )}
+                    </BookCover>
 
                     <View style={styles.bookInfo}>
                       <Text
@@ -556,7 +547,7 @@ export default function ShelvesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#090A0F',

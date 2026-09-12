@@ -2,21 +2,28 @@ import { PropsWithChildren } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-export function ReaderScreen({ title, children }: PropsWithChildren<{ title: string }>) {
+import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useAppTheme } from '@/providers/ThemeProvider';
+export function ReaderScreen({ title, children, onBack, fullSafeArea = false }: PropsWithChildren<{ title: string; onBack?: () => void; fullSafeArea?: boolean }>) {
+  const ui = useReaderStyles();
   const router = useRouter();
-  return <SafeAreaView edges={['bottom']} style={ui.screen}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <View style={ui.header}><Action label="Geri" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} /><Text style={[ui.title, { flex: 1 }]}>{title}</Text></View>
+  return <SafeAreaView edges={fullSafeArea ? ['top','bottom','left','right'] : ['bottom']} style={ui.screen}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <View style={ui.header}><Action label="Geri" onPress={onBack ?? (() => router.canGoBack() ? router.back() : router.replace('/'))} /><Text style={[ui.title, { flex: 1 }]}>{title}</Text></View>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={ui.content}>{children}</ScrollView>
   </KeyboardAvoidingView></SafeAreaView>;
 }
 export function Action({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
+  const ui = useReaderStyles();
   return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={[ui.button, disabled && { opacity: .45 }]}><Text style={ui.text}>{label}</Text></Pressable>;
 }
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
-  return <View style={{ gap: 6 }}><Text style={ui.muted}>{label}</Text><TextInput accessibilityLabel={label} placeholderTextColor="#92929F" keyboardAppearance="dark" {...props} style={[ui.input, props.multiline && { minHeight: 100, textAlignVertical: 'top' }, props.style]} /></View>;
+  const ui = useReaderStyles();
+  const { colors, scheme } = useAppTheme();
+  return <View style={{ gap: 6 }}><Text style={ui.muted}>{label}</Text><TextInput accessibilityLabel={label} placeholderTextColor={colors.textSecondary} keyboardAppearance={scheme} {...props} style={[ui.input, props.multiline && { minHeight: 100, textAlignVertical: 'top' }, props.style]} /></View>;
 }
 export function Busy() { return <ActivityIndicator color="#A985FF" style={{ padding: 20 }} />; }
-export const ui = StyleSheet.create({
+export function useReaderStyles() { return useThemedStyles(baseUI); }
+const baseUI = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#0A0A0E' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   content: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 16, gap: 16, paddingBottom: 40 },

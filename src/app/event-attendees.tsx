@@ -1,15 +1,8 @@
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  View as SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Image from '@/components/SafeImage';
 
 import { supabase } from '@/lib/supabase';
 
@@ -20,6 +13,7 @@ type EventAttendee = {
 };
 
 export default function EventAttendeesScreen() {
+  const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [attendees, setAttendees] = useState<EventAttendee[]>([]);
@@ -139,7 +133,7 @@ export default function EventAttendeesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#08090D',

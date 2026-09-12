@@ -1,21 +1,13 @@
+import BookCover from '@/components/BookCover';
+import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Modal,
-  PanResponder,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Image from '@/components/SafeImage';
 
 import BottomNav from '@/components/BottomNav';
 import StoryPlayback from '@/components/StoryPlayback';
@@ -23,11 +15,14 @@ import StoryActions from '@/components/StoryActions';
 import StoryTransition from '@/components/StoryTransition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReadersList from '@/components/ReadersList';
+import ThemePicker from '@/components/ThemePicker';
+import { requirePermanentImage } from '@/lib/image-policy';
 import AdSlot from '@/components/AdSlot';
-import { Action, ui } from '@/components/ReaderUI';
+import { Action, useReaderStyles } from '@/components/ReaderUI';
 import { useReaderSocial } from '@/hooks/use-reader-social';
 import { supabase } from '@/lib/supabase';
 import { storyAge } from '@/lib/reader-date';
+import { BookCoverData, existingBookCover, loadBookCover, openLibraryWorkUrl } from '@/lib/open-library-cover';
 
 type Comment = {
   id: string;
@@ -37,7 +32,7 @@ type Comment = {
   user_id?: string;
 };
 
-type Review = {
+type Review = BookCoverData & {
   id: string;
   user_id?: string;
   bookKey: string;
@@ -55,7 +50,7 @@ type Review = {
   reposted?: boolean;
 };
 
-type Quote = {
+type Quote = BookCoverData & {
   id: string;
   bookKey: string;
   bookTitle: string;
@@ -63,7 +58,7 @@ type Quote = {
   createdAt: string;
 };
 
-type Post = {
+type Post = BookCoverData & {
   id: string;
   user_id: string | null;
   username: string;
@@ -111,10 +106,17 @@ function isValidUUID(value: string) {
 }
 
 export default function HomeScreen() {
+  const styles = useThemedStyles(baseStyles);
+  const { colors } = useAppTheme();
+  const ui = useReaderStyles();
   const scrollRef = useRef<ScrollView>(null);
   const composerY = useRef(0);
   const insets = useSafeAreaInsets();
   const social = useReaderSocial();
+  const [storyProfile, setStoryProfile] = useState<{ userId: string | null; imageUrl: string | null } | null>(null);
+  const storyProfileImage = social.userId && storyProfile?.userId === social.userId
+    ? storyProfile.imageUrl
+    : null;
   const [feedTab, setFeedTab] = useState<'following' | 'for-you'>('for-you');
   const [createMenu, setCreateMenu] = useState(false);
   const [showAuthMenu, setShowAuthMenu] = useState(false);
@@ -354,6 +356,14 @@ export default function HomeScreen() {
             id: review.id,
             user_id: review.user_id,
             bookKey: review.book_key,
+            coverUrl: review.coverUrl,
+            cover_url: review.cover_url,
+            isbn: review.isbn,
+            key: review.key,
+            workKey: review.workKey,
+            cover_i: review.cover_i,
+            covers: review.covers,
+            edition_key: review.edition_key,
             bookTitle: review.book_title,
             rating: Number(review.rating) || 0,
             text: review.text || '',
@@ -444,6 +454,10 @@ export default function HomeScreen() {
       const currentProfile = userId
         ? profilesByUserId.get(userId)
         : null;
+      setStoryProfile({
+        userId,
+        imageUrl: currentProfile?.profile_image?.trim() || null,
+      });
 
       const preparedPosts: Post[] =
         await Promise.all(
@@ -674,6 +688,14 @@ const reviewPosts: Post[] = (reviewData ?? []).map(
       null,
     text: review.text,
     image_url: null,
+    coverUrl: review.coverUrl,
+    cover_url: review.cover_url,
+    cover_i: review.cover_i,
+    covers: review.covers,
+    edition_key: review.edition_key,
+    isbn: review.isbn,
+    key: review.key,
+    workKey: review.workKey,
     book_key: review.book_key,
     book_title: review.book_title,
     rating: review.rating,
@@ -709,6 +731,12 @@ const quotePosts: Post[] =
       null,
     text: quote.text,
     image_url: null,
+    coverUrl: quote.coverUrl,
+    cover_url: quote.cover_url,
+    cover_i: quote.cover_i,
+    covers: quote.covers,
+    isbn: quote.isbn,
+    edition_key: quote.edition_key,
     book_key: quote.bookKey,
     book_title: quote.bookTitle,
     rating: 0,
@@ -865,78 +893,53 @@ setPosts(allFeedItems);
   }, []);
 
   useEffect(() => {
-    const bookKeys = Array.from(
-      new Set(
-        [
-          ...posts.map((post) => post.book_key),
-          ...reviews.map((review) => review.bookKey),
-        ].filter((value): value is string => !!value)
-      )
-    );
-
-    const missingKeys = bookKeys.filter(
-      (bookKey) => !(bookKey in bookCoverUrls)
-    );
-
-    if (missingKeys.length === 0) {
-      return;
-    }
-
     let cancelled = false;
-
-    Promise.all(
-      missingKeys.map(async (bookKey) => {
-        try {
-          const response = await fetch(
-            `https://openlibrary.org${bookKey}.json`
-          );
-
-          if (!response.ok) {
-            return [bookKey, null] as const;
-          }
-
-          const data = await response.json();
-          const coverId = Array.isArray(data?.covers)
-            ? data.covers.find(
-                (id: unknown) =>
-                  typeof id === 'number' && id > 0
-              )
-            : null;
-
-          const coverUrl = coverId
-            ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`
-            : null;
-
-          return [bookKey, coverUrl] as const;
-        } catch (error) {
-          console.error(
-            'Kitap kapağı alınamadı:',
-            bookKey,
-            error
-          );
-          return [bookKey, null] as const;
-        }
-      })
-    ).then((entries) => {
-      if (cancelled) {
-        return;
+    async function refreshCovers() {
+      let savedBooks: BookCoverData[] = [];
+      try {
+        const saved = await AsyncStorage.getItem('myBooks');
+        const parsed: unknown = saved ? JSON.parse(saved) : [];
+        if (Array.isArray(parsed)) savedBooks = parsed.filter(book => book && typeof book === 'object');
+      } catch (error) {
+        console.warn('Yerel kitap kapaklar? okunamad?:', error);
       }
-
-      setBookCoverUrls((current) => {
-        const next = { ...current };
-
-        entries.forEach(([bookKey, coverUrl]) => {
-          next[bookKey] = coverUrl;
+      const books = [...posts.map(post => ({ ...post, key: post.book_key || post.key || post.workKey, title: post.book_title })),
+        ...reviews.map(review => ({ ...review, key: review.bookKey || review.key || review.workKey, title: review.bookTitle }))];
+      const available = new Map<string, BookCoverData>();
+      const normalizedKey = (key?: string | null) => openLibraryWorkUrl(key) ?? key ?? '';
+      for (const book of [...savedBooks, ...books]) {
+        const key = normalizedKey(book.key || book.workKey);
+        if (key && existingBookCover(book)) available.set(key, book);
+      }
+      const requests = new Map<string, Promise<string | null>>();
+      const entries = await Promise.all(books.map(async book => {
+        const key = book.key;
+        const metadata = existingBookCover(book) ? book : available.get(normalizedKey(key)) ?? book;
+        let finalCoverUrl = existingBookCover(metadata);
+        if (!finalCoverUrl && key && openLibraryWorkUrl(key)) {
+          if (!requests.has(key)) requests.set(key, loadBookCover(key, null));
+          try { finalCoverUrl = await requests.get(key) ?? null; }
+          catch (error) { console.error('Kitap kapa?? i?lenemedi:', key, error); }
+        }
+        // Temporary cover diagnostics requested for checking actual feed data.
+        console.log('[Book cover debug]', {
+          title: book.title, coverUrl: book.coverUrl, cover_url: book.cover_url,
+          cover_i: book.cover_i, covers: book.covers, edition_key: book.edition_key,
+          isbn: book.isbn, key, workKey: book.workKey,
+          resolvedMetadata: { coverUrl: metadata.coverUrl, cover_url: metadata.cover_url, cover_i: metadata.cover_i, covers: metadata.covers, edition_key: metadata.edition_key, isbn: metadata.isbn }, finalCoverUrl,
         });
-
+        return [key, finalCoverUrl] as const;
+      }));
+      if (cancelled) return;
+      setBookCoverUrls(current => {
+        const next = { ...current };
+        for (const [key, url] of entries) if (key) next[key] = url ?? next[key] ?? null;
         return next;
       });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [posts, reviews, bookCoverUrls]);
+    }
+    void refreshCovers();
+    return () => { cancelled = true; };
+  }, [posts, reviews]);
 
 
   /*
@@ -1203,7 +1206,7 @@ async function createPost() {
           authorProfile?.username ||
           CURRENT_USERNAME,
         text: cleanText || null,
-        image_url: imageUrl,
+        image_url: requirePermanentImage(imageUrl),
         book_key: null,
         book_title: null,
         rating: 0,
@@ -1443,7 +1446,7 @@ async function createStory() {
         user_id: user.id,
         username: CURRENT_USERNAME,
         text: cleanText || null,
-        image_url: imageUrl,
+        image_url: requirePermanentImage(imageUrl),
         expires_at: expiresAt,
       })
       .select()
@@ -1850,6 +1853,13 @@ async function togglePostRepost(post: Post) {
     return;
   }
 
+  if (
+    typeof post.id !== 'string' || !isValidUUID(post.id) ||
+    typeof user.id !== 'string' || !isValidUUID(user.id)
+  ) {
+    return;
+  }
+
   try {
     /*
      * =================================================
@@ -1959,7 +1969,11 @@ async function togglePostRepost(post: Post) {
      * =================================================
      */
 
-    if (postData.user_id === user.id) {
+    if (
+      typeof postData.user_id !== 'string' ||
+      !isValidUUID(postData.user_id) ||
+      postData.user_id === user.id
+    ) {
       return;
     }
 
@@ -2782,13 +2796,15 @@ async function deletePostComment(
    * =====================================================
    */
 
-  function openBook(
-    bookKey: string
-  ) {
+  function openBook(bookKey: string) {
+    const post = posts.find(item => item.book_key === bookKey);
+    const review = reviews.find(item => item.bookKey === bookKey);
     router.push({
       pathname: '/book',
       params: {
         key: bookKey,
+        title: post?.book_title ?? review?.bookTitle,
+        coverUrl: bookCoverUrls[bookKey] ?? existingBookCover(post ?? review ?? {}) ?? undefined,
       },
     });
   }
@@ -2963,7 +2979,7 @@ async function deletePostComment(
         onRequestClose={() => setShowAuthMenu(false)}
       >
         <View style={styles.drawerOverlay}>
-          <View style={styles.drawerPanel}>
+          <ScrollView style={{width:'86%',flexGrow:0}} contentContainerStyle={[styles.drawerPanel,{width:'100%',height:undefined,flexGrow:1,paddingTop:Math.max(insets.top,12),paddingBottom:insets.bottom}]}>
             <View style={styles.drawerHeader}>
               <Text style={styles.drawerBrand}>
                 1000<Text style={styles.drawerBrandAccent}>Kitap</Text>
@@ -2974,7 +2990,7 @@ async function deletePostComment(
                 style={styles.drawerCloseButton}
                 accessibilityLabel="Menüyü kapat"
               >
-                <Feather name="x" size={24} color="#F1F1F5" />
+                <Feather name="x" size={24} color={colors.text} />
               </Pressable>
             </View>
 
@@ -2984,34 +3000,34 @@ async function deletePostComment(
               <Pressable
                 onPress={() => {
                   setShowAuthMenu(false);
-                  router.push('/login');
+                  router.push('/profile-settings');
                 }}
                 style={styles.drawerItem}
               >
                 <View style={styles.drawerIconWrap}>
-                  <Feather name="log-in" size={22} color="#F1F1F5" />
+                  <Feather name="settings" size={22} color={colors.text} />
                 </View>
-                <Text style={styles.drawerItemText}>Giriş Yap</Text>
+                <Text style={styles.drawerItemText}>Profil ayarları</Text>
               </Pressable>
 
               <Pressable
                 onPress={() => {
                   setShowAuthMenu(false);
-                  router.push('/register');
+                  void supabase.auth.signOut().then(({error})=>{if(error) Alert.alert('Hata','Çıkış yapılamadı.');});
                 }}
                 style={styles.drawerItem}
               >
                 <View style={styles.drawerIconWrap}>
-                  <Feather name="user-plus" size={22} color="#F1F1F5" />
+                  <Feather name="log-out" size={22} color={colors.text} />
                 </View>
-                <Text style={styles.drawerItemText}>Kaydol</Text>
+                <Text style={styles.drawerItemText}>Çıkış yap</Text>
               </Pressable>
             </View>
-
+            <ThemePicker />
             <View style={styles.drawerBottomArea}>
               <Text style={styles.drawerBottomText}>Okuma dünyana hoş geldin.</Text>
             </View>
-          </View>
+          </ScrollView>
 
           <Pressable
             style={styles.drawerDismissArea}
@@ -3034,7 +3050,7 @@ async function deletePostComment(
             style={styles.headerIconButton}
             accessibilityLabel="Menü"
           >
-            <Feather name="menu" size={24} color="#F1F1F5" />
+            <Feather name="menu" size={24} color={colors.text} />
           </Pressable>
           <Text style={styles.brandTitle}>
             1000<Text style={styles.brandAccent}>Kitap</Text>
@@ -3048,14 +3064,11 @@ async function deletePostComment(
               style={styles.headerIconButton}
               accessibilityLabel="Bildirimler"
             >
-              <Feather name="bell" size={22} color="#F1F1F5" />
+              <Feather name="bell" size={22} color={colors.text} />
             </Pressable>
           </View>
         </View>
         <View style={styles.topTabs}>
-          <Pressable onPress={() => router.push('/explore')} style={styles.topTab}>
-            <Text style={styles.topTabActiveText}>Keşfet</Text>
-          </Pressable>
           <Pressable onPress={() => setFeedTab('following')} style={feedTab === 'following' ? styles.topTabActive : styles.topTab}>
             <Text style={styles.topTabText}>Takip</Text>
           </Pressable>
@@ -3129,6 +3142,7 @@ async function deletePostComment(
 
               {storyImage && (
                 <Image
+                  localPreview
                   source={{
                     uri: storyImage,
                   }}
@@ -3208,16 +3222,23 @@ async function deletePostComment(
                 setShowStoryBox(true)
               }
               style={
-                styles.addStoryCircle
+                styles.storyItem
               }
             >
-              <Text
-                style={
-                  styles.addStoryIcon
-                }
-              >
-                +
-              </Text>
+              <View style={styles.addStoryCircle}>
+                {storyProfileImage ? (
+                  <Image
+                    source={{ uri: storyProfileImage }}
+                    style={styles.addStoryAvatar}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Feather name="user" size={28} color={colors.textSecondary} />
+                )}
+                <View style={styles.addStoryBadge}>
+                  <Text style={styles.addStoryIcon}>+</Text>
+                </View>
+              </View>
 
               <Text
                 style={
@@ -3295,7 +3316,6 @@ async function deletePostComment(
           </ScrollView>
         </View>
 
-        <View style={{ padding: 12 }}><ReadersList limit={3} /></View>
         {feedTab === 'following' && <Action label="Okurları keşfet" onPress={() => router.push('/readers')} />}
         {/* POST OLUŞTUR */}
 
@@ -3354,6 +3374,7 @@ async function deletePostComment(
               {postImage && (
                 <View>
                   <Image
+                    localPreview
                     source={{
                       uri: postImage,
                     }}
@@ -3641,6 +3662,8 @@ async function deletePostComment(
               : post.reposts;
 
             return (
+            <Fragment key={post.id}>
+            {feedIndex === 5 && <ReadersList limit={10} />}
             <View
               key={post.id}
               style={[
@@ -3752,16 +3775,10 @@ async function deletePostComment(
                   style={styles.bookAttachment}
                 >
                   <View style={styles.bookAttachmentIcon}>
-                    {post.book_key && bookCoverUrls[post.book_key] ? (
-                      <Image
-                        source={{ uri: bookCoverUrls[post.book_key] as string }}
-                        style={styles.bookAttachmentCover}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <Text style={styles.bookAttachmentEmoji}>▥</Text>
-                    )}
-                  </View>
+                    <BookCover uri={existingBookCover(post) ?? bookCoverUrls[post.book_key || post.key || post.workKey || ''] ?? null} style={styles.bookAttachmentCover}>
+                        <Text style={styles.bookAttachmentEmoji}>▥</Text>
+                      </BookCover>
+                    </View>
                   <View style={styles.bookAttachmentInfo}>
                     <Text style={styles.bookAttachmentLabel}>KİTAP</Text>
                     <Text style={styles.bookTitle} numberOfLines={2}>
@@ -4024,10 +4041,12 @@ async function deletePostComment(
                 </View>
               )}
             </View>
+            </Fragment>
             );
           })
         )}
 
+        {visiblePosts.length < 6 && <ReadersList limit={10} />}
         {/* ESKİ REVIEWS */}
 
         {loading ? (
@@ -4129,15 +4148,9 @@ async function deletePostComment(
                     style={styles.bookAttachment}
                   >
                     <View style={styles.bookAttachmentIcon}>
-                      {review.bookKey && bookCoverUrls[review.bookKey] ? (
-                        <Image
-                          source={{ uri: bookCoverUrls[review.bookKey] as string }}
-                          style={styles.bookAttachmentCover}
-                          resizeMode="cover"
-                        />
-                      ) : (
+                      <BookCover uri={existingBookCover(review) ?? bookCoverUrls[review.bookKey || review.key || review.workKey || ''] ?? null} style={styles.bookAttachmentCover}>
                         <Text style={styles.bookAttachmentEmoji}>▥</Text>
-                      )}
+                      </BookCover>
                     </View>
                     <View style={styles.bookAttachmentInfo}>
                       <Text style={styles.bookAttachmentLabel}>KİTAP</Text>
@@ -4498,7 +4511,7 @@ async function deletePostComment(
  * =====================================================
  */
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#08090D',
@@ -4978,8 +4991,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  addStoryAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+
+  addStoryBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#F28A2E',
+    backgroundColor: '#14151C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   addStoryIcon: {
-    fontSize: 26,
+    fontSize: 18,
+    lineHeight: 18,
+    textAlign: 'center',
+    includeFontPadding: false,
     fontWeight: '300',
     color: '#F28A2E',
   },
