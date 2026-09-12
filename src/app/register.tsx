@@ -1,6 +1,7 @@
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -43,10 +44,15 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
+      const emailRedirectTo = Linking.createURL('/auth/callback', {
+        queryParams: { next: 'onboarding' },
+      });
+
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
+          emailRedirectTo,
           data: {
             username: cleanUsername,
             onboarding_pending: true,
