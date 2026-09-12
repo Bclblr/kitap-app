@@ -54,7 +54,7 @@ const MODULES: AdminModule[] = [
   { key: 'explore', title: 'Keşfet', subtitle: 'Gündem, öne çıkanlar ve sıralama', icon: 'compass', route: '/admin-explore', minimumRole: 'admin' },
   { key: 'books', title: 'Kitaplar', subtitle: 'Uygulamadaki eserler, yayın durumu ve bölüm bilgileri', icon: 'book-open', route: '/admin-books', minimumRole: 'admin' },
   { key: 'authors', title: 'Yazarlar', subtitle: 'Yazar profilleri, doğrulama ve öne çıkarma', icon: 'edit-3', route: '/admin-authors', minimumRole: 'admin' },
-  { key: 'communities', title: 'Topluluklar', subtitle: 'Kulüpler, üyeler, yöneticiler ve doğrulama', icon: 'users' },
+  { key: 'communities', title: 'Topluluklar', subtitle: 'Kulüpler, üyeler, yöneticiler ve doğrulama', icon: 'users', route: '/admin-communities' },
   { key: 'events', title: 'Etkinlikler', subtitle: 'Etkinlik, katılımcı ve öne çıkarma', icon: 'calendar' },
   { key: 'notifications', title: 'Bildirimler', subtitle: 'Tek kullanıcıya, gruba veya herkese gönderim', icon: 'bell', minimumRole: 'admin' },
   { key: 'announcements', title: 'Duyurular', subtitle: 'Banner, bakım ve özellik duyuruları', icon: 'volume-2', minimumRole: 'admin' },
@@ -244,7 +244,7 @@ export default function AdminScreen() {
         </View>
 
         <Text style={styles.footerNote}>
-          Kullanıcı, içerik, moderasyon, hashtag, keşfet, kitap ve yazar yönetimi aktif. Diğer yönetim modülleri sırayla panele bağlanacak.
+          Kullanıcı, içerik, moderasyon, hashtag, keşfet, kitap, yazar ve topluluk yönetimi aktif. Diğer yönetim modülleri sırayla panele bağlanacak.
         </Text>
       </ScrollView>
     </View>
