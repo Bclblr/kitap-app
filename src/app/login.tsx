@@ -161,7 +161,12 @@ export default function LoginScreen() {
             />
           </View>
 
-          <Text style={styles.label}>Şifre</Text>
+          <View style={styles.passwordLabelRow}>
+            <Text style={styles.label}>Şifre</Text>
+            <Pressable onPress={() => router.push('/forgot-password')}>
+              <Text style={styles.forgotLink}>Şifremi unuttum</Text>
+            </Pressable>
+          </View>
           <View style={styles.inputWrap}>
             <Feather name="lock" size={18} color="#777783" />
             <TextInput
@@ -235,6 +240,8 @@ const baseStyles = StyleSheet.create({
   orLine: { flex: 1, height: 1, backgroundColor: '#292932' },
   orText: { color: '#666672', fontSize: 12, fontWeight: '700' },
   label: { marginBottom: 8, fontSize: 12, fontWeight: '700', color: '#B5B5BE' },
+  passwordLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  forgotLink: { marginBottom: 8, color: '#A985FF', fontSize: 12, fontWeight: '800' },
   inputWrap: { height: 54, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: '#0C0C11', borderRadius: 15, borderWidth: 1, borderColor: '#292932', paddingHorizontal: 15, marginBottom: 17 },
   input: { flex: 1, height: '100%', color: '#F2F2F5', fontSize: 15 },
   button: { height: 54, borderRadius: 15, backgroundColor: '#A985FF', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
