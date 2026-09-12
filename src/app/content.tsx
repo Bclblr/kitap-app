@@ -39,6 +39,8 @@ export default function ContentScreen() {
     async function load() {
       setLoading(true);
       setErrorText('');
+      setContent(null);
+
       const id = typeof params.id === 'string' ? params.id.trim() : '';
       const type: ContentType = params.type === 'review' ? 'review' : 'post';
 
@@ -55,10 +57,50 @@ export default function ContentScreen() {
 
       if (error || !data) {
         if (active) {
-          setErrorText('İçerik bulunamadı veya artık erişilebilir değil.');
+          setErrorText('İçerik bulunamadı, silinmiş olabilir veya bu içeriği görme iznin olmayabilir.');
           setLoading(false);
         }
         return;
+      }
+
+      if (data.user_id) {
+        const { data: authData } = await supabase.auth.getUser();
+        const viewerId = authData.user?.id ?? null;
+
+        if (viewerId && viewerId !== data.user_id) {
+          const { data: blockedRows, error: blockError } = await supabase
+            .from('user_blocks')
+            .select('blocker_id,blocked_id')
+            .or(
+              `and(blocker_id.eq.${viewerId},blocked_id.eq.${data.user_id}),and(blocker_id.eq.${data.user_id},blocked_id.eq.${viewerId})`
+            )
+            .limit(1);
+
+          if (blockError) {
+            console.error('İçerik engel kontrolü yapılamadı:', blockError);
+          } else if ((blockedRows ?? []).length > 0) {
+            if (active) {
+              setErrorText('Bu içeriğe erişilemiyor.');
+              setLoading(false);
+            }
+            return;
+          }
+
+          const { data: canView, error: accessError } = await supabase.rpc(
+            'can_view_profile_content',
+            { p_owner: data.user_id }
+          );
+
+          if (accessError) {
+            console.error('İçerik erişim kontrolü yapılamadı:', accessError);
+          } else if (canView !== true) {
+            if (active) {
+              setErrorText('Bu hesap gizli. İçeriği görmek için takip isteğinin onaylanması gerekiyor.');
+              setLoading(false);
+            }
+            return;
+          }
+        }
       }
 
       let profile: any = null;
@@ -111,7 +153,7 @@ export default function ContentScreen() {
         </View>
       ) : errorText ? (
         <View style={styles.center}>
-          <Feather name="alert-circle" size={30} color={colors.primary} />
+          <Feather name="lock" size={30} color={colors.primary} />
           <Text style={styles.errorTitle}>{errorText}</Text>
           <Pressable onPress={() => router.replace('/')} style={styles.homeButton}>
             <Text style={styles.homeButtonText}>Ana sayfaya dön</Text>
@@ -120,7 +162,17 @@ export default function ContentScreen() {
       ) : content ? (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.card}>
-            <View style={styles.authorRow}>
+            <Pressable
+              disabled={!content.user_id}
+              onPress={() =>
+                content.user_id
+                  ? router.push({ pathname: '/profile', params: { userId: content.user_id } })
+                  : undefined
+              }
+              style={styles.authorRow}
+              accessibilityRole={content.user_id ? 'button' : undefined}
+              accessibilityLabel={content.user_id ? 'Yazar profilini aç' : undefined}
+            >
               {content.profile_image ? (
                 <Image source={{ uri: content.profile_image }} style={styles.avatar} />
               ) : (
@@ -132,17 +184,27 @@ export default function ContentScreen() {
                 <Text style={styles.authorName}>{content.full_name || content.username || 'Kitap Okuru'}</Text>
                 <Text style={styles.username}>@{content.username || 'kitapokuru'}</Text>
               </View>
-            </View>
+            </Pressable>
 
             {content.book_title ? (
-              <View style={styles.bookRow}>
+              <Pressable
+                disabled={!content.book_key}
+                onPress={() =>
+                  content.book_key
+                    ? router.push({ pathname: '/book', params: { key: content.book_key, title: content.book_title ?? undefined } })
+                    : undefined
+                }
+                style={styles.bookRow}
+                accessibilityRole={content.book_key ? 'button' : undefined}
+                accessibilityLabel={content.book_key ? 'Kitap detayını aç' : undefined}
+              >
                 <View style={styles.cover}><Feather name="book-open" size={24} color={colors.primary} /></View>
                 <View style={styles.bookText}>
                   <Text style={styles.bookLabel}>KİTAP</Text>
                   <Text style={styles.bookTitle}>{content.book_title}</Text>
                   {content.rating ? <Text style={styles.rating}>{'★'.repeat(Math.max(0, Math.min(5, Math.round(content.rating))))}</Text> : null}
                 </View>
-              </View>
+              </Pressable>
             ) : null}
 
             {content.text ? <HashtagText text={content.text} style={styles.bodyText} /> : null}
@@ -170,19 +232,19 @@ const baseStyles = StyleSheet.create({
   headerSpacer: { width: 38 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 12 },
   muted: { color: '#8E8E9D', fontSize: 14 },
-  errorTitle: { color: '#F5F5F8', textAlign: 'center', fontSize: 16, fontWeight: '700' },
+  errorTitle: { color: '#F5F5F8', textAlign: 'center', fontSize: 16, fontWeight: '700', lineHeight: 23 },
   homeButton: { marginTop: 6, backgroundColor: '#21182F', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 11 },
   homeButtonText: { color: '#A985FF', fontWeight: '800' },
   scrollContent: { padding: 16, paddingBottom: 40 },
   card: { backgroundColor: '#15151D', borderWidth: 1, borderColor: '#292934', borderRadius: 18, padding: 16, gap: 16 },
-  authorRow: { flexDirection: 'row', alignItems: 'center' },
+  authorRow: { flexDirection: 'row', alignItems: 'center', minHeight: 48 },
   avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#211F2B' },
   avatarFallback: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#21182F' },
   authorText: { marginLeft: 12, flex: 1 },
   authorName: { color: '#F5F5F8', fontSize: 15, fontWeight: '800' },
   username: { color: '#8E8E9D', marginTop: 2, fontSize: 12 },
   bookRow: { flexDirection: 'row', gap: 12, padding: 12, borderRadius: 14, backgroundColor: '#101016' },
-  cover: { width: 62, height: 92, borderRadius: 8 },
+  cover: { width: 62, height: 92, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   bookText: { flex: 1, justifyContent: 'center' },
   bookLabel: { color: '#8E8E9D', fontSize: 10, fontWeight: '800' },
   bookTitle: { color: '#F5F5F8', marginTop: 5, fontSize: 15, fontWeight: '800' },
