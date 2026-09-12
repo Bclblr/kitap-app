@@ -107,6 +107,8 @@ export default function ExploreScreen() {
   const [trendingHashtagsLoading, setTrendingHashtagsLoading] = useState(false);
 
   const searchRequestIdRef = useRef(0);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchCacheRef = useRef(new Map<string, { books: Book[]; users: UserProfile[]; authors: Author[] }>());
   const skipNextSearchRef = useRef(false);
   const isSearching = query.trim().length > 0;
 
@@ -325,18 +327,23 @@ export default function ExploreScreen() {
     const searchText = query.trim();
     if (!searchText) return;
 
-    void supabase.rpc('log_search_event', {
-      p_query: searchText,
-      p_scope: 'explore',
-      p_result_count: 0,
-    });
+    const normalizedQuery = searchText.toLocaleLowerCase('tr-TR');
+    const cached = searchCacheRef.current.get(normalizedQuery);
+    if (cached) {
+      setBooks(cached.books);
+      setUsers(cached.users);
+      setAuthors(cached.authors);
+      setSearched(true);
+      setLoading(false);
+      return;
+    }
 
     const requestId = ++searchRequestIdRef.current;
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
     setLoading(true);
     setSearched(true);
-    setBooks([]);
-    setUsers([]);
-    setAuthors([]);
 
     try {
       const [userResult, bookResponse, authorResponse] = await Promise.all([
@@ -346,35 +353,80 @@ export default function ExploreScreen() {
           .ilike('username', `%${searchText}%`)
           .limit(10),
         fetch(
-          `https://openlibrary.org/search.json?q=${encodeURIComponent(searchText)}&limit=20&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`
+          `https://openlibrary.org/search.json?q=${encodeURIComponent(searchText)}&limit=20&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`,
+          { signal: controller.signal }
         ),
-        fetch(`https://openlibrary.org/search/authors.json?q=${encodeURIComponent(searchText)}&limit=10`),
+        fetch(
+          `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(searchText)}&limit=10`,
+          { signal: controller.signal }
+        ),
       ]);
 
       if (requestId !== searchRequestIdRef.current) return;
 
-      setUsers(userResult.error ? [] : ((userResult.data ?? []) as UserProfile[]));
+      const rankText = (value: string | null | undefined) => {
+        const normalized = (value ?? '').toLocaleLowerCase('tr-TR');
+        if (normalized === normalizedQuery) return 3;
+        if (normalized.startsWith(normalizedQuery)) return 2;
+        if (normalized.includes(normalizedQuery)) return 1;
+        return 0;
+      };
 
+      const nextUsers = (userResult.error ? [] : ((userResult.data ?? []) as UserProfile[]))
+        .slice()
+        .sort((a, b) => rankText(b.username) - rankText(a.username));
+
+      let nextBooks: Book[] = [];
       if (bookResponse.ok) {
         const bookData = await bookResponse.json();
-        setBooks(Array.isArray(bookData.docs) ? bookData.docs : []);
+        const docs: Book[] = Array.isArray(bookData.docs) ? bookData.docs : [];
+        nextBooks = docs
+          .filter(
+            (item, index, all) =>
+              !!item.key && all.findIndex((candidate) => candidate.key === item.key) === index
+          )
+          .sort((a, b) => rankText(b.title) - rankText(a.title));
       }
 
+      let nextAuthors: Author[] = [];
       if (authorResponse.ok) {
         const authorData = await authorResponse.json();
-        setAuthors(
-          Array.isArray(authorData.docs)
-            ? authorData.docs.map((author: any) => ({
-                key: author.key || author.author_key?.[0],
-                name: author.name,
-                birth_date: author.birth_date,
-                top_work: author.top_work,
-                work_count: author.work_count,
-              }))
-            : []
-        );
+        nextAuthors = (Array.isArray(authorData.docs)
+          ? authorData.docs.map((author: any) => ({
+              key: author.key || author.author_key?.[0],
+              name: author.name,
+              birth_date: author.birth_date,
+              top_work: author.top_work,
+              work_count: author.work_count,
+            }))
+          : [])
+          .filter((item: Author) => !!item.name)
+          .sort((a: Author, b: Author) => rankText(b.name) - rankText(a.name));
       }
+
+      if (requestId !== searchRequestIdRef.current) return;
+
+      setUsers(nextUsers);
+      setBooks(nextBooks);
+      setAuthors(nextAuthors);
+
+      searchCacheRef.current.set(normalizedQuery, {
+        books: nextBooks,
+        users: nextUsers,
+        authors: nextAuthors,
+      });
+      if (searchCacheRef.current.size > 20) {
+        const oldestKey = searchCacheRef.current.keys().next().value;
+        if (oldestKey) searchCacheRef.current.delete(oldestKey);
+      }
+
+      void supabase.rpc('log_search_event', {
+        p_query: searchText,
+        p_scope: 'explore',
+        p_result_count: nextBooks.length + nextUsers.length + nextAuthors.length,
+      });
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Genel arama hatası:', error);
     } finally {
       if (requestId === searchRequestIdRef.current) setLoading(false);
@@ -397,7 +449,7 @@ export default function ExploreScreen() {
       return;
     }
 
-    const timer = setTimeout(() => void searchAll(), 600);
+    const timer = setTimeout(() => void searchAll(), 350);
     return () => clearTimeout(timer);
   }, [query, searchAll]);
 
