@@ -100,6 +100,45 @@ const STORY_SEEN_KEY = 'story-seen-ids';
 
 const CURRENT_USERNAME = 'Kitap Okuru';
 
+type FeedProfile = {
+  id: string;
+  full_name: string | null;
+  username: string | null;
+  profile_image: string | null;
+};
+
+type FeedProfileResult = { data: FeedProfile[]; error: any };
+
+let feedProfilesCache: { data: FeedProfile[]; expiresAt: number } | null = null;
+let feedProfilesRequest: Promise<FeedProfileResult> | null = null;
+
+async function loadFeedProfiles(): Promise<FeedProfileResult> {
+  const now = Date.now();
+  if (feedProfilesCache && feedProfilesCache.expiresAt > now) {
+    return { data: feedProfilesCache.data, error: null };
+  }
+
+  if (feedProfilesRequest) return feedProfilesRequest;
+
+  const request: Promise<FeedProfileResult> = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, profile_image');
+      const profiles = (data ?? []) as FeedProfile[];
+      if (!error) {
+        feedProfilesCache = { data: profiles, expiresAt: Date.now() + 30_000 };
+      }
+      return { data: profiles, error };
+    } finally {
+      feedProfilesRequest = null;
+    }
+  })();
+
+  feedProfilesRequest = request;
+  return request;
+}
+
 function isValidUUID(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
@@ -287,7 +326,7 @@ export default function HomeScreen() {
       const reviewIds = visibleReviews.map((review: any) => review.id);
 
       const [profileResult, likesResult, repostsResult, commentsResult] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, username, profile_image'),
+        loadFeedProfiles(),
         reviewIds.length
           ? supabase.from('likes').select('review_id, user_id').in('review_id', reviewIds)
           : Promise.resolve({ data: [], error: null } as any),
@@ -402,7 +441,7 @@ export default function HomeScreen() {
       const postIds = visiblePosts.map((post: any) => post.id);
 
       const [profileResult, likesResult, repostsResult, commentsResult, savedResult] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, username, profile_image'),
+        loadFeedProfiles(),
         postIds.length
           ? supabase.from('post_likes').select('post_id, user_id').in('post_id', postIds)
           : Promise.resolve({ data: [], error: null } as any),
