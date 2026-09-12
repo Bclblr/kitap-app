@@ -48,7 +48,7 @@ const EMPTY_COUNTS: DashboardCounts = {
 
 const MODULES: AdminModule[] = [
   { key: 'users', title: 'Kullanıcılar', subtitle: 'Hesaplar, roller, rozetler ve yaptırımlar', icon: 'users', route: '/admin-users', minimumRole: 'admin' },
-  { key: 'content', title: 'İçerikler', subtitle: 'Gönderi, inceleme, alıntı ve yorum yönetimi', icon: 'file-text' },
+  { key: 'content', title: 'İçerikler', subtitle: 'Gönderi, inceleme, alıntı ve yorum yönetimi', icon: 'file-text', route: '/admin-content' },
   { key: 'reports', title: 'Moderasyon', subtitle: 'Şikâyetler, spam ve kullanıcı raporları', icon: 'shield', route: '/admin-moderation' },
   { key: 'hashtags', title: 'Hashtagler', subtitle: 'Trend, engelleme ve öne çıkarma', icon: 'hash' },
   { key: 'explore', title: 'Keşfet', subtitle: 'Gündem, öne çıkanlar ve sıralama', icon: 'compass', minimumRole: 'admin' },
@@ -244,7 +244,7 @@ export default function AdminScreen() {
         </View>
 
         <Text style={styles.footerNote}>
-          Kullanıcı yönetimi ve moderasyon aktif. Diğer yönetim modülleri sırayla panele bağlanacak.
+          Kullanıcı yönetimi, içerik yönetimi ve moderasyon aktif. Diğer yönetim modülleri sırayla panele bağlanacak.
         </Text>
       </ScrollView>
     </View>
