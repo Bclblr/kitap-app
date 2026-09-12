@@ -415,25 +415,13 @@ export default function ExploreScreen() {
     });
   }
 
-  async function openAuthor(author: Author) {
-    if (!author.name) return;
-    skipNextSearchRef.current = true;
-    setQuery(author.name);
-    setActiveSearchType('books');
-    setLoading(true);
-    setSearched(true);
-    try {
-      const response = await fetch(
-        `https://openlibrary.org/search.json?author=${encodeURIComponent(author.name)}&limit=20`
-      );
-      const data = response.ok ? await response.json() : { docs: [] };
-      setBooks(Array.isArray(data.docs) ? data.docs : []);
-      setUsers([]);
-      setAuthors([]);
-    } finally {
-      setLoading(false);
-    }
-  }
+  function openAuthor(author: Author) {
+  if (!author.name) return;
+  router.push({
+    pathname: '/author',
+    params: { key: author.key, name: author.name },
+  });
+}
 
   const selectedCount =
     activeSearchType === 'books'
