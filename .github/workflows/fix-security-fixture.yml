@@ -19,26 +19,29 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('scripts/test-reader-security.cjs')
-          s=p.read_text()
-          old="create table auth.users(id uuid primary key);"
-          new="create table auth.users(id uuid primary key, created_at timestamptz not null default now());"
+          p = Path('scripts/test-reader-security.cjs')
+          s = p.read_text()
+          old = "create table auth.users(id uuid primary key);"
+          new = "create table auth.users(id uuid primary key, created_at timestamptz not null default now());"
           if old in s:
-              s=s.replace(old,new,1)
-          anchor="insert into auth.users values('${A}'),('${B}'),('${C}');\n"
-          addition="""create table public.profiles(id uuid primary key references auth.users(id) on delete cascade,username text,full_name text,bio text default '',profile_image text,cover_image text,created_at timestamptz default now(),updated_at timestamptz default now());
- insert into public.profiles(id,username,full_name) values('${A}','reader_a','Reader A'),('${B}','reader_b','Reader B'),('${C}','reader_c','Reader C');
- create table public.posts(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id) on delete cascade,username text,text text,image_url text,book_key text,book_title text,rating integer default 0,created_at timestamptz default now());
- create table public.reviews(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id) on delete cascade,book_key text,book_title text,rating integer default 0,text text,created_at timestamptz default now());
- create table public.comments(id uuid primary key default gen_random_uuid(),review_id uuid references public.reviews(id) on delete cascade,user_id uuid references auth.users(id) on delete cascade,text text,created_at timestamptz default now());
- create table public.post_comments(id uuid primary key default gen_random_uuid(),post_id uuid references public.posts(id) on delete cascade,user_id uuid references auth.users(id) on delete cascade,text text,created_at timestamptz default now());
- create table public.follows(id uuid primary key default gen_random_uuid(),follower_id uuid references auth.users(id) on delete cascade,following_id uuid references auth.users(id) on delete cascade,created_at timestamptz default now(),unique(follower_id,following_id));
- create table public.events(id uuid primary key default gen_random_uuid(),title text not null,description text default '',event_date timestamptz not null default now(),location text default '',image_url text,created_by uuid not null references auth.users(id) on delete cascade,created_at timestamptz default now(),updated_at timestamptz default now());
- create table public.event_attendees(event_id uuid references public.events(id) on delete cascade,user_id uuid references auth.users(id) on delete cascade,created_at timestamptz default now(),primary key(event_id,user_id));
-"""
+              s = s.replace(old, new, 1)
+          anchor = "insert into auth.users values('${A}'),('${B}'),('${C}');\n"
+          lines = [
+              "create table public.profiles(id uuid primary key references auth.users(id) on delete cascade,username text,full_name text,bio text default '',profile_image text,cover_image text,created_at timestamptz default now(),updated_at timestamptz default now());",
+              "insert into public.profiles(id,username,full_name) values('${A}','reader_a','Reader A'),('${B}','reader_b','Reader B'),('${C}','reader_c','Reader C');",
+              "create table public.posts(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id) on delete cascade,username text,text text,image_url text,book_key text,book_title text,rating integer default 0,created_at timestamptz default now());",
+              "create table public.reviews(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id) on delete cascade,book_key text,book_title text,rating integer default 0,text text,created_at timestamptz default now());",
+              "create table public.comments(id uuid primary key default gen_random_uuid(),review_id uuid references public.reviews(id) on delete cascade,user_id uuid references auth.users(id) on delete cascade,text text,created_at timestamptz default now());",
+              "create table public.post_comments(id uuid primary key default gen_random_uuid(),post_id uuid references public.posts(id) on delete cascade,user_id uuid references auth.users(id) on delete cascade,text text,created_at timestamptz default now());",
+              "create table public.follows(id uuid primary key default gen_random_uuid(),follower_id uuid references auth.users(id) on delete cascade,following_id uuid references auth.users(id) on delete cascade,created_at timestamptz default now(),unique(follower_id,following_id));",
+              "create table public.events(id uuid primary key default gen_random_uuid(),title text not null,description text default '',event_date timestamptz not null default now(),location text default '',image_url text,created_by uuid not null references auth.users(id) on delete cascade,created_at timestamptz default now(),updated_at timestamptz default now());",
+              "create table public.event_attendees(event_id uuid references public.events(id) on delete cascade,user_id uuid references auth.users(id) on delete cascade,created_at timestamptz default now(),primary key(event_id,user_id));",
+          ]
+          addition = '\n '.join(lines) + '\n '
           if 'create table public.profiles(' not in s:
-              if anchor not in s: raise SystemExit('auth seed anchor missing')
-              s=s.replace(anchor,anchor+addition,1)
+              if anchor not in s:
+                  raise SystemExit('auth seed anchor missing')
+              s = s.replace(anchor, anchor + ' ' + addition, 1)
           p.write_text(s)
           PY
       - run: npm ci
