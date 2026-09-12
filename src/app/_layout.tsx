@@ -45,6 +45,13 @@ function GuardedLayout() {
             <Stack.Screen name="login" />
             <Stack.Screen name="register" />
           </Stack.Protected>
+
+          {/* Recovery routes must stay reachable while logged out, and reset-password
+              must also survive the temporary recovery session created by Supabase. */}
+          <Stack.Screen name="forgot-password" />
+          <Stack.Screen name="reset-password" />
+          <Stack.Screen name="verify-email" />
+
           <Stack.Protected guard={!!session}>
             <Stack.Screen name="index" />
             <Stack.Screen name="onboarding" />
