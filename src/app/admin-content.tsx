@@ -122,12 +122,12 @@ export default function AdminContentScreen() {
         const { error } = await supabase.rpc('admin_delete_content', {
           p_target_type: activeTab,
           p_target_id: item.id,
-          p_reason: 'Admin panelinden kaldırıldı',
+          p_reason: 'Admin panelinden çöp kutusuna taşındı',
         });
 
         if (error) {
-          console.error('İçerik silme hatası:', error);
-          Alert.alert('Silinemedi', error.message || 'İçerik silinirken bir hata oluştu.');
+          console.error('İçerik kaldırma hatası:', error);
+          Alert.alert('Taşınamadı', error.message || 'İçerik çöp kutusuna taşınırken bir hata oluştu.');
           return;
         }
 
@@ -142,11 +142,11 @@ export default function AdminContentScreen() {
   const askDelete = useCallback(
     (item: ContentRow) => {
       Alert.alert(
-        'İçeriği kaldır',
-        'Bu içerik kalıcı olarak kaldırılacak ve işlem geçmişine kaydedilecek. Devam edilsin mi?',
+        'Çöp kutusuna taşı',
+        'Bu içerik uygulamadan kaldırılıp çöp kutusuna taşınacak. Daha sonra geri yüklenebilir. Devam edilsin mi?',
         [
           { text: 'Vazgeç', style: 'cancel' },
-          { text: 'Kaldır', style: 'destructive', onPress: () => void deleteContent(item) },
+          { text: 'Çöp Kutusuna Taşı', style: 'destructive', onPress: () => void deleteContent(item) },
         ]
       );
     },
@@ -236,7 +236,7 @@ export default function AdminContentScreen() {
                   >
                     <Feather name="trash-2" size={16} color="#FF7D86" />
                     <Text style={styles.deleteText}>
-                      {deletingId === item.id ? 'Kaldırılıyor...' : 'İçeriği Kaldır'}
+                      {deletingId === item.id ? 'Taşınıyor...' : 'Çöp Kutusuna Taşı'}
                     </Text>
                   </Pressable>
                 </View>
