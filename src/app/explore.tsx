@@ -2,6 +2,8 @@ import BookCover from '@/components/BookCover';
 import BottomNav from '@/components/BottomNav';
 import Image from '@/components/SafeImage';
 import AdSlot from '@/components/AdSlot';
+import PersonalizedBookSuggestions from '@/components/PersonalizedBookSuggestions';
+import ReaderSuggestions from '@/components/ReaderSuggestions';
 import { BookCoverData, existingBookCover, openLibraryUrl } from '@/lib/open-library-cover';
 import { supabase } from '@/lib/supabase';
 import { useReaderSocial } from '@/hooks/use-reader-social';
@@ -468,6 +470,9 @@ export default function ExploreScreen() {
               <Text style={styles.discoveryText}>
                 Okuma dünyandaki yeni kitaplar, insanlar ve sohbetler burada buluşacak.
               </Text>
+
+              <PersonalizedBookSuggestions />
+              <ReaderSuggestions limit={8} />
 
               <View style={styles.sectionCard}>
                 <SectionHeader accent="#F29A45" title="Popüler Kitaplar" />
