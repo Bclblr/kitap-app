@@ -275,6 +275,12 @@ export default function ExploreScreen() {
       const { data, error } = await supabase.rpc('get_trending_hashtags');
       if (error) throw error;
       const rows: any[] = Array.isArray(data) ? data : [];
+      const { data: hashtagControls } = await supabase
+        .from('hashtag_controls')
+        .select('tag,blocked,featured,priority');
+      const controlMap = new Map(
+        (hashtagControls ?? []).map((item: any) => [String(item.tag), item])
+      );
       setTrendingHashtags(
         rows
           .map((row) => ({
@@ -283,7 +289,14 @@ export default function ExploreScreen() {
             mention_count: Number(row.mention_count) || 0,
             unique_users: Number(row.unique_users) || 0,
           }))
-          .filter((item) => item.hashtag)
+          .filter((item) => item.hashtag && !controlMap.get(item.hashtag)?.blocked)
+          .sort((a, b) => {
+            const ac = controlMap.get(a.hashtag);
+            const bc = controlMap.get(b.hashtag);
+            return Number(bc?.featured ?? false) - Number(ac?.featured ?? false)
+              || Number(bc?.priority ?? 0) - Number(ac?.priority ?? 0)
+              || b.mention_count - a.mention_count;
+          })
           .slice(0, 10)
       );
     } catch (error) {
@@ -309,6 +322,12 @@ export default function ExploreScreen() {
   const searchAll = useCallback(async () => {
     const searchText = query.trim();
     if (!searchText) return;
+
+    void supabase.rpc('log_search_event', {
+      p_query: searchText,
+      p_scope: 'explore',
+      p_result_count: 0,
+    });
 
     const requestId = ++searchRequestIdRef.current;
     setLoading(true);
