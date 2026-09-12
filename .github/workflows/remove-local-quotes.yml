@@ -1,0 +1,51 @@
+name: Remove local quote fallback
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/remove-local-quotes.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Remove legacy shared quote fallback
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/app/index.tsx')
+          text = p.read_text(encoding='utf-8')
+          start = text.index("      const savedQuotes = await AsyncStorage.getItem('quotes');")
+          end = text.index("      const remoteQuotes = await supabase", start)
+          text = text[:start] + text[end:]
+          old = """        ...remoteQuotePosts,\n        ...quotePosts.filter(quote => !remoteQuotePosts.some(remote => remote.id === quote.id)),\n"""
+          new = """        ...remoteQuotePosts,\n"""
+          if old not in text:
+              raise SystemExit('Expected quote feed merge block not found')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8')
+          Path('.github/workflows/remove-local-quotes.yml').unlink()
+          PY
+      - run: npm ci
+      - name: Verify TypeScript
+        run: npm run typecheck
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Remove cross-account local quote fallback"
+          git push origin main
