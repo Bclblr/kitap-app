@@ -1,5 +1,6 @@
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useAppTheme } from '@/providers/ThemeProvider';
+import { getCurrentAdminAccess } from '@/lib/admin';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -26,6 +27,17 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  async function routeAfterLogin() {
+    const access = await getCurrentAdminAccess();
+
+    if (access.canOpenAdmin) {
+      router.replace('/admin');
+      return;
+    }
+
+    router.replace('/');
+  }
+
   async function handleLogin() {
     const cleanEmail = email.trim().toLowerCase();
 
@@ -46,7 +58,7 @@ export default function LoginScreen() {
         return;
       }
 
-      router.replace('/');
+      await routeAfterLogin();
     } catch (error) {
       console.error(error);
       Alert.alert('Hata', 'Giriş sırasında bir hata oluştu.');
@@ -62,7 +74,7 @@ export default function LoginScreen() {
       const session = await signInWithGoogle();
 
       if (session) {
-        router.replace('/');
+        await routeAfterLogin();
       }
     } catch (error) {
       console.error('Google login error:', error);
@@ -85,7 +97,7 @@ export default function LoginScreen() {
       const session = await signInWithApple();
 
       if (session) {
-        router.replace('/');
+        await routeAfterLogin();
       }
     } catch (error) {
       const errorCode =
