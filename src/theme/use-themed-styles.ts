@@ -28,7 +28,14 @@ export function lightColor(value: string, property: string, colors: AppColors) {
 export function useThemedStyles<T extends Record<string, object>>(base: T): T {
   const { scheme, colors } = useAppTheme();
   return useMemo(() => {
-    if (scheme === 'dark') return base;
+    if (scheme === 'dark') {
+      return Object.fromEntries(Object.entries(base).map(([name, style]) => {
+        if (name === 'trendingHashtag') {
+          return [name, { ...style, color: colors.primary }];
+        }
+        return [name, style];
+      })) as T;
+    }
 
     return Object.fromEntries(Object.entries(base).map(([name, style]) => {
       // Image/story overlays and outgoing bubbles retain intentional contrast.
@@ -47,6 +54,11 @@ export function useThemedStyles<T extends Record<string, object>>(base: T): T {
       // Karanlık moda dokunmadan, eski daha dengeli görünümü yalnızca bu başlıklarda koru.
       if (/^(resultTitle|discoveryCardTitle)$/.test(name) && themedStyle.fontWeight === '900') {
         themedStyle.fontWeight = '800';
+      }
+
+      // Keşfet/Gündem bölümündeki hashtagler her iki temada da tema morunu kullanır.
+      if (name === 'trendingHashtag') {
+        themedStyle.color = colors.primary;
       }
 
       return [name, themedStyle];
