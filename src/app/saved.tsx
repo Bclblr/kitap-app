@@ -2,7 +2,6 @@ import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { getCurrentUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -32,7 +31,9 @@ export default function SavedScreen() {
   const loadSaved = useCallback(async () => {
     setLoading(true);
     try {
-      const user = await getCurrentUser();
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      const user = authData.user;
       if (!user) {
         setPosts([]);
         setWorks([]);
