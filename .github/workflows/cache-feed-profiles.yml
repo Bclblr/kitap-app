@@ -1,0 +1,53 @@
+name: Cache feed profiles
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/cache-feed-profiles.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Cache profile lookup for feed loaders
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/app/index.tsx')
+          s = p.read_text()
+          marker = "const CURRENT_USERNAME = 'Kitap Okuru';\n"
+          helper = """const CURRENT_USERNAME = 'Kitap Okuru';\n\ntype FeedProfile = {\n  id: string;\n  full_name: string | null;\n  username: string | null;\n  profile_image: string | null;\n};\n\nlet feedProfilesCache: { data: FeedProfile[]; expiresAt: number } | null = null;\nlet feedProfilesRequest: Promise<{ data: FeedProfile[]; error: any }> | null = null;\n\nasync function loadFeedProfiles() {\n  const now = Date.now();\n  if (feedProfilesCache && feedProfilesCache.expiresAt > now) {\n    return { data: feedProfilesCache.data, error: null };\n  }\n\n  if (feedProfilesRequest) return feedProfilesRequest;\n\n  feedProfilesRequest = supabase\n    .from('profiles')\n    .select('id, full_name, username, profile_image')\n    .then(({ data, error }) => {\n      const profiles = (data ?? []) as FeedProfile[];\n      if (!error) {\n        feedProfilesCache = { data: profiles, expiresAt: Date.now() + 30_000 };\n      }\n      return { data: profiles, error };\n    })\n    .finally(() => {\n      feedProfilesRequest = null;\n    });\n\n  return feedProfilesRequest;\n}\n"""
+          if 'async function loadFeedProfiles()' not in s:
+              if marker not in s:
+                  raise SystemExit('CURRENT_USERNAME marker missing')
+              s = s.replace(marker, helper, 1)
+          old = "supabase.from('profiles').select('id, full_name, username, profile_image')"
+          count = s.count(old)
+          if count < 2:
+              raise SystemExit(f'Expected at least 2 feed profile queries, found {count}')
+          s = s.replace(old, 'loadFeedProfiles()')
+          p.write_text(s)
+          print(f'Replaced {count} duplicate profile scans with cached lookup')
+          PY
+      - run: npm ci
+      - name: Verify TypeScript
+        run: npm run typecheck
+      - name: Route audit
+        run: npm run audit:routes
+      - name: Reader security tests
+        run: npm run test:security
+      - name: Commit changes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/app/index.tsx
+          git commit -m "Cache feed profile lookups" || true
+          git rm .github/workflows/cache-feed-profiles.yml
+          git commit -m "Remove temporary feed cache workflow" || true
+          git push
