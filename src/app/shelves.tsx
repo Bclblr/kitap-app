@@ -1,11 +1,9 @@
 import { BookCoverData, existingBookCover } from '@/lib/open-library-cover';
 import BookCover from '@/components/BookCover';
 import { useThemedStyles } from '@/theme/use-themed-styles';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
@@ -23,49 +21,11 @@ type Book = BookCoverData & {
 
 type Filter = 'all' | 'reading' | 'read' | 'want';
 
-async function syncBookStatusToSupabase(
-  bookKey: string,
-  bookTitle: string,
-  status: NonNullable<Book['status']>
-) {
-  try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError && userError.name !== 'AuthSessionMissingError') {
-      console.error(
-        'Kitap durumu kullanıcı kontrolü başarısız:',
-        userError
-      );
-      return;
-    }
-
-    if (!user) return;
-
-    const { error } = await supabase.rpc(
-      'set_user_book_status',
-      {
-        p_book_key: bookKey,
-        p_book_title: bookTitle,
-        p_status: status,
-      }
-    );
-
-    if (error) {
-      console.error(
-        'Kitap durumu Supabase ile eşitlenemedi:',
-        error
-      );
-    }
-  } catch (error) {
-    console.error(
-      'Kitap durumu senkronizasyon hatası:',
-      error
-    );
-  }
-}
+type UserBookStatusRow = {
+  book_key: string;
+  book_title: string | null;
+  status: 'reading' | 'read' | 'want';
+};
 
 export default function ShelvesScreen() {
   const styles = useThemedStyles(baseStyles);
@@ -77,26 +37,35 @@ export default function ShelvesScreen() {
 
   const loadBooks = useCallback(async () => {
     try {
-      const savedBooks = await AsyncStorage.getItem('myBooks');
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      if (!savedBooks) {
+      if (userError && userError.name !== 'AuthSessionMissingError') {
+        throw userError;
+      }
+
+      if (!user) {
         setBooks([]);
         return;
       }
 
-      const parsedBooks: Book[] = JSON.parse(savedBooks);
+      const { data, error } = await supabase
+        .from('user_book_status')
+        .select('book_key, book_title, status')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
 
-      const updatedBooks = parsedBooks.map((book) => ({
-        ...book,
-        status: book.status ?? 'want',
+      if (error) throw error;
+
+      const serverBooks = ((data ?? []) as UserBookStatusRow[]).map((row) => ({
+        key: row.book_key,
+        title: row.book_title ?? 'Bilinmeyen kitap',
+        status: row.status,
       }));
 
-      setBooks(updatedBooks);
-
-      await AsyncStorage.setItem(
-        'myBooks',
-        JSON.stringify(updatedBooks)
-      );
+      setBooks(serverBooks);
     } catch (error) {
       console.error('Raflar yüklenemedi:', error);
       setBooks([]);
@@ -108,7 +77,7 @@ export default function ShelvesScreen() {
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      loadBooks();
+      void loadBooks();
     }, [loadBooks])
   );
 
@@ -116,70 +85,59 @@ export default function ShelvesScreen() {
     key: string,
     newStatus: Book['status']
   ) {
+    if (!newStatus) return;
+
+    const currentBook = books.find((book) => book.key === key);
+    if (!currentBook) return;
+
     try {
-      const savedBooks = await AsyncStorage.getItem('myBooks');
-
-      const currentBooks: Book[] = savedBooks
-        ? JSON.parse(savedBooks)
-        : [];
-
-      const updatedBooks = currentBooks.map((book) => {
-        if (book.key !== key) {
-          return book;
-        }
-
-        return {
-          ...book,
-          status: newStatus,
-        };
+      const { error } = await supabase.rpc('set_user_book_status', {
+        p_book_key: key,
+        p_book_title: currentBook.title ?? '',
+        p_status: newStatus,
       });
 
-      await AsyncStorage.setItem(
-        'myBooks',
-        JSON.stringify(updatedBooks)
+      if (error) throw error;
+
+      setBooks((current) =>
+        current.map((book) =>
+          book.key === key ? { ...book, status: newStatus } : book
+        )
       );
-
-      setBooks(updatedBooks);
-
-      const updatedBook = updatedBooks.find(
-        (book) => book.key === key
-      );
-
-      if (newStatus && updatedBook) {
-        void syncBookStatusToSupabase(
-          key,
-          updatedBook.title ?? '',
-          newStatus
-        );
-      }
     } catch (error) {
-      console.error(
-        'Kitap durumu değiştirilemedi:',
-        error
-      );
+      console.error('Kitap durumu değiştirilemedi:', error);
+      Alert.alert('Durum değiştirilemedi', 'Lütfen tekrar dene.');
     }
   }
 
   async function removeBook(key: string) {
     try {
-      const savedBooks = await AsyncStorage.getItem('myBooks');
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      const currentBooks: Book[] = savedBooks
-        ? JSON.parse(savedBooks)
-        : [];
+      if (userError && userError.name !== 'AuthSessionMissingError') {
+        throw userError;
+      }
 
-      const updatedBooks = currentBooks.filter(
-        (book) => book.key !== key
-      );
+      if (!user) {
+        Alert.alert('Giriş gerekli', 'Rafını düzenlemek için giriş yapmalısın.');
+        return;
+      }
 
-      await AsyncStorage.setItem(
-        'myBooks',
-        JSON.stringify(updatedBooks)
-      );
+      const { error } = await supabase
+        .from('user_book_status')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('book_key', key);
 
-      setBooks(updatedBooks);
+      if (error) throw error;
+
+      setBooks((current) => current.filter((book) => book.key !== key));
     } catch (error) {
       console.error('Kitap silme hatası:', error);
+      Alert.alert('Kitap silinemedi', 'Lütfen tekrar dene.');
     }
   }
 
@@ -523,7 +481,7 @@ export default function ShelvesScreen() {
                         return;
                       }
 
-                      removeBook(book.key);
+                      void removeBook(book.key);
                     }}
                     style={({ pressed }) => [
                       styles.deleteButton,
