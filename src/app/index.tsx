@@ -241,11 +241,34 @@ export default function HomeScreen() {
     return user?.id ?? null;
   }
 
+  async function getBlockedUserIds(userId: string | null) {
+    const blocked = new Set<string>();
+    if (!userId) return blocked;
+
+    const { data, error } = await supabase
+      .from('user_blocks')
+      .select('blocker_id, blocked_id')
+      .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+
+    if (error) {
+      console.error('Engellenen kullanıcılar alınamadı:', error);
+      return blocked;
+    }
+
+    for (const row of data ?? []) {
+      if (row.blocker_id === userId && row.blocked_id) blocked.add(row.blocked_id);
+      if (row.blocked_id === userId && row.blocker_id) blocked.add(row.blocker_id);
+    }
+
+    return blocked;
+  }
+
   const loadReviews = useCallback(async () => {
     console.log('LOAD REVIEWS ÇALIŞTI');
 
     try {
       const userId = await getCurrentUserId();
+      const blockedUserIds = await getBlockedUserIds(userId);
 
       const { data, error } = await supabase
         .from('reviews')
@@ -272,7 +295,7 @@ export default function HomeScreen() {
       );
 
       const preparedReviews: Review[] = await Promise.all(
-        data.map(async (review: any) => {
+        data.filter((review: any) => !review.user_id || !blockedUserIds.has(review.user_id)).map(async (review: any) => {
           let likesCount = 0;
           let liked = false;
           let repostsCount = 0;
@@ -316,7 +339,9 @@ export default function HomeScreen() {
             .order('created_at', { ascending: true });
 
           if (commentData) {
-            preparedComments = commentData.map((comment: any) => ({
+            preparedComments = commentData
+              .filter((comment: any) => !comment.user_id || !blockedUserIds.has(comment.user_id))
+              .map((comment: any) => ({
               id: comment.id,
               user_id: comment.user_id,
               username: comment.user_id === userId ? CURRENT_USERNAME : 'Kitap Okuru',
@@ -384,6 +409,7 @@ export default function HomeScreen() {
 
       const userId = await getCurrentUserId();
       setCurrentUserId(userId);
+      const blockedUserIds = await getBlockedUserIds(userId);
 
       const { data: profileData } = await supabase
         .from('profiles')
@@ -400,7 +426,7 @@ export default function HomeScreen() {
       });
 
       const preparedPosts: Post[] = await Promise.all(
-        data.map(async (post: any) => {
+        data.filter((post: any) => !post.user_id || !blockedUserIds.has(post.user_id)).map(async (post: any) => {
           let liked = false;
           let saved = false;
           let reposted = false;
@@ -431,7 +457,9 @@ export default function HomeScreen() {
           }
 
           if (commentData) {
-            comments = commentData.map((comment: any) => ({
+            comments = commentData
+              .filter((comment: any) => !comment.user_id || !blockedUserIds.has(comment.user_id))
+              .map((comment: any) => ({
               id: comment.id,
               user_id: comment.user_id,
               username: comment.user_id === userId ? CURRENT_USERNAME : 'Kitap Okuru',
@@ -492,7 +520,9 @@ export default function HomeScreen() {
         console.error('Ana sayfa incelemeleri alınamadı:', reviewError);
       }
 
-      const reviewPosts: Post[] = (reviewData ?? []).map((review: any) => ({
+      const reviewPosts: Post[] = (reviewData ?? [])
+        .filter((review: any) => !review.user_id || !blockedUserIds.has(review.user_id))
+        .map((review: any) => ({
         id: review.id,
         user_id: review.user_id ?? null,
         username: profilesByUserId.get(review.user_id)?.username || CURRENT_USERNAME,
@@ -528,7 +558,9 @@ export default function HomeScreen() {
         .limit(100);
       if (remoteQuotes.error) throw remoteQuotes.error;
 
-      const remoteQuotePosts: Post[] = (remoteQuotes.data ?? []).map(quote => ({
+      const remoteQuotePosts: Post[] = (remoteQuotes.data ?? [])
+        .filter(quote => !quote.user_id || !blockedUserIds.has(quote.user_id))
+        .map(quote => ({
         id: `quote-${quote.id}`,
         user_id: quote.user_id,
         username: profilesByUserId.get(quote.user_id)?.username || CURRENT_USERNAME,
@@ -575,7 +607,10 @@ export default function HomeScreen() {
       }
 
       const rawStories = (data || []) as Story[];
-      const storyUserIds = Array.from(new Set(rawStories.map((story) => story.user_id).filter((id): id is string => !!id)));
+      const storyViewerId = await getCurrentUserId();
+      const blockedUserIds = await getBlockedUserIds(storyViewerId);
+      const visibleStories = rawStories.filter((story) => !story.user_id || !blockedUserIds.has(story.user_id));
+      const storyUserIds = Array.from(new Set(visibleStories.map((story) => story.user_id).filter((id): id is string => !!id)));
       let storyProfiles = new Map<string, any>();
 
       if (storyUserIds.length > 0) {
@@ -586,7 +621,7 @@ export default function HomeScreen() {
         storyProfiles = new Map((storyProfileData ?? []).map((profile: any) => [profile.id, profile]));
       }
 
-      const preparedStories = rawStories.map((story) => {
+      const preparedStories = visibleStories.map((story) => {
         const profile = story.user_id ? storyProfiles.get(story.user_id) : null;
         return {
           ...story,
