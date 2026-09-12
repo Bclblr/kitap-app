@@ -12,6 +12,8 @@ type Reader = {
   username: string;
   full_name: string | null;
   profile_image: string | null;
+  is_private: boolean;
+  request_pending: boolean;
 };
 
 const DIRECTORY_PAGE_SIZE = 30;
@@ -116,7 +118,44 @@ function ReaderDirectory({
           const result = await request;
           if (result.error) throw result.error;
 
-          if (alive) setReaders((result.data ?? []) as Reader[]);
+          const baseReaders = (result.data ?? []) as Omit<Reader, 'is_private' | 'request_pending'>[];
+          const relationshipEntries = await Promise.all(
+            baseReaders.map(async (reader) => {
+              if (!social.userId || reader.id === social.userId) {
+                return [reader.id, { is_private: false, request_pending: false }] as const;
+              }
+
+              const relation = await supabase.rpc('get_follow_relationship', {
+                p_target: reader.id,
+              });
+
+              if (relation.error) {
+                console.error('Reader relationship load error:', relation.error);
+                return [reader.id, { is_private: false, request_pending: false }] as const;
+              }
+
+              const row = Array.isArray(relation.data) ? relation.data[0] : relation.data;
+              return [
+                reader.id,
+                {
+                  is_private: row?.is_private === true,
+                  request_pending: row?.request_pending === true,
+                },
+              ] as const;
+            })
+          );
+
+          const relationshipMap = new Map(relationshipEntries);
+          const loadedReaders: Reader[] = baseReaders.map((reader) => {
+            const relationship = relationshipMap.get(reader.id);
+            return {
+              ...reader,
+              is_private: relationship?.is_private ?? false,
+              request_pending: relationship?.request_pending ?? false,
+            };
+          });
+
+          if (alive) setReaders(loadedReaders);
         } catch (loadError) {
           console.error('Reader directory load error:', loadError);
           if (alive) setError('Okurlar yüklenemedi.');
@@ -130,7 +169,7 @@ function ReaderDirectory({
         alive = false;
         clearTimeout(timer);
       };
-    }, [targetId, mode, query])
+    }, [targetId, mode, query, social.userId])
   );
 
   async function follow(reader: Reader) {
@@ -145,38 +184,59 @@ function ReaderDirectory({
     setError('');
 
     const wasFollowing = followingSet.has(reader.id);
-
-    social.setFollowing((current) =>
-      wasFollowing
-        ? current.filter((id) => id !== reader.id)
-        : current.includes(reader.id)
-          ? current
-          : [...current, reader.id]
-    );
+    const requestWasPending = reader.request_pending;
 
     try {
-      const result = wasFollowing
-        ? await supabase
-            .from('follows')
-            .delete()
-            .eq('follower_id', social.userId)
-            .eq('following_id', reader.id)
-        : await supabase.from('follows').insert({
-            follower_id: social.userId,
-            following_id: reader.id,
-          });
+      if (wasFollowing) {
+        const result = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', social.userId)
+          .eq('following_id', reader.id);
 
+        if (result.error) throw result.error;
+        social.setFollowing((current) => current.filter((id) => id !== reader.id));
+        notifySocialChanged();
+        return;
+      }
+
+      if (requestWasPending) {
+        const result = await supabase.rpc('cancel_follow_request', {
+          p_target: reader.id,
+        });
+        if (result.error) throw result.error;
+        setReaders((current) =>
+          current.map((item) =>
+            item.id === reader.id ? { ...item, request_pending: false } : item
+          )
+        );
+        return;
+      }
+
+      const result = await supabase.rpc('request_follow', {
+        p_target: reader.id,
+      });
       if (result.error) throw result.error;
-      notifySocialChanged();
+
+      if (String(result.data ?? '') === 'requested') {
+        setReaders((current) =>
+          current.map((item) =>
+            item.id === reader.id ? { ...item, request_pending: true } : item
+          )
+        );
+      } else {
+        social.setFollowing((current) =>
+          current.includes(reader.id) ? current : [...current, reader.id]
+        );
+        setReaders((current) =>
+          current.map((item) =>
+            item.id === reader.id ? { ...item, request_pending: false } : item
+          )
+        );
+        notifySocialChanged();
+      }
     } catch (followError) {
       console.error('Reader follow error:', followError);
-      social.setFollowing((current) =>
-        wasFollowing
-          ? current.includes(reader.id)
-            ? current
-            : [...current, reader.id]
-          : current.filter((id) => id !== reader.id)
-      );
       setError('Takip işlemi tamamlanamadı.');
     } finally {
       lock.current = false;
@@ -234,6 +294,7 @@ function ReaderDirectory({
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text numberOfLines={1} style={ui.text}>
                       {reader.full_name || reader.username}
+                      {reader.is_private ? '  🔒' : ''}
                     </Text>
                     <Text numberOfLines={1} style={ui.muted}>
                       @{reader.username}
@@ -261,7 +322,11 @@ function ReaderDirectory({
                           ? '…'
                           : isFollowing
                             ? 'Takipten çık'
-                            : 'Takip et'
+                            : reader.request_pending
+                              ? 'İstek gönderildi'
+                              : reader.is_private
+                                ? 'İstek gönder'
+                                : 'Takip et'
                       }
                       onPress={() => void follow(reader)}
                     />
