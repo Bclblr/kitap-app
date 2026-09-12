@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'src/components/PersonalizedBookSuggestions.tsx'
+      - '.github/workflows/wire-personalized-discovery.yml'
 jobs:
   apply:
     runs-on: ubuntu-latest
