@@ -1,5 +1,6 @@
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import HashtagText from '@/components/HashtagText';
+import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, View as SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -891,9 +892,11 @@ export default function HashtagScreen() {
               pressed && styles.actionButtonPressed,
             ]}
           >
-            <Text style={[styles.actionIcon, commentPanelOpen && styles.commentActive]}>
-              ◯
-            </Text>
+            <Feather
+    name="message-circle"
+    size={18}
+    color={commentPanelOpen ? '#A985FF' : '#858792'}
+  />
             <Text style={[styles.actionText, commentPanelOpen && styles.commentActive]}>
               {item.comments_count}
             </Text>
