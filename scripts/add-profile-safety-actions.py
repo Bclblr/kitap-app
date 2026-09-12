@@ -1,3 +1,4 @@
+# Temporary patch script; removed automatically after a successful typecheck.
 from pathlib import Path
 
 p = Path('src/app/profile.tsx')
@@ -22,20 +23,13 @@ funcs = '''  async function reportProfile() {
     const submitReport = async (category: string) => {
       try {
         setSafetyLoading(true);
-        const { error } = await supabase.from('user_reports').insert({
-          reporter_id: loggedInUserId,
-          reported_id: targetUserId,
-          category,
-          description: '',
-        });
+        const { error } = await supabase.from('user_reports').insert({ reporter_id: loggedInUserId, reported_id: targetUserId, category, description: '' });
         if (error) throw error;
         Alert.alert('Şikâyet alındı', 'Bildirimin inceleme için gönderildi.');
       } catch (error) {
         console.error('Kullanıcı şikâyeti gönderilemedi:', error);
         Alert.alert('Hata', 'Şikâyet gönderilemedi.');
-      } finally {
-        setSafetyLoading(false);
-      }
+      } finally { setSafetyLoading(false); }
     };
 
     Alert.alert('Kullanıcıyı şikâyet et', 'Şikâyet nedenini seç.', [
@@ -59,30 +53,19 @@ funcs = '''  async function reportProfile() {
 
     Alert.alert('Kullanıcıyı engelle', `@${profile.username} hesabını engellemek istiyor musun?`, [
       { text: 'Vazgeç', style: 'cancel' },
-      {
-        text: 'Engelle',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setSafetyLoading(true);
-            const { error } = await supabase.from('user_blocks').insert({
-              blocker_id: loggedInUserId,
-              blocked_id: targetUserId,
-            });
-            if (error && error.code !== '23505') throw error;
-            await supabase.from('follows').delete().eq('follower_id', loggedInUserId).eq('following_id', targetUserId);
-            await supabase.from('follows').delete().eq('follower_id', targetUserId).eq('following_id', loggedInUserId);
-            Alert.alert('Engellendi', 'Bu kullanıcıyla etkileşim kısıtlandı.', [
-              { text: 'Tamam', onPress: () => router.replace('/profile') },
-            ]);
-          } catch (error) {
-            console.error('Kullanıcı engellenemedi:', error);
-            Alert.alert('Hata', 'Kullanıcı engellenemedi.');
-          } finally {
-            setSafetyLoading(false);
-          }
-        },
-      },
+      { text: 'Engelle', style: 'destructive', onPress: async () => {
+        try {
+          setSafetyLoading(true);
+          const { error } = await supabase.from('user_blocks').insert({ blocker_id: loggedInUserId, blocked_id: targetUserId });
+          if (error && error.code !== '23505') throw error;
+          await supabase.from('follows').delete().eq('follower_id', loggedInUserId).eq('following_id', targetUserId);
+          await supabase.from('follows').delete().eq('follower_id', targetUserId).eq('following_id', loggedInUserId);
+          Alert.alert('Engellendi', 'Bu kullanıcıyla etkileşim kısıtlandı.', [{ text: 'Tamam', onPress: () => router.replace('/profile') }]);
+        } catch (error) {
+          console.error('Kullanıcı engellenemedi:', error);
+          Alert.alert('Hata', 'Kullanıcı engellenemedi.');
+        } finally { setSafetyLoading(false); }
+      }},
     ]);
   }
 
@@ -107,12 +90,9 @@ old_actions = """              <Pressable
                 style={styles.messageButton}
               ><Text style={styles.messageButtonText}>💬 Mesaj</Text></Pressable>"""
 new_actions = old_actions + """
-              <Pressable
-                onPress={openSafetyMenu}
-                disabled={safetyLoading}
-                style={styles.messageButton}
-                accessibilityLabel="Profil seçenekleri"
-              ><Text style={styles.messageButtonText}>{safetyLoading ? '...' : '⋯'}</Text></Pressable>"""
+              <Pressable onPress={openSafetyMenu} disabled={safetyLoading} style={styles.messageButton} accessibilityLabel="Profil seçenekleri">
+                <Text style={styles.messageButtonText}>{safetyLoading ? '...' : '⋯'}</Text>
+              </Pressable>"""
 if old_actions not in s:
     raise SystemExit('action anchor not found')
 s = s.replace(old_actions, new_actions, 1)
