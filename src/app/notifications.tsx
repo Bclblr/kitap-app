@@ -155,11 +155,25 @@ export default function NotificationsScreen() {
     }, [loadNotifications])
   );
 
+  function openNotificationTarget(notification: NotificationItem) {
+    if (notification.source === 'admin') {
+      if (notification.action_route) router.push(notification.action_route as never);
+      return;
+    }
+
+    if (notification.post_id) {
+      router.push({ pathname: '/content', params: { type: 'post', id: notification.post_id } } as never);
+      return;
+    }
+
+    if (notification.review_id) {
+      router.push({ pathname: '/content', params: { type: 'review', id: notification.review_id } } as never);
+    }
+  }
+
   async function markAsRead(notification: NotificationItem) {
     if (notification.read) {
-      if (notification.source === 'admin' && notification.action_route) {
-        router.push(notification.action_route as never);
-      }
+      openNotificationTarget(notification);
       return;
     }
 
@@ -185,9 +199,7 @@ export default function NotificationsScreen() {
         )
       );
 
-      if (notification.source === 'admin' && notification.action_route) {
-        router.push(notification.action_route as never);
-      }
+      openNotificationTarget(notification);
     } catch (error) {
       console.error('Bildirim okundu hatası:', error);
       Alert.alert('Hata', 'Bildirim güncellenemedi.');

@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Image from '@/components/SafeImage';
-import BookCover from '@/components/BookCover';
 import HashtagText from '@/components/HashtagText';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -137,7 +136,7 @@ export default function ContentScreen() {
 
             {content.book_title ? (
               <View style={styles.bookRow}>
-                <BookCover book={{ key: content.book_key, title: content.book_title }} style={styles.cover} />
+                <View style={styles.cover}><Feather name="book-open" size={24} color={colors.primary} /></View>
                 <View style={styles.bookText}>
                   <Text style={styles.bookLabel}>KİTAP</Text>
                   <Text style={styles.bookTitle}>{content.book_title}</Text>
