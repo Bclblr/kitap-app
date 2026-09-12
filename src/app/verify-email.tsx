@@ -20,6 +20,7 @@ export default function VerifyEmailScreen() {
   const params = useLocalSearchParams<{ email?: string }>();
   const email = useMemo(() => (typeof params.email === 'string' ? params.email.trim().toLowerCase() : ''), [params.email]);
   const [sending, setSending] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   async function resendVerification() {
     if (!email) {
@@ -29,12 +30,13 @@ export default function VerifyEmailScreen() {
 
     setSending(true);
     try {
+      const emailRedirectTo = Linking.createURL('/auth/callback', {
+        queryParams: { next: 'onboarding' },
+      });
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email,
-        options: {
-          emailRedirectTo: Linking.createURL('/login'),
-        },
+        options: { emailRedirectTo },
       });
 
       if (error) {
@@ -48,6 +50,33 @@ export default function VerifyEmailScreen() {
       Alert.alert('Hata', 'Doğrulama e-postası gönderilirken bir hata oluştu.');
     } finally {
       setSending(false);
+    }
+  }
+
+  async function checkVerification() {
+    if (!email) {
+      router.replace('/login');
+      return;
+    }
+
+    setChecking(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.user?.email_confirmed_at) {
+        const onboardingPending = data.session.user.user_metadata?.onboarding_pending === true;
+        router.replace(onboardingPending ? '/onboarding' : '/');
+        return;
+      }
+
+      Alert.alert(
+        'Henüz doğrulanmadı',
+        'E-posta doğrulaması henüz tamamlanmamış görünüyor. Bağlantıyı açtıysan giriş ekranından tekrar giriş yapabilirsin.'
+      );
+    } catch (error) {
+      console.error('E-posta doğrulaması kontrol edilemedi:', error);
+      Alert.alert('Hata', 'Doğrulama durumu kontrol edilemedi.');
+    } finally {
+      setChecking(false);
     }
   }
 
@@ -70,12 +99,16 @@ export default function VerifyEmailScreen() {
           </View>
         ) : null}
 
-        <Pressable onPress={() => router.replace('/login')} style={styles.primaryButton}>
-          <Text style={styles.primaryText}>Doğruladım, Giriş Yap</Text>
+        <Pressable onPress={checkVerification} disabled={checking} style={[styles.primaryButton, checking && styles.disabled]}>
+          <Text style={styles.primaryText}>{checking ? 'Kontrol ediliyor...' : 'Doğrulamayı Kontrol Et'}</Text>
         </Pressable>
 
         <Pressable onPress={resendVerification} disabled={sending} style={[styles.secondaryButton, sending && styles.disabled]}>
           <Text style={styles.secondaryText}>{sending ? 'Gönderiliyor...' : 'Doğrulama E-postasını Yeniden Gönder'}</Text>
+        </Pressable>
+
+        <Pressable onPress={() => router.replace('/login')} style={styles.loginButton}>
+          <Text style={styles.loginText}>Giriş ekranına dön</Text>
         </Pressable>
 
         <Text style={styles.helpText}>
@@ -99,6 +132,8 @@ const baseStyles = StyleSheet.create({
   primaryText: { color: '#0B0710', fontSize: 15, fontWeight: '800' },
   secondaryButton: { marginTop: 12, minHeight: 52, borderRadius: 15, borderWidth: 1, borderColor: '#3A3150', backgroundColor: '#17131E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
   secondaryText: { color: '#C7B3FF', fontSize: 13, fontWeight: '800', textAlign: 'center' },
+  loginButton: { alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 12, marginTop: 10 },
+  loginText: { color: '#A985FF', fontSize: 13, fontWeight: '800' },
   disabled: { opacity: 0.55 },
   helpText: { marginTop: 18, color: '#6F6F7B', fontSize: 12, lineHeight: 18 },
 });
