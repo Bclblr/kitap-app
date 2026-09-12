@@ -1,6 +1,6 @@
 /**
- * Shared Expo theme compatibility values.
- * The app's full semantic palette lives in src/theme/palette.ts.
+ * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
+ * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 
 import '@/global.css';
@@ -9,18 +9,18 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#261A1E',
-    background: '#F3EFF0',
-    backgroundElement: '#FFFFFF',
-    backgroundSelected: '#ECE6E8',
-    textSecondary: '#6D5E63',
+    text: '#000000',
+    background: '#ffffff',
+    backgroundElement: '#F0F0F3',
+    backgroundSelected: '#E0E1E6',
+    textSecondary: '#60646C',
   },
   dark: {
-    text: '#F7F3F4',
-    background: '#090909',
-    backgroundElement: '#121212',
-    backgroundSelected: '#1C1A1B',
-    textSecondary: '#BEB4B7',
+    text: '#ffffff',
+    background: '#000000',
+    backgroundElement: '#212225',
+    backgroundSelected: '#2E3135',
+    textSecondary: '#B0B4BA',
   },
 } as const;
 
