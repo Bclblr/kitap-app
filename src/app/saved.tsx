@@ -143,7 +143,7 @@ export default function SavedScreen() {
             works.map((work) => (
               <Pressable
                 key={work.id}
-                onPress={() => router.push({ pathname: '/work-detail', params: { id: work.id } } as never)}
+                onPress={() => router.push({ pathname: '/work', params: { id: work.id } } as never)}
                 style={styles.card}
               >
                 <View style={styles.cardHeader}>
