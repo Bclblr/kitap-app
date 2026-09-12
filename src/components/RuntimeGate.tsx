@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { getRuntimeControls, hasActiveRestriction, settingBoolean, settingString, type RuntimeControls } from '@/lib/runtime-controls';
@@ -20,6 +20,7 @@ function isOlder(current: string, minimum: string) {
 export default function RuntimeGate({ children }: PropsWithChildren) {
   const { colors } = useAppTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const [controls, setControls] = useState<RuntimeControls | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,23 +39,26 @@ export default function RuntimeGate({ children }: PropsWithChildren) {
   const privileged = ['moderator','admin','super_admin'].includes(controls.role);
   const maintenance = settingBoolean(controls,'maintenance_mode',false) && !privileged;
   const blocked = hasActiveRestriction(controls,'ban','suspension') && !privileged;
+  const registrationClosed = pathname === '/register' && !settingBoolean(controls,'registration_enabled',true);
   const forceUpdate = settingBoolean(controls,'force_update_enabled',false) && !privileged;
   const minimum = settingString(controls,'minimum_app_version','');
   const current = Constants.expoConfig?.version ?? '1.0.0';
   const updateRequired = forceUpdate && !!minimum && isOlder(current,minimum);
 
-  if (maintenance || blocked || updateRequired) {
+  if (maintenance || blocked || updateRequired || registrationClosed) {
     const restriction = controls.restrictions.find((item) => item.type === 'ban' || item.type === 'suspension');
-    const title = maintenance ? 'Bakım Modu' : updateRequired ? 'Güncelleme Gerekli' : 'Hesap Erişimi Kısıtlandı';
-    const body = maintenance
-      ? 'Uygulama şu anda bakımda. Kısa süre sonra tekrar deneyebilirsin.'
-      : updateRequired
-        ? `Bu sürüm artık desteklenmiyor. Minimum sürüm: ${minimum}. Mevcut sürüm: ${current}.`
-        : restriction?.reason || 'Hesabında aktif bir erişim kısıtlaması bulunuyor.';
+    const title = registrationClosed ? 'Yeni Kayıtlar Kapalı' : maintenance ? 'Bakım Modu' : updateRequired ? 'Güncelleme Gerekli' : 'Hesap Erişimi Kısıtlandı';
+    const body = registrationClosed
+      ? 'Yeni hesap oluşturma geçici olarak kapalı. Mevcut hesabın varsa giriş yapabilirsin.'
+      : maintenance
+        ? 'Uygulama şu anda bakımda. Kısa süre sonra tekrar deneyebilirsin.'
+        : updateRequired
+          ? `Bu sürüm artık desteklenmiyor. Minimum sürüm: ${minimum}. Mevcut sürüm: ${current}.`
+          : restriction?.reason || 'Hesabında aktif bir erişim kısıtlaması bulunuyor.';
     return <View style={[styles.center,{ backgroundColor: colors.background }]}>
       <Text style={[styles.blockTitle,{ color: colors.textPrimary }]}>{title}</Text>
       <Text style={[styles.blockBody,{ color: colors.textSecondary }]}>{body}</Text>
-      <Pressable onPress={() => void reload()} style={[styles.button,{ backgroundColor: colors.primary }]}><Text style={styles.buttonText}>Tekrar Kontrol Et</Text></Pressable>
+      {registrationClosed ? <Pressable onPress={() => router.replace('/login')} style={[styles.button,{ backgroundColor: colors.primary }]}><Text style={styles.buttonText}>Giriş Ekranına Dön</Text></Pressable> : <Pressable onPress={() => void reload()} style={[styles.button,{ backgroundColor: colors.primary }]}><Text style={styles.buttonText}>Tekrar Kontrol Et</Text></Pressable>}
     </View>;
   }
 
