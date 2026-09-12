@@ -15,34 +15,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Patch home feed hashtag rendering
+      - name: Patch hashtag page text rendering
         shell: python
         run: |
           from pathlib import Path
 
-          path = Path('src/app/index.tsx')
+          path = Path('src/app/hashtag.tsx')
           text = path.read_text(encoding='utf-8')
 
-          import_anchor = "import BookCover from '@/components/BookCover';\n"
+          import_anchor = "import { useThemedStyles } from '@/theme/use-themed-styles';\n"
           import_line = "import HashtagText from '@/components/HashtagText';\n"
           if import_line not in text:
               if import_anchor not in text:
-                  raise SystemExit('BookCover import anchor not found')
+                  raise SystemExit('Import anchor not found')
               text = text.replace(import_anchor, import_anchor + import_line, 1)
 
-          old = "                  {post.text && <Text style={[styles.postText, post.isQuote && styles.quotePostText]}>{post.isQuote ? `“${post.text}”` : post.text}</Text>}"
-          new = "                  {post.text && <HashtagText text={post.isQuote ? `“${post.text}”` : post.text} style={[styles.postText, post.isQuote && styles.quotePostText]} />}"
+          old_body = "        {item.text ? <Text style={styles.bodyText}>{item.text}</Text> : null}"
+          new_body = "        {item.text ? <HashtagText text={item.text} style={styles.bodyText} /> : null}"
+          if old_body not in text:
+              raise SystemExit('Body text anchor not found')
+          text = text.replace(old_body, new_body, 1)
 
-          if old not in text:
-              raise SystemExit('Post text render anchor not found')
+          old_comment = "                      <Text style={styles.commentContent}>{comment.text}</Text>"
+          new_comment = "                      <HashtagText text={comment.text} style={styles.commentContent} />"
+          if old_comment in text:
+              text = text.replace(old_comment, new_comment, 1)
 
-          text = text.replace(old, new, 1)
           path.write_text(text, encoding='utf-8')
 
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/app/index.tsx
-          git commit -m "Gönderilerde hashtagleri tıklanabilir yap"
+          git add src/app/hashtag.tsx
+          git commit -m "Hashtag sayfasında etiketleri tıklanabilir yap"
           git push
