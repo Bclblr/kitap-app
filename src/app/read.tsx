@@ -530,6 +530,30 @@ export default function ReadScreen() {
 
       await loadReadingDashboard();
 
+      if (updatedProgress.current_page >= updatedProgress.total_pages) {
+        const { error: statusError } = await supabase.rpc('set_user_book_status', {
+          p_book_key: currentBook.key,
+          p_book_title: currentBook.title ?? '',
+          p_status: 'read',
+        });
+
+        if (statusError) {
+          console.error('Kitap tamamlandı olarak işaretlenemedi:', statusError);
+          Alert.alert(
+            'İlerleme kaydedildi',
+            'Sayfa ilerlemen kaydedildi ancak kitap Okudum rafına taşınamadı.'
+          );
+          return;
+        }
+
+        await loadReadingBooks();
+        Alert.alert(
+          'Kitap tamamlandı 🎉',
+          'Tebrikler! Kitap otomatik olarak Okudum rafına taşındı.'
+        );
+        return;
+      }
+
       Alert.alert('Güncellendi', 'Okuma ilerlemen kaydedildi.');
     } catch (error) {
       console.error('Okuma ilerlemesi kayıt hatası:', error);
