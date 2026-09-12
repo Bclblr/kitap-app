@@ -1,7 +1,7 @@
 /**
  * Shared Expo theme compatibility values.
  * The app's full semantic palette lives in src/theme/palette.ts; these values
- * keep legacy/Themed components visually aligned with Mürekkep & Safran.
+ * keep legacy/Themed components visually aligned with the Bordo & Gece theme.
  */
 
 import '@/global.css';
@@ -10,18 +10,18 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#1E2933',
-    background: '#F4F1EA',
-    backgroundElement: '#FCFAF6',
-    backgroundSelected: '#EAE5DB',
-    textSecondary: '#66717A',
+    text: '#241B1E',
+    background: '#F8F6F5',
+    backgroundElement: '#FFFFFF',
+    backgroundSelected: '#F1ECEC',
+    textSecondary: '#6F6266',
   },
   dark: {
-    text: '#F1EEE7',
-    background: '#11171B',
-    backgroundElement: '#182025',
-    backgroundSelected: '#202B31',
-    textSecondary: '#AAB4B8',
+    text: '#F7F2F3',
+    background: '#0C0A0B',
+    backgroundElement: '#151113',
+    backgroundSelected: '#21191C',
+    textSecondary: '#C0B2B6',
   },
 } as const;
 
