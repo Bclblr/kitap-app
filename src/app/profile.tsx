@@ -119,6 +119,9 @@ export default function ProfileScreen() {
   const [followingCount, setFollowingCount] = useState(0);
 
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followRequestPending, setFollowRequestPending] = useState(false);
+  const [isPrivateProfile, setIsPrivateProfile] = useState(false);
+  const [canViewProfileContent, setCanViewProfileContent] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
   const [safetyLoading, setSafetyLoading] = useState(false);
 
@@ -126,7 +129,9 @@ export default function ProfileScreen() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  const visibleFeed = feed.filter(item => profileTab === 'repost' ? item.reposted : !item.reposted && item.type === profileTab);
+  const visibleFeed = canViewProfileContent
+    ? feed.filter(item => profileTab === 'repost' ? item.reposted : !item.reposted && item.type === profileTab)
+    : [];
 
   const [selectedPost, setSelectedPost] =
     useState<Post | null>(null);
@@ -268,181 +273,98 @@ export default function ProfileScreen() {
 
   const loadFollowData = useCallback(async () => {
     try {
-      const loggedInUserId =
-        await getCurrentUserId();
-
-      const targetUserId =
-        typeof userId === 'string' && userId
-          ? userId
-          : loggedInUserId;
+      const loggedInUserId = await getCurrentUserId();
+      const targetUserId = typeof userId === 'string' && userId ? userId : loggedInUserId;
 
       if (!targetUserId) {
         setFollowerCount(0);
         setFollowingCount(0);
         setIsFollowing(false);
+        setFollowRequestPending(false);
+        setIsPrivateProfile(false);
+        setCanViewProfileContent(true);
         return;
       }
 
-      const { count: followers } =
-        await supabase
-          .from('follows')
-          .select('*', {
-            count: 'exact',
-            head: true,
-          })
-          .eq(
-            'following_id',
-            targetUserId
-          );
+      const [{ count: followers }, { count: following }] = await Promise.all([
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', targetUserId),
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', targetUserId),
+      ]);
 
-      setFollowerCount(
-        followers || 0
-      );
+      setFollowerCount(followers || 0);
+      setFollowingCount(following || 0);
 
-      const { count: following } =
-        await supabase
-          .from('follows')
-          .select('*', {
-            count: 'exact',
-            head: true,
-          })
-          .eq(
-            'follower_id',
-            targetUserId
-          );
-
-      setFollowingCount(
-        following || 0
-      );
-
-      if (
-        loggedInUserId &&
-        loggedInUserId !== targetUserId
-      ) {
-        const { data } =
-          await supabase
-            .from('follows')
-            .select('id')
-            .eq(
-              'follower_id',
-              loggedInUserId
-            )
-            .eq(
-              'following_id',
-              targetUserId
-            )
-            .maybeSingle();
-
-        setIsFollowing(!!data);
+      if (loggedInUserId && loggedInUserId !== targetUserId) {
+        const { data, error } = await supabase.rpc('get_follow_relationship', { p_target: targetUserId });
+        if (error) throw error;
+        const relationship = Array.isArray(data) ? data[0] : data;
+        setIsFollowing(relationship?.is_following === true);
+        setFollowRequestPending(relationship?.request_pending === true);
+        setIsPrivateProfile(relationship?.is_private === true);
+        setCanViewProfileContent(relationship?.can_view_content !== false);
       } else {
         setIsFollowing(false);
+        setFollowRequestPending(false);
+        setCanViewProfileContent(true);
+        const { data } = await supabase
+          .from('profile_privacy_settings')
+          .select('is_private')
+          .eq('user_id', targetUserId)
+          .maybeSingle();
+        setIsPrivateProfile(data?.is_private === true);
       }
     } catch (error) {
-      console.error(
-        'Takip bilgileri yüklenemedi:',
-        error
-      );
+      console.error('Takip bilgileri yüklenemedi:', error);
     }
   }, [userId]);
 
   async function toggleFollow() {
     try {
-      const loggedInUserId =
-        await getCurrentUserId();
-
-      const targetUserId =
-        typeof userId === 'string' && userId
-          ? userId
-          : null;
+      const loggedInUserId = await getCurrentUserId();
+      const targetUserId = typeof userId === 'string' && userId ? userId : null;
 
       if (!loggedInUserId) {
-        Alert.alert(
-          'Giriş gerekli',
-          'Takip etmek için giriş yapmalısın.'
-        );
+        Alert.alert('Giriş gerekli', 'Takip etmek için giriş yapmalısın.');
         return;
       }
-
-      if (!targetUserId) return;
-
-      if (
-        loggedInUserId === targetUserId
-      ) {
-        return;
-      }
+      if (!targetUserId || loggedInUserId === targetUserId) return;
 
       setFollowLoading(true);
 
       if (isFollowing) {
-        const { error } =
-          await supabase
-            .from('follows')
-            .delete()
-            .eq(
-              'follower_id',
-              loggedInUserId
-            )
-            .eq(
-              'following_id',
-              targetUserId
-            );
-
-        if (error) {
-          console.error(
-            'Takipten çıkma hatası:',
-            error
-          );
-
-          Alert.alert(
-            'Hata',
-            'Takipten çıkılamadı.'
-          );
-
-          return;
-        }
-
+        const { error } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', loggedInUserId)
+          .eq('following_id', targetUserId);
+        if (error) throw error;
         setIsFollowing(false);
+        setFollowerCount((count) => Math.max(0, count - 1));
+        setCanViewProfileContent(!isPrivateProfile);
+        return;
+      }
 
-        setFollowerCount(
-          (count) =>
-            Math.max(0, count - 1)
-        );
+      if (followRequestPending) {
+        const { error } = await supabase.rpc('cancel_follow_request', { p_target: targetUserId });
+        if (error) throw error;
+        setFollowRequestPending(false);
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('request_follow', { p_target: targetUserId });
+      if (error) throw error;
+      const result = String(data ?? '');
+      if (result === 'requested') {
+        setFollowRequestPending(true);
       } else {
-        const { error } =
-          await supabase
-            .from('follows')
-            .insert({
-              follower_id:
-                loggedInUserId,
-              following_id:
-                targetUserId,
-            });
-
-        if (error) {
-          console.error(
-            'Takip etme hatası:',
-            error
-          );
-
-          Alert.alert(
-            'Hata',
-            'Kullanıcı takip edilemedi.'
-          );
-
-          return;
-        }
-
         setIsFollowing(true);
-
-        setFollowerCount(
-          (count) => count + 1
-        );
+        setFollowRequestPending(false);
+        setFollowerCount((count) => count + 1);
+        setCanViewProfileContent(true);
       }
     } catch (error) {
-      console.error(
-        'Takip işlemi başarısız:',
-        error
-      );
+      console.error('Takip işlemi başarısız:', error);
+      Alert.alert('Hata', 'Takip işlemi tamamlanamadı.');
     } finally {
       setFollowLoading(false);
     }
@@ -2302,8 +2224,10 @@ export default function ProfileScreen() {
             </Pressable>
           ) : (
             <View style={styles.profileActions}>
-              <Pressable onPress={toggleFollow} disabled={followLoading} style={[styles.followButton, isFollowing && styles.followingButton]}>
-                <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>{followLoading ? '...' : isFollowing ? 'Takiptesin' : 'Takip Et'}</Text>
+              <Pressable onPress={toggleFollow} disabled={followLoading} style={[styles.followButton, (isFollowing || followRequestPending) && styles.followingButton]}>
+                <Text style={[styles.followButtonText, (isFollowing || followRequestPending) && styles.followingButtonText]}>
+                  {followLoading ? '...' : isFollowing ? 'Takiptesin' : followRequestPending ? 'İstek Gönderildi' : isPrivateProfile ? 'Takip İsteği Gönder' : 'Takip Et'}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={async () => {
