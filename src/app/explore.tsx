@@ -347,11 +347,7 @@ export default function ExploreScreen() {
 
     try {
       const [userResult, bookResponse, authorResponse] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, username, profile_image, bio')
-          .ilike('username', `%${searchText}%`)
-          .limit(10),
+        supabase.rpc('search_visible_profiles', { p_query: searchText, p_limit: 10 }),
         fetch(
           `https://openlibrary.org/search.json?q=${encodeURIComponent(searchText)}&limit=20&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`,
           { signal: controller.signal }

@@ -2306,8 +2306,14 @@ export default function ProfileScreen() {
                 <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>{followLoading ? '...' : isFollowing ? 'Takiptesin' : 'Takip Et'}</Text>
               </Pressable>
               <Pressable
-                onPress={() => {
+                onPress={async () => {
                   if (!profile?.id) { Alert.alert('Hata', 'Kullanıcı bulunamadı.'); return; }
+                  const { data: authData } = await supabase.auth.getUser();
+                  const senderId = authData.user?.id;
+                  if (!senderId) { Alert.alert('Giriş gerekli', 'Mesaj göndermek için giriş yapmalısın.'); return; }
+                  const { data: allowed, error } = await supabase.rpc('can_message_user', { p_sender: senderId, p_target: profile.id });
+                  if (error) { console.error('Mesaj izni kontrol edilemedi:', error); Alert.alert('Hata', 'Mesaj izni kontrol edilemedi.'); return; }
+                  if (!allowed) { Alert.alert('Mesaj gönderilemiyor', 'Bu kullanıcı kimlerin mesaj gönderebileceğini sınırlandırmış olabilir.'); return; }
                   router.push({ pathname: '/chat', params: { userId: profile.id, username: profile.username || 'Kitap Okuru' } });
                 }}
                 style={styles.messageButton}
