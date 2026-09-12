@@ -142,6 +142,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [loadingStories, setLoadingStories] = useState(false);
+  const [feedLimit, setFeedLimit] = useState(30);
 
   const [commentingReviewId, setCommentingReviewId] =
     useState<string | null>(null);
@@ -272,7 +273,7 @@ export default function HomeScreen() {
         .from('reviews')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(feedLimit);
 
       if (error) {
         console.error('Supabase incelemeleri yüklenemedi:', error);
@@ -375,7 +376,7 @@ export default function HomeScreen() {
       console.error('İncelemeler yüklenemedi:', error);
       setReviews([]);
     }
-  }, []);
+  }, [feedLimit]);
 
   const loadPosts = useCallback(async () => {
     setLoadingPosts(true);
@@ -385,7 +386,7 @@ export default function HomeScreen() {
         .from('posts')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(feedLimit);
 
       if (error) {
         console.error('Postlar yüklenemedi:', error);
@@ -554,7 +555,7 @@ export default function HomeScreen() {
         ...remoteQuotePosts,
       ]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 60);
+        .slice(0, feedLimit * 2);
 
       setPosts(allFeedItems);
     } catch (error) {
@@ -562,7 +563,7 @@ export default function HomeScreen() {
     } finally {
       setLoadingPosts(false);
     }
-  }, []);
+  }, [feedLimit]);
 
   const loadStories = useCallback(async () => {
     setLoadingStories(true);
@@ -1376,6 +1377,17 @@ export default function HomeScreen() {
           })
         )}
 
+        {visiblePosts.length >= feedLimit ? (
+          <Pressable
+            onPress={() => setFeedLimit((current) => current + 30)}
+            style={styles.loadMoreButton}
+            accessibilityRole="button"
+            accessibilityLabel="Daha fazla içerik yükle"
+          >
+            <Text style={styles.loadMoreText}>Daha fazla göster</Text>
+          </Pressable>
+        ) : null}
+
         {visiblePosts.length < 6 && <ReadersList limit={10} />}
 
         {loading ? <Text style={styles.info}>Paylaşımlar yükleniyor...</Text> : reviews.length > 0 && posts.length === 0 && feedTab === 'for-you' && !social.error ? (
@@ -1520,6 +1532,8 @@ const baseStyles = StyleSheet.create({
   storySwipeHint: { height: 34, alignItems: 'center', justifyContent: 'flex-end' },
   storySwipeHandle: { width: 34, height: 4, borderRadius: 3, backgroundColor: '#4A4A52', marginBottom: 4 },
   storySwipeText: { color: '#66666F', fontSize: 9 },
+  loadMoreButton: { alignSelf: 'center', marginTop: 8, marginBottom: 18, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: '#21182F', borderWidth: 1, borderColor: '#38284D' },
+  loadMoreText: { color: '#A985FF', fontSize: 13, fontWeight: '800' },
   sectionHeader: { marginTop: 25, marginBottom: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', maxWidth: '100%', minWidth: 0 },
   sectionTitle: { fontSize: 19, fontWeight: '800', color: '#F2F3F5', letterSpacing: -0.2, flexShrink: 1, minWidth: 0 },
   storySection: { marginTop: 8 },
