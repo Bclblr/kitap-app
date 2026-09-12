@@ -1,13 +1,21 @@
-import { useThemedStyles } from '@/theme/use-themed-styles';
-import { permanentImageUrl } from '@/lib/image-policy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Image from '@/components/SafeImage';
 import { getCurrentAdminAccess } from '@/lib/admin';
+import { permanentImageUrl } from '@/lib/image-policy';
+import { supabase } from '@/lib/supabase';
+import { useThemedStyles } from '@/theme/use-themed-styles';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import Image from '@/components/SafeImage';
-
-import { supabase } from '@/lib/supabase';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 type Profile = {
   id: string;
@@ -79,7 +87,7 @@ export default function ProfileSettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadProfile();
+      void loadProfile();
     }, [loadProfile])
   );
 
@@ -93,21 +101,20 @@ export default function ProfileSettingsScreen() {
     }
 
     const merged = { ...profile, ...next };
+    const nextUsername = username.trim() || merged.username || 'Kitap Okuru';
 
-    const { error } = await supabase
-      .from('profiles')
-      .upsert(
-        {
-          id: user.id,
-          username: username.trim() || merged.username || 'Kitap Okuru',
-          full_name: fullName.trim(),
-          bio: bio.trim(),
-          profile_image: permanentImageUrl(merged.profileImage),
-          cover_image: permanentImageUrl(merged.coverImage),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' }
-      );
+    const { error } = await supabase.from('profiles').upsert(
+      {
+        id: user.id,
+        username: nextUsername,
+        full_name: fullName.trim(),
+        bio: bio.trim(),
+        profile_image: permanentImageUrl(merged.profileImage),
+        cover_image: permanentImageUrl(merged.coverImage),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' }
+    );
 
     if (error) {
       console.error('Profil kaydedilemedi:', error);
@@ -117,7 +124,7 @@ export default function ProfileSettingsScreen() {
 
     setProfile({
       ...merged,
-      username: username.trim() || merged.username || 'Kitap Okuru',
+      username: nextUsername,
       fullName: fullName.trim(),
       bio: bio.trim(),
     });
@@ -134,12 +141,10 @@ export default function ProfileSettingsScreen() {
     const arrayBuffer = await response.arrayBuffer();
     const filePath = `${user.id}/${type}.jpg`;
 
-    const { error } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, arrayBuffer, {
-        contentType: 'image/jpeg',
-        upsert: true,
-      });
+    const { error } = await supabase.storage.from('avatars').upload(filePath, arrayBuffer, {
+      contentType: 'image/jpeg',
+      upsert: true,
+    });
 
     if (error) {
       console.error('Fotoğraf yüklenemedi:', error);
@@ -171,11 +176,7 @@ export default function ProfileSettingsScreen() {
     const url = await uploadImage(result.assets[0].uri, type);
     if (!url) return;
 
-    const next =
-      type === 'profile'
-        ? { profileImage: url }
-        : { coverImage: url };
-
+    const next = type === 'profile' ? { profileImage: url } : { coverImage: url };
     setProfile((old) => ({ ...old, ...next }));
     await saveProfile(next);
   }
@@ -204,14 +205,25 @@ export default function ProfileSettingsScreen() {
   function confirmDeleteAccount() {
     Alert.alert(
       'Hesabı kalıcı olarak sil',
-      'Bu işlem geri alınamaz. Profilin ve hesabına bağlı veriler silinir.',
+      'Profilin, içeriklerin ve hesabına bağlı veriler silinecek. Bu işlem geri alınamaz.',
       [
         { text: 'Vazgeç', style: 'cancel' },
         {
-          text: 'Hesabımı Sil',
+          text: 'Devam Et',
           style: 'destructive',
           onPress: () => {
-            void deleteAccount();
+            Alert.alert(
+              'Son onay',
+              'Hesabını ve verilerini kalıcı olarak silmek istediğinden emin misin?',
+              [
+                { text: 'Vazgeç', style: 'cancel' },
+                {
+                  text: 'Kalıcı Olarak Sil',
+                  style: 'destructive',
+                  onPress: () => void deleteAccount(),
+                },
+              ]
+            );
           },
         },
       ]
@@ -220,27 +232,40 @@ export default function ProfileSettingsScreen() {
 
   async function deleteAccount() {
     setSaving(true);
+
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) {
+        await AsyncStorage.clear();
         router.replace('/login');
         return;
       }
 
-      const { error } = await supabase.rpc('delete_my_account');
+      const { error } = await supabase.functions.invoke('delete-account', {
+        body: {},
+      });
+
       if (error) {
         console.error('Hesap silinemedi:', error);
-        Alert.alert('Hesap silinemedi', 'İşlem tamamlanamadı. Lütfen tekrar dene.');
+        Alert.alert(
+          'Hesap silinemedi',
+          'Hesap veya bağlı dosyalar güvenli şekilde silinemedi. Hiçbir işlem yarım bırakılmadı; lütfen tekrar dene.'
+        );
         return;
       }
 
-      await supabase.auth.signOut().catch(() => undefined);
-      Alert.alert('Hesap silindi', 'Hesabın kalıcı olarak silindi.', [
-        { text: 'Tamam', onPress: () => router.replace('/login') },
-      ]);
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // Auth user has already been deleted server-side; local cleanup below is authoritative.
+      }
+
+      await AsyncStorage.clear();
+      router.replace('/login');
+      Alert.alert('Hesap silindi', 'Hesabın ve hesabına bağlı veriler kalıcı olarak silindi.');
     } catch (error) {
       console.error('Hesap silme hatası:', error);
-      Alert.alert('Hata', 'Hesap silinirken bir hata oluştu.');
+      Alert.alert('Hata', 'Hesap silinirken bir hata oluştu. Lütfen tekrar dene.');
     } finally {
       setSaving(false);
     }
@@ -248,10 +273,7 @@ export default function ProfileSettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Text style={styles.backText}>‹</Text>
@@ -260,7 +282,7 @@ export default function ProfileSettingsScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
-        <Pressable onPress={() => pickImage('cover')} style={styles.coverBox}>
+        <Pressable onPress={() => void pickImage('cover')} style={styles.coverBox} disabled={saving}>
           {profile.coverImage ? (
             <Image source={{ uri: profile.coverImage }} style={styles.coverImage} />
           ) : (
@@ -273,7 +295,7 @@ export default function ProfileSettingsScreen() {
           </View>
         </Pressable>
 
-        <Pressable onPress={() => pickImage('profile')} style={styles.avatarButton}>
+        <Pressable onPress={() => void pickImage('profile')} style={styles.avatarButton} disabled={saving}>
           {profile.profileImage ? (
             <Image source={{ uri: profile.profileImage }} style={styles.avatar} />
           ) : (
@@ -295,6 +317,7 @@ export default function ProfileSettingsScreen() {
             placeholder="Adın ve soyadın"
             placeholderTextColor="#74747E"
             maxLength={60}
+            editable={!saving}
           />
 
           <Text style={styles.label}>Kullanıcı adı</Text>
@@ -305,6 +328,7 @@ export default function ProfileSettingsScreen() {
             placeholder="Kullanıcı adın"
             placeholderTextColor="#74747E"
             maxLength={30}
+            editable={!saving}
           />
 
           <Text style={styles.label}>Hakkında</Text>
@@ -316,48 +340,51 @@ export default function ProfileSettingsScreen() {
             placeholderTextColor="#74747E"
             multiline
             maxLength={150}
+            editable={!saving}
           />
 
-          <Pressable onPress={handleSave} disabled={saving} style={styles.saveButton}>
+          <Pressable onPress={() => void handleSave()} disabled={saving} style={styles.saveButton}>
             <Text style={styles.saveButtonText}>
-              {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+              {saving ? 'İşlem yapılıyor...' : 'Değişiklikleri Kaydet'}
             </Text>
           </Pressable>
         </View>
 
-        <Pressable onPress={() => router.push('/blocked-users')} style={styles.adminButton}>
+        <Pressable onPress={() => router.push('/blocked-users')} style={styles.adminButton} disabled={saving}>
           <Text style={styles.adminButtonText}>🚫 Engellenen Kullanıcılar</Text>
           <Text style={styles.adminButtonArrow}>›</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push('/notification-settings')} style={styles.adminButton}>
+        <Pressable onPress={() => router.push('/notification-settings')} style={styles.adminButton} disabled={saving}>
           <Text style={styles.adminButtonText}>🔔 Bildirim Ayarları</Text>
           <Text style={styles.adminButtonArrow}>›</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push('/privacy-data')} style={styles.adminButton}>
+        <Pressable onPress={() => router.push('/privacy-data')} style={styles.adminButton} disabled={saving}>
           <Text style={styles.adminButtonText}>🔐 Gizlilik ve Verilerim</Text>
           <Text style={styles.adminButtonArrow}>›</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push('/privacy-settings')} style={styles.adminButton}>
+        <Pressable onPress={() => router.push('/privacy-settings')} style={styles.adminButton} disabled={saving}>
           <Text style={styles.adminButtonText}>👁 Profil Gizliliği</Text>
           <Text style={styles.adminButtonArrow}>›</Text>
         </Pressable>
 
         {canOpenAdmin ? (
-          <Pressable onPress={() => router.push('/admin')} style={styles.adminButton}>
+          <Pressable onPress={() => router.push('/admin')} style={styles.adminButton} disabled={saving}>
             <Text style={styles.adminButtonText}>🛡 Yönetim Paneli</Text>
             <Text style={styles.adminButtonArrow}>›</Text>
           </Pressable>
         ) : null}
 
-        <Pressable onPress={handleLogout} style={styles.logoutButton}>
+        <Pressable onPress={() => void handleLogout()} style={styles.logoutButton} disabled={saving}>
           <Text style={styles.logoutText}>Çıkış Yap</Text>
         </Pressable>
 
         <Pressable onPress={confirmDeleteAccount} disabled={saving} style={styles.deleteAccountButton}>
-          <Text style={styles.deleteAccountText}>Hesabımı Kalıcı Olarak Sil</Text>
+          <Text style={styles.deleteAccountText}>
+            {saving ? 'İşlem yapılıyor...' : 'Hesabımı Kalıcı Olarak Sil'}
+          </Text>
         </Pressable>
       </ScrollView>
     </View>
