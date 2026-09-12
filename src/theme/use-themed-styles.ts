@@ -24,14 +24,32 @@ export function lightColor(value: string, property: string, colors: AppColors) {
   }
   return value;
 }
+
 export function useThemedStyles<T extends Record<string, object>>(base: T): T {
   const { scheme, colors } = useAppTheme();
   return useMemo(() => {
     if (scheme === 'dark') return base;
+
     return Object.fromEntries(Object.entries(base).map(([name, style]) => {
       // Image/story overlays and outgoing bubbles retain intentional contrast.
       if (/story|splash|myMessage|readStatus|saveButtonText|primarySmallText|sendButtonText/i.test(name)) return [name, style];
-      return [name, Object.fromEntries(Object.entries(style).map(([key,value]) => [key, typeof value === 'string' && /color$/i.test(key) ? lightColor(value,key,colors) : value]))];
+
+      const themedStyle = Object.fromEntries(
+        Object.entries(style).map(([key, value]) => [
+          key,
+          typeof value === 'string' && /color$/i.test(key)
+            ? lightColor(value, key, colors)
+            : value,
+        ])
+      );
+
+      // Web'de aydınlık modda 900 ağırlık keşfet başlıklarını gereğinden fazla kalın gösteriyor.
+      // Karanlık moda dokunmadan, eski daha dengeli görünümü yalnızca bu başlıklarda koru.
+      if (/^(resultTitle|discoveryCardTitle)$/.test(name) && themedStyle.fontWeight === '900') {
+        themedStyle.fontWeight = '800';
+      }
+
+      return [name, themedStyle];
     })) as T;
   }, [base, scheme, colors]);
 }
