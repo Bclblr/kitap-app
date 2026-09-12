@@ -1,4 +1,5 @@
 import { useThemedStyles } from '@/theme/use-themed-styles';
+import HashtagText from '@/components/HashtagText';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, View as SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -833,7 +834,7 @@ export default function HashtagScreen() {
           </View>
         </View>
 
-        {item.text ? <Text style={styles.bodyText}>{item.text}</Text> : null}
+        {item.text ? <HashtagText text={item.text} style={styles.bodyText} /> : null}
 
         {item.image_url ? (
           <Image
@@ -956,7 +957,7 @@ export default function HashtagScreen() {
                       <Text style={styles.commentUsername} numberOfLines={1}>
                         @{comment.username}
                       </Text>
-                      <Text style={styles.commentContent}>{comment.text}</Text>
+                      <HashtagText text={comment.text} style={styles.commentContent} />
                     </View>
                     {comment.user_id === currentUserId ? (
                       <Pressable
