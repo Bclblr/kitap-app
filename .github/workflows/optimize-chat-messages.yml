@@ -1,0 +1,33 @@
+name: Optimize chat messages
+on:
+  push:
+    paths:
+      - 'scripts/optimize-chat-messages.cjs'
+      - '.github/workflows/optimize-chat-messages.yml'
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply chat optimizations
+        run: node scripts/optimize-chat-messages.cjs
+      - run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Route audit
+        run: npm run audit:routes
+      - name: Reader security tests
+        run: npm run test:security
+      - name: Commit changes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/app/chat.tsx
+          git diff --cached --quiet || git commit -m 'Optimize chat loading and read state'
+          git push
