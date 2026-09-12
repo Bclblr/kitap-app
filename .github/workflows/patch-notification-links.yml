@@ -31,10 +31,18 @@ jobs:
           if old in s:
               s=s.replace(old,new,1)
           old2="""      if (notification.source === 'admin' && notification.action_route) {\n        router.push(notification.action_route as never);\n      }\n"""
-          new2="""      openNotificationTarget(notification);\n"""
           if old2 in s:
-              s=s.replace(old2,new2,1)
+              s=s.replace(old2,"      openNotificationTarget(notification);\n",1)
           p.write_text(s)
+
+          c=Path('src/app/content.tsx')
+          t=c.read_text()
+          t=t.replace("import BookCover from '@/components/BookCover';\n",'')
+          old_cover="""                <BookCover book={{ key: content.book_key, title: content.book_title }} style={styles.cover} />"""
+          new_cover="""                <View style={styles.cover}><Feather name=\"book-open\" size={24} color={colors.primary} /></View>"""
+          if old_cover in t:
+              t=t.replace(old_cover,new_cover,1)
+          c.write_text(t)
           PY
       - run: npm ci
       - name: Verify TypeScript
@@ -47,7 +55,7 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/app/notifications.tsx
+          git add src/app/notifications.tsx src/app/content.tsx
           git commit -m "Add notification content deep links" || true
           git rm .github/workflows/patch-notification-links.yml
           git commit -m "Remove temporary notification patch workflow" || true
