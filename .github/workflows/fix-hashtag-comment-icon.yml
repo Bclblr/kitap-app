@@ -19,6 +19,7 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           path = Path('src/app/hashtag.tsx')
           text = path.read_text(encoding='utf-8')
@@ -30,19 +31,20 @@ jobs:
                   raise SystemExit('HashtagText import anchor not found')
               text = text.replace(import_anchor, import_anchor + import_line, 1)
 
-          old = '''            <Text style={[styles.actionIcon, commentPanelOpen && styles.commentActive]}>
-              ◯
-            </Text>'''
-          new = '''            <Feather
+          pattern = re.compile(
+              r'<Text\s+style=\{\[styles\.actionIcon,\s*commentPanelOpen\s*&&\s*styles\.commentActive\]\}>\s*◯\s*</Text>',
+              re.S,
+          )
+          replacement = '''<Feather
               name="message-circle"
               size={18}
               color={commentPanelOpen ? '#A985FF' : '#858792'}
             />'''
 
-          if old not in text:
-              raise SystemExit('Comment icon anchor not found')
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'Comment icon anchor not found or ambiguous: {count}')
 
-          text = text.replace(old, new, 1)
           path.write_text(text, encoding='utf-8')
 
       - name: Commit changes
