@@ -465,36 +465,6 @@ export default function HomeScreen() {
         isReview: true,
       }));
 
-      const savedQuotes = await AsyncStorage.getItem('quotes');
-      const parsedQuotes: Quote[] = savedQuotes ? JSON.parse(savedQuotes) : [];
-      console.log('ANA SAYFA QUOTES:', parsedQuotes);
-
-      const quotePosts: Post[] = parsedQuotes.map((quote) => ({
-        id: `quote-${quote.id}`,
-        user_id: null,
-        username: currentProfile?.username || CURRENT_USERNAME,
-        profile_image: currentProfile?.profile_image ?? null,
-        text: quote.text,
-        image_url: null,
-        coverUrl: quote.coverUrl,
-        cover_url: quote.cover_url,
-        cover_i: quote.cover_i,
-        covers: quote.covers,
-        isbn: quote.isbn,
-        edition_key: quote.edition_key,
-        book_key: quote.bookKey,
-        book_title: quote.bookTitle,
-        rating: 0,
-        created_at: quote.createdAt,
-        saved: false,
-        likes: 0,
-        liked: false,
-        comments: [],
-        reposts: 0,
-        reposted: false,
-        isQuote: true,
-      }));
-
       const remoteQuotes = await supabase
         .from('quotes')
         .select('id,user_id,book_key,book_title,text,created_at')
@@ -521,7 +491,6 @@ export default function HomeScreen() {
         ...preparedPosts,
         ...reviewPosts,
         ...remoteQuotePosts,
-        ...quotePosts.filter(quote => !remoteQuotePosts.some(remote => remote.id === quote.id)),
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       console.log('ANA SAYFA TÜM AKIŞ:', allFeedItems);
