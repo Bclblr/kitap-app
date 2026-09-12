@@ -47,7 +47,7 @@ const EMPTY_COUNTS: DashboardCounts = {
 };
 
 const MODULES: AdminModule[] = [
-  { key: 'users', title: 'Kullanıcılar', subtitle: 'Hesaplar, roller, rozetler ve yaptırımlar', icon: 'users', minimumRole: 'admin' },
+  { key: 'users', title: 'Kullanıcılar', subtitle: 'Hesaplar, roller, rozetler ve yaptırımlar', icon: 'users', route: '/admin-users', minimumRole: 'admin' },
   { key: 'content', title: 'İçerikler', subtitle: 'Gönderi, inceleme, alıntı ve yorum yönetimi', icon: 'file-text' },
   { key: 'reports', title: 'Moderasyon', subtitle: 'Şikâyetler, spam ve kullanıcı raporları', icon: 'shield' },
   { key: 'hashtags', title: 'Hashtagler', subtitle: 'Trend, engelleme ve öne çıkarma', icon: 'hash' },
@@ -244,7 +244,7 @@ export default function AdminScreen() {
         </View>
 
         <Text style={styles.footerNote}>
-          İlk sürümde yetki kontrolü ve temel dashboard hazır. Yönetim modülleri bundan sonra tek tek bu panele bağlanacak.
+          Yetki kontrolü ve temel dashboard hazır. Kullanıcı yönetimi artık aktif; diğer yönetim modülleri sırayla panele bağlanacak.
         </Text>
       </ScrollView>
     </View>
