@@ -25,6 +25,10 @@ jobs:
           new = "create table auth.users(id uuid primary key, created_at timestamptz not null default now());"
           if old in s:
               s = s.replace(old, new, 1)
+          old_storage = "create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text);"
+          new_storage = "create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,owner_id uuid,metadata jsonb default '{}'::jsonb,created_at timestamptz default now(),updated_at timestamptz default now(),last_accessed_at timestamptz default now());"
+          if old_storage in s:
+              s = s.replace(old_storage, new_storage, 1)
           anchor = "insert into auth.users values('${A}'),('${B}'),('${C}');\n"
           lines = [
               "create table public.profiles(id uuid primary key references auth.users(id) on delete cascade,username text,full_name text,bio text default '',profile_image text,cover_image text,created_at timestamptz default now(),updated_at timestamptz default now());",
