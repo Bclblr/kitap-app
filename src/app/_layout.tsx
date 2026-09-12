@@ -26,7 +26,7 @@ function GuardedLayout() {
       <Stack.Screen name="profile" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="review" />
-      {['book','chat','community','community-editor','event','event-attendees','hashtag','messages','my-works','profile-settings','quote-create','read','readers','work','work-editor'].map(name => <Stack.Screen key={name} name={name} />)}
+      {['book','chat','community','community-editor','event','event-editor','event-attendees','hashtag','messages','my-works','profile-settings','quote-create','read','readers','work','work-editor'].map(name => <Stack.Screen key={name} name={name} />)}
       </Stack.Protected>
       <Stack.Screen name="auth/callback" />
     </Stack>
