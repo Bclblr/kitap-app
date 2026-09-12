@@ -71,6 +71,19 @@ export default function NotificationsScreen() {
         return;
       }
 
+      const preferenceResult = await supabase
+        .from('notification_preferences')
+        .select('likes_enabled, comments_enabled, reposts_enabled, system_enabled')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const preferences = {
+        likes_enabled: preferenceResult.data?.likes_enabled ?? true,
+        comments_enabled: preferenceResult.data?.comments_enabled ?? true,
+        reposts_enabled: preferenceResult.data?.reposts_enabled ?? true,
+        system_enabled: preferenceResult.data?.system_enabled ?? true,
+      };
+
       const [interactionResult, adminResult] = await Promise.all([
         supabase
           .from('notifications')
@@ -101,8 +114,14 @@ export default function NotificationsScreen() {
         console.error('Yönetim bildirimleri yüklenemedi:', adminResult.error);
       }
 
-      const interactions: InteractionNotification[] = (interactionResult.data ?? []).map(
-        (notification: any) => ({
+      const interactions: InteractionNotification[] = (interactionResult.data ?? [])
+        .filter((notification: any) => {
+          if (notification.type === 'like') return preferences.likes_enabled;
+          if (notification.type === 'comment') return preferences.comments_enabled;
+          if (notification.type === 'repost') return preferences.reposts_enabled;
+          return true;
+        })
+        .map((notification: any) => ({
           source: 'interaction',
           id: String(notification.id),
           user_id: String(notification.user_id),
@@ -121,7 +140,8 @@ export default function NotificationsScreen() {
         })
       );
 
-      const adminNotifications: AdminNotification[] = (adminResult.data ?? []).map(
+      const adminNotifications: AdminNotification[] = preferences.system_enabled
+        ? (adminResult.data ?? []).map(
         (notification: any) => ({
           source: 'admin',
           id: String(notification.id),
@@ -134,7 +154,8 @@ export default function NotificationsScreen() {
           created_at: String(notification.created_at ?? ''),
           read: notification.read === true,
         })
-      );
+      )
+        : [];
 
       setNotifications(
         [...interactions, ...adminNotifications].sort(

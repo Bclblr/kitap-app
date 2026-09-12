@@ -330,6 +330,11 @@ export default function ProfileSettingsScreen() {
           <Text style={styles.adminButtonArrow}>›</Text>
         </Pressable>
 
+        <Pressable onPress={() => router.push('/notification-settings')} style={styles.adminButton}>
+          <Text style={styles.adminButtonText}>🔔 Bildirim Ayarları</Text>
+          <Text style={styles.adminButtonArrow}>›</Text>
+        </Pressable>
+
         {canOpenAdmin ? (
           <Pressable onPress={() => router.push('/admin')} style={styles.adminButton}>
             <Text style={styles.adminButtonText}>🛡 Yönetim Paneli</Text>
