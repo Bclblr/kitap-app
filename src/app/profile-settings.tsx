@@ -1,5 +1,6 @@
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { permanentImageUrl } from '@/lib/image-policy';
+import { getCurrentAdminAccess } from '@/lib/admin';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -34,6 +35,7 @@ export default function ProfileSettingsScreen() {
   const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
   const [saving, setSaving] = useState(false);
+  const [canOpenAdmin, setCanOpenAdmin] = useState(false);
 
   const loadProfile = useCallback(async () => {
     const { data: authData } = await supabase.auth.getUser();
@@ -44,11 +46,16 @@ export default function ProfileSettingsScreen() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, username, full_name, bio, profile_image, cover_image')
-      .eq('id', user.id)
-      .maybeSingle();
+    const [{ data, error }, adminAccess] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, username, full_name, bio, profile_image, cover_image')
+        .eq('id', user.id)
+        .maybeSingle(),
+      getCurrentAdminAccess(),
+    ]);
+
+    setCanOpenAdmin(adminAccess.canOpenAdmin);
 
     if (error) {
       console.error('Profil ayarları yüklenemedi:', error);
@@ -273,6 +280,13 @@ export default function ProfileSettingsScreen() {
           </Pressable>
         </View>
 
+        {canOpenAdmin ? (
+          <Pressable onPress={() => router.push('/admin')} style={styles.adminButton}>
+            <Text style={styles.adminButtonText}>🛡 Yönetim Paneli</Text>
+            <Text style={styles.adminButtonArrow}>›</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable onPress={handleLogout} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Çıkış Yap</Text>
         </Pressable>
@@ -432,9 +446,32 @@ const baseStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
   },
+  adminButton: {
+    marginTop: 30,
+    marginHorizontal: 20,
+    minHeight: 58,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1D1728',
+    borderWidth: 1,
+    borderColor: '#4A3569',
+  },
+  adminButtonText: {
+    color: '#C7B3FF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  adminButtonArrow: {
+    color: '#A985FF',
+    fontSize: 28,
+    lineHeight: 30,
+  },
   logoutButton: {
     alignSelf: 'center',
-    marginTop: 48,
+    marginTop: 32,
     paddingHorizontal: 28,
     paddingVertical: 13,
     borderRadius: 22,
