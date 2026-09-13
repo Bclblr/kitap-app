@@ -1,9 +1,11 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +24,8 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
+  const usernameRef = useRef<TextInput>(null);
+  const bioRef = useRef<TextInput>(null);
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
@@ -163,11 +167,17 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+    >
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         <View style={styles.heroIcon} accessible={false}>
           <Feather name="book-open" size={30} color={colors.primary} />
@@ -189,6 +199,9 @@ export default function OnboardingScreen() {
             placeholderTextColor="#6E6E7A"
             style={styles.input}
             maxLength={60}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            onSubmitEditing={() => usernameRef.current?.focus()}
             accessibilityLabel="Ad veya görünen ad"
             accessibilityHint="Profilinde görünecek adını yazabilirsin. Bu alan isteğe bağlıdır."
           />
@@ -200,6 +213,7 @@ export default function OnboardingScreen() {
           <Text style={styles.cardDescription}>Kullanıcı adını kontrol et ve istersen kendinden kısaca bahset.</Text>
           <Text style={styles.fieldLabel}>Kullanıcı adı</Text>
           <TextInput
+            ref={usernameRef}
             value={username}
             onChangeText={setUsername}
             placeholder="kullaniciadi"
@@ -208,11 +222,15 @@ export default function OnboardingScreen() {
             autoCorrect={false}
             style={styles.input}
             maxLength={30}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            onSubmitEditing={() => bioRef.current?.focus()}
             accessibilityLabel="Kullanıcı adı"
             accessibilityHint="Üç ile otuz karakter arasında bir kullanıcı adı gir."
           />
           <Text style={styles.fieldLabel}>Hakkında</Text>
           <TextInput
+            ref={bioRef}
             value={bio}
             onChangeText={setBio}
             placeholder="Kitap zevkinden veya okumayı sevdiğin türlerden bahset…"
@@ -220,6 +238,7 @@ export default function OnboardingScreen() {
             multiline
             style={[styles.input, styles.bioInput]}
             maxLength={150}
+            returnKeyType="default"
             accessibilityLabel="Hakkında"
             accessibilityHint="Profilinde görünecek kısa açıklamayı yazabilirsin."
           />
@@ -282,7 +301,7 @@ export default function OnboardingScreen() {
           <Text style={styles.skipText}>Şimdilik geç</Text>
         </Pressable>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
