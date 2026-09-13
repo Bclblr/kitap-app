@@ -178,7 +178,7 @@ export default function RegisterScreen() {
           <View style={styles.logoMark}>
             <Feather name="user-plus" size={28} color="#A985FF" />
           </View>
-          <Text style={styles.brandTitle}>1000<Text style={styles.brandAccent}>Kitap</Text></Text>
+          <Text style={styles.brandTitle}><Text style={styles.brandAccent}>Kitap</Text></Text>
           <Text style={styles.brandSubtitle}>Okuyanların topluluğuna katıl.</Text>
         </View>
 
