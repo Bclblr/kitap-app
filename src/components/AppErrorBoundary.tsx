@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import AppErrorState from '@/components/AppErrorState';
+import { reportAppError } from '@/lib/error-monitoring';
 
 type Props = {
   children: ReactNode;
@@ -18,6 +19,10 @@ export default class AppErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Uygulama arayüz hatası:', error, info.componentStack);
+    void reportAppError(error, {
+      kind: 'react_boundary',
+      componentStack: info.componentStack,
+    });
   }
 
   reset = () => {
