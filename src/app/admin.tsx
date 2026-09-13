@@ -12,6 +12,7 @@ type AdminModule={key:string;title:string;subtitle:string;icon:keyof typeof Feat
 const EMPTY_COUNTS:DashboardCounts={users:null,posts:null,reviews:null,quotes:null,comments:null,communities:null,events:null,pendingReports:null};
 const MODULES:AdminModule[]=[
 {key:'users',title:'Kullanıcılar',subtitle:'Hesaplar, roller, rozetler ve yaptırımlar',icon:'users',route:'/admin-users',minimumRole:'admin'},
+{key:'premium',title:'Premium Yönetimi',subtitle:'Premium durumları, ücretli abonelikler ve admin hediyeleri',icon:'star',route:'/admin-premium',minimumRole:'admin'},
 {key:'content',title:'İçerikler',subtitle:'Gönderi, inceleme, alıntı ve yorum yönetimi',icon:'file-text',route:'/admin-content'},
 {key:'reports',title:'Moderasyon',subtitle:'Şikâyetler, spam ve kullanıcı raporları',icon:'shield',route:'/admin-moderation'},
 {key:'hashtags',title:'Hashtagler',subtitle:'Trend, engelleme ve öne çıkarma',icon:'hash',route:'/admin-hashtags'},
