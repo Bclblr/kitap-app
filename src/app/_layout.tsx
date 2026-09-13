@@ -64,7 +64,7 @@ function GuardedLayout() {
 
   useEffect(() => {
     if (loading || !ready || !session || !onboardingPending) return;
-    if (segments[0] === 'onboarding') return;
+    if (segments[0] === 'onboarding' || segments[0] === 'account-deletion') return;
     router.replace('/onboarding');
   }, [loading, onboardingPending, ready, router, segments, session]);
 
@@ -91,11 +91,11 @@ function GuardedLayout() {
             <Stack.Screen name="register" />
           </Stack.Protected>
 
-          {/* Recovery routes must stay reachable while logged out, and reset-password
-              must also survive the temporary recovery session created by Supabase. */}
+          {/* Public account lifecycle routes must remain reachable from the web. */}
           <Stack.Screen name="forgot-password" />
           <Stack.Screen name="reset-password" />
           <Stack.Screen name="verify-email" />
+          <Stack.Screen name="account-deletion" />
 
           <Stack.Protected guard={!!session}>
             <Stack.Screen name="index" />
