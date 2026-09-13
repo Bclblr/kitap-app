@@ -1,4 +1,4 @@
-import { PropsWithChildren, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { PropsWithChildren, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SUPABASE_URL } from '@/lib/supabase';
@@ -43,13 +43,21 @@ export function NetworkProvider({ children }: PropsWithChildren) {
   const [isOnline, setIsOnline] = useState(true);
   const [checking, setChecking] = useState(false);
   const [retrySignal, setRetrySignal] = useState(0);
+  const wasOfflineRef = useRef(false);
 
   const checkNow = useCallback(async () => {
     setChecking(true);
     const nextOnline = await canReachBackend();
+    const reconnected = nextOnline && wasOfflineRef.current;
+
+    wasOfflineRef.current = !nextOnline;
     setIsOnline(nextOnline);
     setChecking(false);
-    if (nextOnline) setRetrySignal((value) => value + 1);
+
+    if (reconnected) {
+      setRetrySignal((value) => value + 1);
+    }
+
     return nextOnline;
   }, []);
 
@@ -67,7 +75,10 @@ export function NetworkProvider({ children }: PropsWithChildren) {
         });
 
     const handleOnline = () => void checkNow();
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => {
+      wasOfflineRef.current = true;
+      setIsOnline(false);
+    };
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.addEventListener('online', handleOnline);
@@ -107,7 +118,7 @@ export function NetworkStatusBanner() {
       accessibilityRole="alert"
       style={[styles.banner, { backgroundColor: colors.surface, borderColor: colors.border }]}
     >
-      <Text style={[styles.message, { color: colors.text }]}>Bağlantı yok. Bazı içerikler güncellenmeyebilir.</Text>
+      <Text style={[styles.message, { color: colors.text }]}>Bağlantı yok. Açık içerikler görüntülenebilir; yeni işlemler bağlantı gelince yapılabilir.</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Bağlantıyı yeniden kontrol et"
@@ -146,7 +157,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
   },
   pressed: {
