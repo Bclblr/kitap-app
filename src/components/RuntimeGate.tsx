@@ -1,8 +1,16 @@
 import Constants from 'expo-constants';
 import { usePathname, useRouter } from 'expo-router';
-import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { getRuntimeControls, hasActiveRestriction, settingBoolean, settingString, type RuntimeControls } from '@/lib/runtime-controls';
+import { PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  getRuntimeControls,
+  hasActiveRestriction,
+  settingBoolean,
+  settingString,
+  subscribeRuntimeControlChanges,
+  type RuntimeControls,
+} from '@/lib/runtime-controls';
+import { useAuth } from '@/providers/AuthProvider';
 import { useAppTheme } from '@/providers/ThemeProvider';
 
 function versionParts(value: string) {
@@ -19,18 +27,54 @@ function isOlder(current: string, minimum: string) {
 
 export default function RuntimeGate({ children }: PropsWithChildren) {
   const { colors } = useAppTheme();
+  const { session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [controls, setControls] = useState<RuntimeControls | null>(null);
   const [loading, setLoading] = useState(true);
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestRef = useRef(0);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try { setControls(await getRuntimeControls()); }
-    finally { setLoading(false); }
+  const reload = useCallback(async (showLoading = false) => {
+    const requestId = ++requestRef.current;
+    if (showLoading) setLoading(true);
+    try {
+      const next = await getRuntimeControls();
+      if (requestId === requestRef.current) setControls(next);
+    } finally {
+      if (showLoading && requestId === requestRef.current) setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { void reload(); }, [reload]);
+  const scheduleReload = useCallback(() => {
+    if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+    reloadTimerRef.current = setTimeout(() => {
+      reloadTimerRef.current = null;
+      void reload(false);
+    }, 120);
+  }, [reload]);
+
+  useEffect(() => {
+    void reload(true);
+  }, [reload, session?.user?.id]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeRuntimeControlChanges(session?.user?.id, scheduleReload);
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') scheduleReload();
+    });
+    const interval = setInterval(scheduleReload, 60_000);
+
+    return () => {
+      unsubscribe();
+      appStateSubscription.remove();
+      clearInterval(interval);
+      if (reloadTimerRef.current) {
+        clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = null;
+      }
+    };
+  }, [scheduleReload, session?.user?.id]);
 
   if (loading || !controls) {
     return <View style={[styles.center,{ backgroundColor: colors.background }]}><ActivityIndicator color={colors.primary} /></View>;
@@ -58,7 +102,7 @@ export default function RuntimeGate({ children }: PropsWithChildren) {
     return <View style={[styles.center,{ backgroundColor: colors.background }]}>
       <Text style={[styles.blockTitle,{ color: colors.textPrimary }]}>{title}</Text>
       <Text style={[styles.blockBody,{ color: colors.textSecondary }]}>{body}</Text>
-      {registrationClosed ? <Pressable onPress={() => router.replace('/login')} style={[styles.button,{ backgroundColor: colors.primary }]}><Text style={styles.buttonText}>Giriş Ekranına Dön</Text></Pressable> : <Pressable onPress={() => void reload()} style={[styles.button,{ backgroundColor: colors.primary }]}><Text style={styles.buttonText}>Tekrar Kontrol Et</Text></Pressable>}
+      {registrationClosed ? <Pressable onPress={() => router.replace('/login')} style={[styles.button,{ backgroundColor: colors.primary }]}><Text style={styles.buttonText}>Giriş Ekranına Dön</Text></Pressable> : <Pressable onPress={() => void reload(false)} style={[styles.button,{ backgroundColor: colors.primary }]}><Text style={styles.buttonText}>Tekrar Kontrol Et</Text></Pressable>}
     </View>;
   }
 
