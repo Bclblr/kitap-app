@@ -3,10 +3,19 @@ import { Action, Field, ReaderScreen, useReaderStyles } from '@/components/Reade
 import { requirePermanentImage } from '@/lib/image-policy';
 import { getRuntimeControls, hasActiveRestriction, settingBoolean } from '@/lib/runtime-controls';
 import { supabase } from '@/lib/supabase';
+import DateTimePicker from '@expo/ui/community/datetime-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+
+type PickerMode = 'date' | 'time' | null;
+
+function createInitialEventDate() {
+  const value = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  value.setHours(19, 0, 0, 0);
+  return value;
+}
 
 export default function EventEditorScreen() {
   const router = useRouter();
@@ -15,7 +24,9 @@ export default function EventEditorScreen() {
   const [busy, setBusy] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ title: '', description: '', date: '', time: '', location: '', image_url: '' });
+  const [eventDate, setEventDate] = useState(createInitialEventDate);
+  const [pickerMode, setPickerMode] = useState<PickerMode>(null);
+  const [form, setForm] = useState({ title: '', description: '', location: '', image_url: '' });
 
   async function pickEventImage() {
     if (imageUploading || busy) return;
@@ -64,7 +75,7 @@ export default function EventEditorScreen() {
       if (upload.error) throw new Error('Etkinlik görseli yüklenemedi. Lütfen yeniden dene.');
 
       const publicUrl = supabase.storage.from('event-images').getPublicUrl(path).data.publicUrl;
-      setForm((current) => ({ ...current, image_url: requirePermanentImage(publicUrl) }));
+      setForm((current) => ({ ...current, image_url: requirePermanentImage(publicUrl) ?? '' }));
     } catch (e) {
       console.error('Event image upload error:', e);
       setError(e instanceof Error && e.message ? e.message : 'Etkinlik görseli yüklenemedi.');
@@ -73,14 +84,25 @@ export default function EventEditorScreen() {
     }
   }
 
+  function updatePickedDate(mode: Exclude<PickerMode, null>, selectedDate: Date) {
+    setEventDate((current) => {
+      const next = new Date(current);
+      if (mode === 'date') {
+        next.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      } else {
+        next.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
+      }
+      return next;
+    });
+
+    if (Platform.OS === 'android') setPickerMode(null);
+  }
+
   async function save() {
     if (lock.current || busy || imageUploading) return;
-    const title = form.title.trim(); const date = form.date.trim(); const time = form.time.trim();
+    const title = form.title.trim();
     if (!title) { setError('Etkinlik adı gerekli.'); return; }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { setError('Tarihi YYYY-AA-GG biçiminde yaz. Örnek: 2026-09-20'); return; }
-    if (!/^\d{2}:\d{2}$/.test(time)) { setError('Saati SS:DD biçiminde yaz. Örnek: 19:30'); return; }
-    const eventDate = new Date(`${date}T${time}:00`);
-    if (Number.isNaN(eventDate.getTime())) { setError('Geçerli bir tarih ve saat gir.'); return; }
+    if (Number.isNaN(eventDate.getTime())) { setError('Geçerli bir tarih ve saat seç.'); return; }
     if (eventDate.getTime() <= Date.now()) { setError('Etkinlik tarihi gelecekte olmalı.'); return; }
 
     lock.current = true; setBusy(true); setError('');
@@ -107,16 +129,75 @@ export default function EventEditorScreen() {
     } finally { lock.current = false; setBusy(false); }
   }
 
+  const dateLabel = eventDate.toLocaleDateString('tr-TR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+  const timeLabel = eventDate.toLocaleTimeString('tr-TR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
   return <ReaderScreen title="Etkinlik oluştur">
     {!!error && <Text style={ui.error}>{error}</Text>}
     <Field label="Etkinlik adı" maxLength={120} value={form.title} onChangeText={(title) => setForm((current) => ({ ...current, title }))} />
     <Field label="Açıklama" multiline value={form.description} onChangeText={(description) => setForm((current) => ({ ...current, description }))} />
-    <Field label="Tarih (YYYY-AA-GG)" placeholder="2026-09-20" value={form.date} onChangeText={(date) => setForm((current) => ({ ...current, date }))} />
-    <Field label="Saat (SS:DD)" placeholder="19:30" value={form.time} onChangeText={(time) => setForm((current) => ({ ...current, time }))} />
+
+    <View style={styles.dateTimeSection}>
+      <Text style={styles.inputLabel}>Tarih ve saat</Text>
+      <View style={styles.dateTimeRow}>
+        <Pressable
+          disabled={busy}
+          onPress={() => setPickerMode((current) => current === 'date' ? null : 'date')}
+          style={[styles.dateTimeButton, busy && styles.controlDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={`Etkinlik tarihini seç. Seçili tarih ${dateLabel}`}
+        >
+          <Text style={styles.dateTimeCaption}>Tarih</Text>
+          <Text style={styles.dateTimeValue}>{dateLabel}</Text>
+        </Pressable>
+        <Pressable
+          disabled={busy}
+          onPress={() => setPickerMode((current) => current === 'time' ? null : 'time')}
+          style={[styles.dateTimeButton, busy && styles.controlDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={`Etkinlik saatini seç. Seçili saat ${timeLabel}`}
+        >
+          <Text style={styles.dateTimeCaption}>Saat</Text>
+          <Text style={styles.dateTimeValue}>{timeLabel}</Text>
+        </Pressable>
+      </View>
+
+      {pickerMode && Platform.OS !== 'web' ? (
+        <View style={styles.pickerWrap}>
+          <DateTimePicker
+            value={eventDate}
+            mode={pickerMode}
+            minimumDate={pickerMode === 'date' ? new Date() : undefined}
+            is24Hour
+            locale="tr_TR"
+            presentation={Platform.OS === 'android' ? 'dialog' : 'inline'}
+            display={Platform.OS === 'ios' ? 'compact' : 'default'}
+            onValueChange={(_event, selectedDate) => updatePickedDate(pickerMode, selectedDate)}
+            onDismiss={() => setPickerMode(null)}
+          />
+          {Platform.OS === 'ios' ? (
+            <Pressable onPress={() => setPickerMode(null)} style={styles.pickerDoneButton}>
+              <Text style={styles.pickerDoneText}>Tamam</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+      {pickerMode && Platform.OS === 'web' ? (
+        <Text style={styles.webNotice}>Tarih ve saat seçimi mobil uygulamada sistem seçicisiyle yapılır.</Text>
+      ) : null}
+    </View>
+
     <Field label="Konum" placeholder="Kadıköy, İstanbul veya Online" value={form.location} onChangeText={(location) => setForm((current) => ({ ...current, location }))} />
 
     <View style={styles.imageSection}>
-      <Text style={styles.imageLabel}>Etkinlik görseli</Text>
+      <Text style={styles.inputLabel}>Etkinlik görseli</Text>
       {form.image_url ? (
         <Image source={{ uri: form.image_url }} style={styles.preview} />
       ) : (
@@ -127,7 +208,7 @@ export default function EventEditorScreen() {
       <Pressable
         disabled={busy || imageUploading}
         onPress={() => void pickEventImage()}
-        style={[styles.imageButton, (busy || imageUploading) && styles.imageButtonDisabled]}
+        style={[styles.imageButton, (busy || imageUploading) && styles.controlDisabled]}
         accessibilityRole="button"
         accessibilityLabel="Galeriden etkinlik görseli seç"
       >
@@ -146,18 +227,27 @@ export default function EventEditorScreen() {
       ) : null}
     </View>
 
-    <Action disabled={busy || imageUploading || !form.title.trim() || !form.date.trim() || !form.time.trim()} label={busy ? 'Oluşturuluyor…' : 'Etkinliği oluştur'} onPress={() => void save()} />
+    <Action disabled={busy || imageUploading || !form.title.trim()} label={busy ? 'Oluşturuluyor…' : 'Etkinliği oluştur'} onPress={() => void save()} />
   </ReaderScreen>;
 }
 
 const styles = StyleSheet.create({
+  inputLabel: { color: '#DADAE0', fontSize: 13, fontWeight: '700' },
+  dateTimeSection: { gap: 10, marginBottom: 14 },
+  dateTimeRow: { flexDirection: 'row', gap: 10 },
+  dateTimeButton: { flex: 1, minHeight: 66, borderRadius: 14, borderWidth: 1, borderColor: '#2D2E37', backgroundColor: '#111218', justifyContent: 'center', paddingHorizontal: 14 },
+  dateTimeCaption: { color: '#8E8F98', fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  dateTimeValue: { color: '#F5F5F7', fontSize: 14, fontWeight: '800' },
+  pickerWrap: { borderRadius: 16, borderWidth: 1, borderColor: '#2D2E37', backgroundColor: '#111218', padding: 10, overflow: 'hidden' },
+  pickerDoneButton: { alignSelf: 'flex-end', minHeight: 38, justifyContent: 'center', paddingHorizontal: 14 },
+  pickerDoneText: { color: '#B58AF6', fontSize: 13, fontWeight: '900' },
+  webNotice: { color: '#8E8F98', fontSize: 12, lineHeight: 18 },
   imageSection: { gap: 10, marginBottom: 14 },
-  imageLabel: { color: '#DADAE0', fontSize: 13, fontWeight: '700' },
   preview: { width: '100%', height: 180, borderRadius: 16, backgroundColor: '#17181F' },
   placeholder: { height: 110, borderRadius: 16, borderWidth: 1, borderColor: '#2D2E37', backgroundColor: '#111218', alignItems: 'center', justifyContent: 'center', padding: 18 },
   placeholderText: { color: '#8E8F98', fontSize: 13 },
   imageButton: { minHeight: 46, borderRadius: 13, backgroundColor: '#8058D9', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  imageButtonDisabled: { opacity: 0.5 },
+  controlDisabled: { opacity: 0.5 },
   imageButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   removeImageButton: { alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 12 },
   removeImageText: { color: '#D88A8A', fontSize: 12, fontWeight: '700' },
