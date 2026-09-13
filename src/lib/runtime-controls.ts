@@ -42,6 +42,42 @@ export async function getRuntimeControls(): Promise<RuntimeControls> {
   return { ...DEFAULT_CONTROLS, ...(data as RuntimeControls) };
 }
 
+export function subscribeRuntimeControlChanges(
+  userId: string | null | undefined,
+  onChange: () => void
+) {
+  const channel = supabase
+    .channel(`runtime-controls:${userId ?? 'anon'}:${Math.random().toString(36).slice(2)}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, onChange);
+
+  if (userId) {
+    channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'feature_flags' }, onChange)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_sanctions', filter: `user_id=eq.${userId}` },
+        onChange
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profile_admin_controls', filter: `user_id=eq.${userId}` },
+        onChange
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_roles', filter: `user_id=eq.${userId}` },
+        onChange
+      );
+  }
+
+  channel.subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
 export function settingBoolean(controls: RuntimeControls, key: string, fallback = true) {
   const value = controls.settings?.[key];
   return typeof value === 'boolean' ? value : fallback;
