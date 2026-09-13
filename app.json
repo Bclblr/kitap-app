@@ -38,6 +38,14 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kitap, profil ve paylaşım görsellerini seçebilmen için fotoğraflarına erişim gerekiyor.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-3940256099942544~3347511713",
