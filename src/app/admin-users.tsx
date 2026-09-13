@@ -196,6 +196,49 @@ export default function AdminUsersScreen() {
     [updatingId]
   );
 
+  const revokeVerification = useCallback(
+    (user: UserRow) => {
+      if (updatingId || !user.isVerified) return;
+
+      Alert.alert(
+        'Doğrulama rozeti kaldırılsın mı?',
+        'Bu işlem yalnızca doğrulanmış hesap rozetini kaldırır. Kullanıcının Premium durumu etkilenmez.',
+        [
+          { text: 'Vazgeç', style: 'cancel' },
+          {
+            text: 'Rozeti Kaldır',
+            style: 'destructive',
+            onPress: async () => {
+              setUpdatingId(user.id);
+              try {
+                const { error } = await supabase.rpc('admin_revoke_verification', {
+                  p_user_id: user.id,
+                  p_reason: 'Admin panelinden doğrulanmış hesap rozeti geri alındı',
+                });
+                if (error) throw error;
+
+                setUsers((current) =>
+                  current.map((item) => (item.id === user.id ? { ...item, isVerified: false } : item))
+                );
+
+                Alert.alert(
+                  'Rozet kaldırıldı',
+                  `${user.username || 'Kullanıcı'} artık doğrulanmış hesap rozeti kullanmıyor.`
+                );
+              } catch (error) {
+                console.error('Doğrulanmış hesap rozeti geri alınamadı:', error);
+                Alert.alert('Hata', 'Doğrulanmış hesap rozeti geri alınamadı. Supabase migration ve admin yetkisini kontrol et.');
+              } finally {
+                setUpdatingId(null);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [updatingId]
+  );
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -297,26 +340,43 @@ export default function AdminUsersScreen() {
                     </Text>
                   </View>
 
-                  <Pressable
-                    onPress={() => void grantVerification(user)}
-                    disabled={user.isVerified || updating || updatingId !== null}
-                    style={[
-                      styles.verifyButton,
-                      user.isVerified && styles.verifyButtonActive,
-                      (updating || (updatingId !== null && !updating)) && styles.verifyButtonDisabled,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısına doğrulanmış hesap rozeti ver`}
-                  >
-                    {updating ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Feather name={user.isVerified ? 'check-circle' : 'award'} size={16} color="#FFFFFF" />
-                    )}
-                    <Text style={styles.verifyButtonText}>
-                      {user.isVerified ? 'Doğrulandı' : 'Rozet Ver'}
-                    </Text>
-                  </Pressable>
+                  {user.isVerified ? (
+                    <Pressable
+                      onPress={() => revokeVerification(user)}
+                      disabled={updating || updatingId !== null}
+                      style={[
+                        styles.revokeVerifyButton,
+                        (updating || (updatingId !== null && !updating)) && styles.verifyButtonDisabled,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısının doğrulanmış hesap rozetini kaldır`}
+                    >
+                      {updating ? (
+                        <ActivityIndicator size="small" color="#FFB4BC" />
+                      ) : (
+                        <Feather name="x-circle" size={16} color="#FFB4BC" />
+                      )}
+                      <Text style={styles.revokeVerifyButtonText}>Rozeti Kaldır</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      onPress={() => void grantVerification(user)}
+                      disabled={updating || updatingId !== null}
+                      style={[
+                        styles.verifyButton,
+                        (updating || (updatingId !== null && !updating)) && styles.verifyButtonDisabled,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısına doğrulanmış hesap rozeti ver`}
+                    >
+                      {updating ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Feather name="award" size={16} color="#FFFFFF" />
+                      )}
+                      <Text style={styles.verifyButtonText}>Rozet Ver</Text>
+                    </Pressable>
+                  )}
                 </View>
 
                 {canManageAdmins ? (
@@ -390,7 +450,8 @@ const baseStyles = StyleSheet.create({
   verificationLabel: { color: '#747483', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
   verificationValue: { marginTop: 4, color: '#D4D4DC', fontSize: 12, fontWeight: '700' },
   verifyButton: { minHeight: 38, paddingHorizontal: 13, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#315FC5', borderWidth: 1, borderColor: '#527BE0' },
-  verifyButtonActive: { backgroundColor: '#285B46', borderColor: '#3D7F63' },
+  revokeVerifyButton: { minHeight: 38, paddingHorizontal: 13, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#281419', borderWidth: 1, borderColor: '#6E303A' },
+  revokeVerifyButtonText: { color: '#FFB4BC', fontSize: 11, fontWeight: '900' },
   verifyButtonDisabled: { opacity: 0.6 },
   verifyButtonText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 13, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#292934' },
