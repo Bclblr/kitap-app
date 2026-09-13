@@ -148,7 +148,7 @@ export default function LoginScreen() {
           <View style={styles.logoMark}>
             <Feather name="book-open" size={28} color="#A985FF" />
           </View>
-          <Text style={styles.brandTitle}>1000<Text style={styles.brandAccent}>Kitap</Text></Text>
+          <Text style={styles.brandTitle}>Kitap</Text>
           <Text style={styles.brandSubtitle}>Okuma dünyana yeniden dön.</Text>
         </View>
 
