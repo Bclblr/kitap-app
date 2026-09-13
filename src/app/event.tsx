@@ -1,3 +1,4 @@
+import AppLoadingState from '@/components/AppLoadingState';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -155,9 +156,7 @@ export default function EventScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} size="large" />
-        </View>
+        <AppLoadingState variant="card" label="Etkinlik yükleniyor" />
       </SafeAreaView>
     );
   }
