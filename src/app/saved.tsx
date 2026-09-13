@@ -115,6 +115,14 @@ export default function SavedScreen() {
     }, [loadSaved])
   );
 
+  function goBackSafely() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/');
+  }
+
   async function removeSavedPost(postId: string) {
     if (removingId) return;
     setRemovingId(`post:${postId}`);
@@ -180,7 +188,7 @@ export default function SavedScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.iconButton} accessibilityLabel="Geri">
+        <Pressable onPress={goBackSafely} style={styles.iconButton} accessibilityLabel="Geri">
           <Feather name="arrow-left" size={22} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>Kaydedilenler</Text>
