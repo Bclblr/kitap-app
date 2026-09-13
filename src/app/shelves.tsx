@@ -7,6 +7,8 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
+import { DEFAULT_PREMIUM_SHELF_CUSTOMIZATION, loadOwnShelfCustomization, PremiumShelfCustomization, SHELF_ACCENTS } from '@/lib/shelf-customization';
+import { usePremium } from '@/providers/PremiumProvider';
 
 type Author = string | { name?: string };
 
@@ -30,6 +32,8 @@ type UserBookStatusRow = {
 export default function ShelvesScreen() {
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
+  const premium = usePremium();
+  const [shelfCustomization, setShelfCustomization] = useState<PremiumShelfCustomization | null>(null);
 
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +52,15 @@ export default function ShelvesScreen() {
 
       if (!user) {
         setBooks([]);
+        setShelfCustomization(null);
         return;
+      }
+
+      if (premium.ready && premium.isPremium) {
+        const customization = await loadOwnShelfCustomization(user.id).catch(() => null);
+        setShelfCustomization(customization);
+      } else {
+        setShelfCustomization(null);
       }
 
       const { data, error } = await supabase
@@ -72,7 +84,7 @@ export default function ShelvesScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [premium.isPremium, premium.ready]);
 
   useFocusEffect(
     useCallback(() => {
@@ -159,16 +171,29 @@ export default function ShelvesScreen() {
   function getStatusText(status?: Book['status']) {
     switch (status) {
       case 'reading':
-        return '📖 Okuyorum';
+        return `📖 ${shelfLabels.reading}`;
 
       case 'read':
-        return '✅ Okudum';
+        return `✅ ${shelfLabels.read}`;
 
       case 'want':
       default:
-        return '📚 Okuyacağım';
+        return `📚 ${shelfLabels.want}`;
     }
   }
+
+  const activeCustomization = premium.isPremium ? shelfCustomization : null;
+  const shelfLabels = {
+    want: activeCustomization?.want_label ?? DEFAULT_PREMIUM_SHELF_CUSTOMIZATION.want_label,
+    reading: activeCustomization?.reading_label ?? DEFAULT_PREMIUM_SHELF_CUSTOMIZATION.reading_label,
+    read: activeCustomization?.read_label ?? DEFAULT_PREMIUM_SHELF_CUSTOMIZATION.read_label,
+  };
+  const shelfAccent = SHELF_ACCENTS[activeCustomization?.accent_key ?? 'purple'];
+  const shelfCounts = {
+    want: books.filter((book) => book.status === 'want').length,
+    reading: books.filter((book) => book.status === 'reading').length,
+    read: books.filter((book) => book.status === 'read').length,
+  };
 
   const filteredBooks =
     filter === 'all'
@@ -191,6 +216,16 @@ export default function ShelvesScreen() {
           Kitaplarını ve okuma durumlarını yönet
         </Text>
 
+        {premium.isPremium ? (
+          <Pressable
+            onPress={() => router.push('/premium-shelf-customization')}
+            style={[styles.premiumShelfButton, { borderColor: shelfAccent }]}
+          >
+            <Text style={[styles.premiumShelfButtonText, { color: shelfAccent }]}>✦ Raf görünümünü kişiselleştir</Text>
+            <Text style={[styles.premiumShelfButtonArrow, { color: shelfAccent }]}>›</Text>
+          </Pressable>
+        ) : null}
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -201,6 +236,7 @@ export default function ShelvesScreen() {
             style={[
               styles.filterButton,
               filter === 'all' && styles.activeFilter,
+              filter === 'all' && { borderColor: shelfAccent },
             ]}
           >
             <Text
@@ -220,6 +256,7 @@ export default function ShelvesScreen() {
               styles.filterButton,
               filter === 'reading' &&
                 styles.activeFilter,
+              filter === 'reading' && { borderColor: shelfAccent },
             ]}
           >
             <Text
@@ -229,7 +266,7 @@ export default function ShelvesScreen() {
                   styles.activeFilterText,
               ]}
             >
-              📖 Okuyorum
+              📖 {shelfLabels.reading}{activeCustomization?.show_counts ? ` (${shelfCounts.reading})` : ''}
             </Text>
           </Pressable>
 
@@ -239,6 +276,7 @@ export default function ShelvesScreen() {
               styles.filterButton,
               filter === 'read' &&
                 styles.activeFilter,
+              filter === 'read' && { borderColor: shelfAccent },
             ]}
           >
             <Text
@@ -248,7 +286,7 @@ export default function ShelvesScreen() {
                   styles.activeFilterText,
               ]}
             >
-              ✅ Okudum
+              ✅ {shelfLabels.read}{activeCustomization?.show_counts ? ` (${shelfCounts.read})` : ''}
             </Text>
           </Pressable>
 
@@ -258,6 +296,7 @@ export default function ShelvesScreen() {
               styles.filterButton,
               filter === 'want' &&
                 styles.activeFilter,
+              filter === 'want' && { borderColor: shelfAccent },
             ]}
           >
             <Text
@@ -267,7 +306,7 @@ export default function ShelvesScreen() {
                   styles.activeFilterText,
               ]}
             >
-              📚 Okuyacağım
+              📚 {shelfLabels.want}{activeCustomization?.show_counts ? ` (${shelfCounts.want})` : ''}
             </Text>
           </Pressable>
         </ScrollView>
@@ -333,7 +372,7 @@ export default function ShelvesScreen() {
               return (
                 <View
                   key={bookKey}
-                  style={styles.bookCard}
+                  style={[styles.bookCard, activeCustomization?.layout_key === 'compact' && styles.compactBookCard]}
                 >
                   <Pressable
                     style={styles.bookPressable}
@@ -749,4 +788,34 @@ const baseStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+
+  premiumShelfButton: {
+    marginTop: 14,
+    minHeight: 46,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#15161D',
+  },
+
+  premiumShelfButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  premiumShelfButtonArrow: {
+    fontSize: 25,
+    lineHeight: 26,
+    fontWeight: '700',
+  },
+
+  compactBookCard: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+
 });

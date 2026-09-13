@@ -122,6 +122,7 @@ function GuardedLayout() {
               'profile-settings',
               'premium',
               'premium-profile-customization',
+              'premium-shelf-customization',
               'premium-reading-goals',
               'premium-reading-stats',
               'premium-year-report',
