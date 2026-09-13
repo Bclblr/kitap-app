@@ -1,4 +1,5 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import { useEffect } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -24,6 +25,15 @@ export default function RootLayout() {
 function GuardedLayout() {
   const { session, loading } = useAuth();
   const { colors, scheme, ready } = useAppTheme();
+  const router = useRouter();
+  const segments = useSegments();
+  const onboardingPending = session?.user?.user_metadata?.onboarding_pending === true;
+
+  useEffect(() => {
+    if (loading || !ready || !session || !onboardingPending) return;
+    if (segments[0] === 'onboarding') return;
+    router.replace('/onboarding');
+  }, [loading, onboardingPending, ready, router, segments, session]);
 
   if (loading || !ready) {
     return (
