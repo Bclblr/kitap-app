@@ -4,6 +4,10 @@ do $$
 declare
   v_table text;
 begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    return;
+  end if;
+
   foreach v_table in array array[
     'app_settings',
     'announcements',
