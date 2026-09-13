@@ -41,6 +41,7 @@ function GuardedLayout() {
   const router = useRouter();
   const segments = useSegments();
   const trackedUserRef = useRef<string | null>(null);
+  const bookRouteActiveRef = useRef(false);
   const onboardingPending = session?.user?.user_metadata?.onboarding_pending === true;
 
   useEffect(() => {
@@ -49,6 +50,17 @@ function GuardedLayout() {
     trackedUserRef.current = userId;
     void trackProductEvent('app_open', { source: 'authenticated_session' });
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    const onBookRoute = segments[0] === 'book';
+    if (!onBookRoute) {
+      bookRouteActiveRef.current = false;
+      return;
+    }
+    if (!session || bookRouteActiveRef.current) return;
+    bookRouteActiveRef.current = true;
+    void trackProductEvent('book_opened', { source: 'book_detail' });
+  }, [segments, session]);
 
   useEffect(() => {
     if (loading || !ready || !session || !onboardingPending) return;
