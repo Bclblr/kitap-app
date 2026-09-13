@@ -1,10 +1,10 @@
+import AppErrorState from '@/components/AppErrorState';
+import Image from '@/components/SafeImage';
+import { supabase } from '@/lib/supabase';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Image from '@/components/SafeImage';
-
-import { supabase } from '@/lib/supabase';
 
 type EventAttendee = {
   user_id: string;
@@ -20,50 +20,36 @@ export default function EventAttendeesScreen() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadAttendees() {
-      if (!id) {
-        setErrorMessage('Etkinlik bilgisi bulunamadı.');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setErrorMessage(null);
-
-        const { data, error } = await supabase.rpc('get_event_attendees', {
-          p_event_id: id,
-        });
-
-        if (!active) return;
-
-        if (error) {
-          console.error('Event attendees error:', error);
-          setAttendees([]);
-          setErrorMessage('Katılımcılar yüklenemedi.');
-          return;
-        }
-
-        setAttendees((data ?? []) as EventAttendee[]);
-      } catch (error) {
-        if (!active) return;
-        console.error('Event attendees error:', error);
-        setAttendees([]);
-        setErrorMessage('Katılımcılar yüklenemedi.');
-      } finally {
-        if (active) setLoading(false);
-      }
+  const loadAttendees = useCallback(async () => {
+    if (!id) {
+      setAttendees([]);
+      setErrorMessage('Etkinlik bilgisi bulunamadı.');
+      setLoading(false);
+      return;
     }
 
-    void loadAttendees();
+    try {
+      setLoading(true);
+      setErrorMessage(null);
 
-    return () => {
-      active = false;
-    };
+      const { data, error } = await supabase.rpc('get_event_attendees', {
+        p_event_id: id,
+      });
+
+      if (error) throw error;
+      setAttendees((data ?? []) as EventAttendee[]);
+    } catch (error) {
+      console.error('Event attendees error:', error);
+      setAttendees([]);
+      setErrorMessage('Katılımcılar yüklenemedi. Bağlantını kontrol edip yeniden deneyebilirsin.');
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    void loadAttendees();
+  }, [loadAttendees]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -80,9 +66,11 @@ export default function EventAttendeesScreen() {
         {loading ? (
           <ActivityIndicator color="#F29A45" size="large" style={styles.loader} />
         ) : errorMessage ? (
-          <View style={styles.messageBox}>
-            <Text style={styles.messageText}>{errorMessage}</Text>
-          </View>
+          <AppErrorState
+            title="Katılımcılar açılamadı"
+            message={errorMessage}
+            onAction={() => void loadAttendees()}
+          />
         ) : attendees.length === 0 ? (
           <View style={styles.messageBox}>
             <Text style={styles.messageText}>Henüz katılımcı yok.</Text>
@@ -104,10 +92,7 @@ export default function EventAttendeesScreen() {
                 ]}
               >
                 {attendee.profile_image ? (
-                  <Image
-                    source={{ uri: attendee.profile_image }}
-                    style={styles.avatar}
-                  />
+                  <Image source={{ uri: attendee.profile_image }} style={styles.avatar} />
                 ) : (
                   <View style={[styles.avatar, styles.avatarPlaceholder]}>
                     <Text style={styles.avatarLetter}>
