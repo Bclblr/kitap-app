@@ -122,6 +122,7 @@ function GuardedLayout() {
               'profile-settings',
               'premium',
               'premium-reading-stats',
+              'premium-year-report',
               'quote-create',
               'read',
               'readers',
