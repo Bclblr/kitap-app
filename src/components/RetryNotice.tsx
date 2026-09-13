@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useNetworkStatus } from '@/providers/NetworkProvider';
 import { useAppTheme } from '@/providers/ThemeProvider';
 
 export default function RetryNotice({
@@ -9,10 +10,19 @@ export default function RetryNotice({
   busy = false,
 }: {
   message: string;
-  onRetry: () => void;
+  onRetry: () => void | Promise<void>;
   busy?: boolean;
 }) {
   const { colors } = useAppTheme();
+  const { isOnline, checking, checkNow } = useNetworkStatus();
+  const blocked = busy || checking;
+
+  async function handleRetry() {
+    if (blocked) return;
+    const online = await checkNow();
+    if (!online) return;
+    await onRetry();
+  }
 
   return (
     <View
@@ -23,23 +33,25 @@ export default function RetryNotice({
       ]}
     >
       <View style={styles.messageRow}>
-        <Feather name="wifi-off" size={18} color={colors.textSecondary} />
-        <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
+        <Feather name={isOnline ? 'alert-circle' : 'wifi-off'} size={18} color={colors.textSecondary} />
+        <Text style={[styles.message, { color: colors.textSecondary }]}>
+          {isOnline ? message : 'Bağlantı yok. İnternet bağlantını kontrol edip yeniden dene.'}
+        </Text>
       </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Tekrar dene"
-        disabled={busy}
-        onPress={onRetry}
+        disabled={blocked}
+        onPress={() => void handleRetry()}
         style={({ pressed }) => [
           styles.button,
           { borderColor: colors.primary },
-          (pressed || busy) && styles.buttonPressed,
+          (pressed || blocked) && styles.buttonPressed,
         ]}
       >
         <Feather name="refresh-cw" size={15} color={colors.primary} />
         <Text style={[styles.buttonText, { color: colors.primary }]}>
-          {busy ? 'Yenileniyor...' : 'Tekrar Dene'}
+          {blocked ? 'Kontrol ediliyor...' : 'Tekrar Dene'}
         </Text>
       </Pressable>
     </View>
