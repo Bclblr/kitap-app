@@ -1,0 +1,50 @@
+name: Apply Premium restore
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-premium-restore.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch Premium restore flow
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/app/premium.tsx')
+          s = p.read_text()
+          s = s.replace(
+              "  purchasePremiumPlan,\n  RevenueCatStorePlan,\n",
+              "  purchasePremiumPlan,\n  restorePremiumPurchases,\n  RevenueCatStorePlan,\n",
+          )
+          s = s.replace(
+              "  const [purchasing, setPurchasing] = useState<'monthly' | 'annual' | null>(null);\n",
+              "  const [purchasing, setPurchasing] = useState<'monthly' | 'annual' | null>(null);\n  const [restoring, setRestoring] = useState(false);\n",
+          )
+          old = """  function restoreNotReady() {\n    Alert.alert(\n      'Satın alımları geri yükle',\n      'Geri yükleme işlemi bir sonraki Premium adımında RevenueCat üzerinden etkinleştirilecek.'\n    );\n  }\n"""
+          new = """  async function handleRestorePurchases() {\n    if (restoring || purchasing) return;\n\n    if (!premium.revenueCat.configured) {\n      Alert.alert(\n        'Geri yükleme kullanılamıyor',\n        'RevenueCat bu cihazda henüz hazır değil. Mağaza ve SDK yapılandırmasını kontrol et.'\n      );\n      return;\n    }\n\n    setRestoring(true);\n    try {\n      const restored = await restorePremiumPurchases();\n      await premium.reload();\n\n      if (restored.premiumEntitlementActive) {\n        Alert.alert(\n          'Satın alımlar geri yüklendi',\n          'RevenueCat Premium satın alımını doğruladı. Sunucu senkronizasyonu tamamlandığında Premium erişimin de güncellenecek.'\n        );\n      } else {\n        Alert.alert(\n          'Aktif Premium bulunamadı',\n          'Bu mağaza hesabında geri yüklenecek aktif Premium aboneliği bulunamadı.'\n        );\n      }\n    } catch (error) {\n      const restoreError = error as { message?: string };\n      console.warn('Premium geri yükleme hatası:', error);\n      Alert.alert(\n        'Geri yükleme tamamlanamadı',\n        restoreError.message || 'Satın alımlar geri yüklenirken bir hata oluştu. Lütfen tekrar dene.'\n      );\n    } finally {\n      setRestoring(false);\n    }\n  }\n"""
+          if old not in s:
+              raise SystemExit('restore placeholder not found')
+          s = s.replace(old, new)
+          old_button = """          <Pressable onPress={restoreNotReady} style={[styles.secondaryButton, { borderColor: colors.border }]}> \n            <Feather name=\"refresh-cw\" size={17} color={colors.text} />\n            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Satın alımları geri yükle</Text>\n          </Pressable>\n"""
+          new_button = """          <Pressable\n            disabled={restoring || purchasing !== null}\n            onPress={() => void handleRestorePurchases()}\n            style={[\n              styles.secondaryButton,\n              { borderColor: colors.border },\n              (restoring || purchasing !== null) && styles.disabledButton,\n            ]}\n          > \n            <Feather name=\"refresh-cw\" size={17} color={colors.text} />\n            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>\n              {restoring ? 'Geri yükleniyor…' : 'Satın alımları geri yükle'}\n            </Text>\n          </Pressable>\n"""
+          if old_button not in s:
+              raise SystemExit('restore button not found')
+          s = s.replace(old_button, new_button)
+          p.write_text(s)
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/premium.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Wire Premium restore purchases flow"
+          git push origin main
