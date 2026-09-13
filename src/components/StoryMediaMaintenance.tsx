@@ -18,8 +18,9 @@ export default function StoryMediaMaintenance() {
   const running = useRef(false);
 
   useEffect(() => {
-    const userId = session?.user?.id;
-    if (!userId || !isOnline) return;
+    const sessionUserId = session?.user?.id;
+    if (!sessionUserId || !isOnline) return;
+    const userId: string = sessionUserId;
 
     let cancelled = false;
 
