@@ -1,6 +1,8 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
+
+import { usePremium } from '@/providers/PremiumProvider';
 import { Action } from './ReaderUI';
 
 type Ads = typeof import('react-native-google-mobile-ads');
@@ -23,13 +25,15 @@ function initialize() {
 }
 
 export default function AdSlot() {
+  const premium = usePremium();
   const [sdk, setSdk] = useState<Ads | null>(null);
   const [width, setWidth] = useState(0);
   const enabled = process.env.EXPO_PUBLIC_ADS_ENABLED === 'true';
   const supported = Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
+  const canShowAds = premium.ready && !premium.isPremium && enabled && supported;
 
   useEffect(() => {
-    if (!enabled || !supported) return;
+    if (!canShowAds) return;
     let alive = true;
     void initialize().then((result) => {
       if (alive) setSdk(result);
@@ -37,9 +41,11 @@ export default function AdSlot() {
     return () => {
       alive = false;
     };
-  }, [enabled, supported]);
+  }, [canShowAds]);
 
-  if (!enabled || !supported || !sdk) return null;
+  // Premium state must be resolved before any ad SDK UI can appear. This also
+  // prevents a brief ad flash while a paid/admin entitlement is loading.
+  if (!canShowAds || !sdk) return null;
 
   const productionBannerId = process.env.EXPO_PUBLIC_ADMOB_BANNER_ID?.trim();
   const unitId = __DEV__ ? sdk.TestIds.BANNER : productionBannerId;
