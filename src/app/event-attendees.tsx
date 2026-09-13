@@ -1,10 +1,11 @@
 import AppErrorState from '@/components/AppErrorState';
+import AppLoadingState from '@/components/AppLoadingState';
 import Image from '@/components/SafeImage';
 import { supabase } from '@/lib/supabase';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type EventAttendee = {
   user_id: string;
@@ -64,7 +65,7 @@ export default function EventAttendeesScreen() {
         </Text>
 
         {loading ? (
-          <ActivityIndicator color="#F29A45" size="large" style={styles.loader} />
+          <AppLoadingState variant="list" rows={4} label="Katılımcılar yükleniyor" />
         ) : errorMessage ? (
           <AppErrorState
             title="Katılımcılar açılamadı"
@@ -147,9 +148,6 @@ const baseStyles = StyleSheet.create({
     fontSize: 13,
     marginTop: 5,
     marginBottom: 18,
-  },
-  loader: {
-    marginTop: 50,
   },
   messageBox: {
     backgroundColor: '#111218',
