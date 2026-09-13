@@ -221,7 +221,7 @@ const baseStyles = StyleSheet.create({
   },
   profileHint: {
     color: '#777983',
-    fontSize: 10,
+    fontSize: 12,
     marginTop: 3,
   },
   arrow: {
