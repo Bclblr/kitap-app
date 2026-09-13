@@ -23,6 +23,11 @@ export type RevenueCatStorePlan = {
   subscriptionPeriod: string | null;
 };
 
+export type RevenueCatPurchaseResult = {
+  plan: RevenueCatStorePlan;
+  snapshot: RevenueCatSnapshot;
+};
+
 const EMPTY_SNAPSHOT: RevenueCatSnapshot = {
   configured: false,
   appUserId: null,
@@ -83,6 +88,55 @@ function storePlanFromPackage(
   };
 }
 
+async function currentPackage(period: 'monthly' | 'annual') {
+  if (!configured || (Platform.OS !== 'ios' && Platform.OS !== 'android')) {
+    return null;
+  }
+
+  const offerings = await Purchases.getOfferings();
+  return period === 'monthly'
+    ? offerings.current?.monthly ?? null
+    : offerings.current?.annual ?? null;
+}
+
+function expectedProductId(
+  platform: 'ios' | 'android',
+  period: 'monthly' | 'annual'
+) {
+  if (platform === 'ios' && period === 'monthly') {
+    return process.env.EXPO_PUBLIC_REVENUECAT_IOS_MONTHLY_PRODUCT_ID?.trim() || null;
+  }
+
+  if (platform === 'ios' && period === 'annual') {
+    return process.env.EXPO_PUBLIC_REVENUECAT_IOS_ANNUAL_PRODUCT_ID?.trim() || null;
+  }
+
+  if (platform === 'android' && period === 'monthly') {
+    return process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_MONTHLY_PRODUCT_ID?.trim() || null;
+  }
+
+  return process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_ANNUAL_PRODUCT_ID?.trim() || null;
+}
+
+async function loadPlatformPlan(
+  platform: 'ios' | 'android',
+  period: 'monthly' | 'annual'
+): Promise<RevenueCatStorePlan | null> {
+  if (!configured || Platform.OS !== platform) return null;
+
+  const purchasesPackage = await currentPackage(period);
+  if (!purchasesPackage) return null;
+
+  const expected = expectedProductId(platform, period);
+  if (expected && purchasesPackage.product.identifier !== expected) {
+    throw new Error(
+      `RevenueCat ${platform} ${period} product mismatch. Expected ${expected}, received ${purchasesPackage.product.identifier}.`
+    );
+  }
+
+  return storePlanFromPackage(purchasesPackage, platform, period);
+}
+
 export async function configureRevenueCatForUser(
   userId: string
 ): Promise<RevenueCatSnapshot> {
@@ -125,95 +179,60 @@ export async function refreshRevenueCatSnapshot(): Promise<RevenueCatSnapshot> {
 }
 
 export async function loadAppleMonthlyPremiumPlan(): Promise<RevenueCatStorePlan | null> {
-  if (!configured || Platform.OS !== 'ios') return null;
-
-  const offerings = await Purchases.getOfferings();
-  const monthlyPackage = offerings.current?.monthly ?? null;
-
-  if (!monthlyPackage) return null;
-
-  const expectedProductId =
-    process.env.EXPO_PUBLIC_REVENUECAT_IOS_MONTHLY_PRODUCT_ID?.trim() || null;
-
-  if (
-    expectedProductId &&
-    monthlyPackage.product.identifier !== expectedProductId
-  ) {
-    throw new Error(
-      `RevenueCat Apple monthly product mismatch. Expected ${expectedProductId}, received ${monthlyPackage.product.identifier}.`
-    );
-  }
-
-  return storePlanFromPackage(monthlyPackage, 'ios', 'monthly');
+  return loadPlatformPlan('ios', 'monthly');
 }
 
 export async function loadAppleAnnualPremiumPlan(): Promise<RevenueCatStorePlan | null> {
-  if (!configured || Platform.OS !== 'ios') return null;
-
-  const offerings = await Purchases.getOfferings();
-  const annualPackage = offerings.current?.annual ?? null;
-
-  if (!annualPackage) return null;
-
-  const expectedProductId =
-    process.env.EXPO_PUBLIC_REVENUECAT_IOS_ANNUAL_PRODUCT_ID?.trim() || null;
-
-  if (
-    expectedProductId &&
-    annualPackage.product.identifier !== expectedProductId
-  ) {
-    throw new Error(
-      `RevenueCat Apple annual product mismatch. Expected ${expectedProductId}, received ${annualPackage.product.identifier}.`
-    );
-  }
-
-  return storePlanFromPackage(annualPackage, 'ios', 'annual');
+  return loadPlatformPlan('ios', 'annual');
 }
 
 export async function loadGoogleMonthlyPremiumPlan(): Promise<RevenueCatStorePlan | null> {
-  if (!configured || Platform.OS !== 'android') return null;
-
-  const offerings = await Purchases.getOfferings();
-  const monthlyPackage = offerings.current?.monthly ?? null;
-
-  if (!monthlyPackage) return null;
-
-  const expectedProductId =
-    process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_MONTHLY_PRODUCT_ID?.trim() || null;
-
-  if (
-    expectedProductId &&
-    monthlyPackage.product.identifier !== expectedProductId
-  ) {
-    throw new Error(
-      `RevenueCat Google monthly product mismatch. Expected ${expectedProductId}, received ${monthlyPackage.product.identifier}.`
-    );
-  }
-
-  return storePlanFromPackage(monthlyPackage, 'android', 'monthly');
+  return loadPlatformPlan('android', 'monthly');
 }
 
 export async function loadGoogleAnnualPremiumPlan(): Promise<RevenueCatStorePlan | null> {
-  if (!configured || Platform.OS !== 'android') return null;
+  return loadPlatformPlan('android', 'annual');
+}
 
-  const offerings = await Purchases.getOfferings();
-  const annualPackage = offerings.current?.annual ?? null;
+export async function loadCurrentPremiumPlan(
+  period: 'monthly' | 'annual'
+): Promise<RevenueCatStorePlan | null> {
+  if (Platform.OS === 'ios') return loadPlatformPlan('ios', period);
+  if (Platform.OS === 'android') return loadPlatformPlan('android', period);
+  return null;
+}
 
-  if (!annualPackage) return null;
+export async function purchasePremiumPlan(
+  period: 'monthly' | 'annual'
+): Promise<RevenueCatPurchaseResult> {
+  if (!configured || (Platform.OS !== 'ios' && Platform.OS !== 'android')) {
+    throw new Error('RevenueCat is not configured for this device.');
+  }
 
-  const expectedProductId =
-    process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_ANNUAL_PRODUCT_ID?.trim() || null;
+  const platform = Platform.OS;
+  const purchasesPackage = await currentPackage(period);
+  if (!purchasesPackage) {
+    throw new Error(`RevenueCat ${period} package is not available.`);
+  }
 
-  if (
-    expectedProductId &&
-    annualPackage.product.identifier !== expectedProductId
-  ) {
+  const expected = expectedProductId(platform, period);
+  if (expected && purchasesPackage.product.identifier !== expected) {
     throw new Error(
-      `RevenueCat Google annual product mismatch. Expected ${expectedProductId}, received ${annualPackage.product.identifier}.`
+      `RevenueCat ${platform} ${period} product mismatch. Expected ${expected}, received ${purchasesPackage.product.identifier}.`
     );
   }
 
-  return storePlanFromPackage(annualPackage, 'android', 'annual');
+  const plan = storePlanFromPackage(purchasesPackage, platform, period);
+  const { customerInfo } = await Purchases.purchasePackage(purchasesPackage);
+  const snapshot = snapshotFromCustomerInfo(customerInfo);
+
+  if (!snapshot.premiumEntitlementActive) {
+    throw new Error(
+      `Purchase completed but RevenueCat entitlement '${REVENUECAT_PREMIUM_ENTITLEMENT_ID}' is not active.`
+    );
+  }
+
+  return { plan, snapshot };
 }
 
 export async function detachRevenueCatUser() {
