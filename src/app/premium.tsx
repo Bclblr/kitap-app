@@ -53,7 +53,7 @@ export default function PremiumScreen() {
     );
   }
 
-  function openPremiumFeature(path: '/premium-reading-stats' | '/premium-year-report' | '/premium-reading-goals', message: string) {
+  function openPremiumFeature(path: '/premium-reading-stats' | '/premium-year-report' | '/premium-reading-goals' | '/premium-profile-customization', message: string) {
     if (!premium.isPremium) {
       Alert.alert('Premium özelliği', message);
       return;
@@ -174,6 +174,24 @@ export default function PremiumScreen() {
             <Text style={[styles.featureActionTitle, { color: colors.text }]}>Gelişmiş Okuma Hedefleri</Text>
             <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}> 
               {premium.isPremium ? 'Haftalık, aylık, yıllık ve seri hedeflerini yönet.' : 'Premium ile uzun dönemli okuma hedeflerini aç.'}
+            </Text>
+          </View>
+          <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Premium profil kişiselleştirmeyi aç"
+          onPress={() => openPremiumFeature('/premium-profile-customization', 'Profil temaları ve kişiselleştirme aktif Premium üyelikle kullanılabilir.')}
+          style={[styles.featureAction, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+        >
+          <View style={[styles.featureActionIcon, { backgroundColor: colors.primarySoft }]}>
+            <Feather name="user" size={21} color={colors.primary} />
+          </View>
+          <View style={styles.featureActionText}>
+            <Text style={[styles.featureActionTitle, { color: colors.text }]}>Profil Kişiselleştirme</Text>
+            <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}>
+              {premium.isPremium ? 'Tema, düzen, profil vurgusu ve Premium çerçeveni yönet.' : 'Premium ile özel profil temalarını aç.'}
             </Text>
           </View>
           <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />

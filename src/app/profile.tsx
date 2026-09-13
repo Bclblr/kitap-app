@@ -13,6 +13,7 @@ import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
 import { isUserVerified } from '@/lib/verification';
 import { isUserPremium } from '@/lib/premium';
+import { loadProfileCustomization, PROFILE_THEME_ACCENTS, PremiumProfileCustomization } from '@/lib/profile-customization';
 
 type NotificationType = 'like' | 'comment' | 'repost';
 
@@ -106,6 +107,7 @@ export default function ProfileScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+  const [premiumProfileCustomization, setPremiumProfileCustomization] = useState<PremiumProfileCustomization | null>(null);
 
   const [profile, setProfile] =
     useState<ProfileData>(DEFAULT_PROFILE);
@@ -195,15 +197,18 @@ export default function ProfileScreen() {
         setProfile(DEFAULT_PROFILE);
         setIsVerified(false);
         setIsPremium(false);
+        setPremiumProfileCustomization(null);
         return;
       }
 
-      const [verified, premium] = await Promise.all([
+      const [verified, premium, customization] = await Promise.all([
         isUserVerified(targetUserId).catch(() => false),
         isUserPremium(targetUserId).catch(() => false),
+        loadProfileCustomization(targetUserId).catch(() => null),
       ]);
       setIsVerified(verified);
       setIsPremium(premium);
+      setPremiumProfileCustomization(premium ? customization : null);
 
       const { data, error } =
         await supabase
@@ -2185,7 +2190,26 @@ export default function ProfileScreen() {
         </Text>
 
         {/* KAPAK + PROFİL ÜST BİLGİ */}
-        <View style={styles.profileHero}>
+        <View
+          style={[
+            styles.profileHero,
+            premiumProfileCustomization?.show_premium_frame
+              ? {
+                  borderWidth: 2,
+                  borderColor: PROFILE_THEME_ACCENTS[premiumProfileCustomization.theme_key],
+                  borderRadius: premiumProfileCustomization.layout_key === 'spotlight' ? 22 : 14,
+                  overflow: 'hidden',
+                }
+              : null,
+          ]}
+        >
+          {premiumProfileCustomization?.highlight_text ? (
+            <View style={{ paddingHorizontal: 14, paddingVertical: 9, backgroundColor: PROFILE_THEME_ACCENTS[premiumProfileCustomization.theme_key] }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800', textAlign: 'center' }}>
+                {premiumProfileCustomization.highlight_text}
+              </Text>
+            </View>
+          ) : null}
           <Pressable
             disabled
             style={styles.coverContainer}
