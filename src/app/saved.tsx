@@ -45,28 +45,34 @@ export default function SavedScreen() {
         return;
       }
 
-      const [savedPostsResult, savedWorksResult] = await Promise.all([
-        supabase
-          .from('saved_posts')
-          .select('post_id, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(100),
-        supabase
-          .from('saved_works')
-          .select('work_id, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(100),
-      ]);
+      const savedPostsResult = await supabase
+        .from('saved_posts')
+        .select('post_id, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (savedPostsResult.error) throw savedPostsResult.error;
-      if (savedWorksResult.error) throw savedWorksResult.error;
+
+      // saved_works eski/opsiyonel bir özellik. Canlı şemada henüz yoksa
+      // Kaydedilenler ekranının tamamını bozmak yerine eser listesini boş bırak.
+      const savedWorksResult = await supabase
+        .from('saved_works')
+        .select('work_id, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (savedWorksResult.error && savedWorksResult.error.code !== 'PGRST205') {
+        throw savedWorksResult.error;
+      }
+
+      const savedWorksData = savedWorksResult.error ? [] : (savedWorksResult.data ?? []);
 
       const postIds = (savedPostsResult.data ?? [])
         .map((item: any) => item.post_id)
         .filter(Boolean);
-      const workIds = (savedWorksResult.data ?? [])
+      const workIds = savedWorksData
         .map((item: any) => item.work_id)
         .filter(Boolean);
 
@@ -91,7 +97,7 @@ export default function SavedScreen() {
           .filter(Boolean) as SavedPost[]
       );
       setWorks(
-        (savedWorksResult.data ?? [])
+        savedWorksData
           .map((item: any) => worksById.get(item.work_id))
           .filter(Boolean) as SavedWork[]
       );
@@ -157,6 +163,10 @@ export default function SavedScreen() {
         .eq('user_id', userId)
         .eq('work_id', workId);
 
+      if (error?.code === 'PGRST205') {
+        setWorks((current) => current.filter((work) => work.id !== workId));
+        return;
+      }
       if (error) throw error;
       setWorks((current) => current.filter((work) => work.id !== workId));
     } catch (error) {
