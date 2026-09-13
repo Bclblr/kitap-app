@@ -35,6 +35,24 @@ The app reads the monthly package through `offerings.current.monthly`. Price, cu
 
 If `EXPO_PUBLIC_REVENUECAT_IOS_MONTHLY_PRODUCT_ID` is set, the app validates that RevenueCat returned the expected Apple product. This variable is a public product identifier, not a secret.
 
+## Apple annual Premium product
+
+For the iOS annual plan:
+
+1. Create one auto-renewable annual subscription in App Store Connect.
+2. Import/map that Apple product in RevenueCat.
+3. Attach it to the same `premium` entitlement used by the monthly plan.
+4. Put it in the current RevenueCat Offering using the standard annual package.
+5. Optionally set the expected public product identifier in Expo/EAS:
+
+```text
+EXPO_PUBLIC_REVENUECAT_IOS_ANNUAL_PRODUCT_ID=<App Store Connect annual product id>
+```
+
+The app reads the annual package through `offerings.current.annual`. Price, currency, title and subscription period come from the store/RevenueCat response; they are never hard-coded in the app.
+
+If `EXPO_PUBLIC_REVENUECAT_IOS_ANNUAL_PRODUCT_ID` is set, the app validates that RevenueCat returned the expected Apple product. This variable is a public product identifier, not a secret.
+
 ## User identity
 
 The client identifies RevenueCat customers using the authenticated Supabase `user.id`. This keeps the RevenueCat App User ID stable across sessions and allows the later webhook sync to map RevenueCat events back to the correct Supabase user.
