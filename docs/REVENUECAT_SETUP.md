@@ -93,13 +93,59 @@ Google Play base-plan and offer configuration remains managed in Google Play Con
 
 ## User identity
 
-The client identifies RevenueCat customers using the authenticated Supabase `user.id`. This keeps the RevenueCat App User ID stable across sessions and allows the later webhook sync to map RevenueCat events back to the correct Supabase user.
+The client identifies RevenueCat customers using the authenticated Supabase `user.id`. This keeps the RevenueCat App User ID stable across sessions and lets the webhook map each RevenueCat event back to the correct Supabase user.
+
+## RevenueCat webhook -> Supabase sync
+
+Paid Premium is server-authoritative. The mobile client never writes paid access directly into `public.premium_entitlements`.
+
+The Edge Function is:
+
+```text
+supabase/functions/revenuecat-webhook/index.ts
+```
+
+The database sync migration is:
+
+```text
+supabase/migrations/202609130108_revenuecat_webhook_sync.sql
+```
+
+The webhook accepts only Apple App Store and Google Play Store subscription events for the `premium` entitlement. Every RevenueCat event id is recorded for idempotency, and `provider_event_at` prevents an older delayed webhook from overwriting newer Premium state.
+
+Set one private random webhook token as a Supabase Edge Function secret:
+
+```powershell
+supabase secrets set REVENUECAT_WEBHOOK_AUTH_TOKEN="<long-random-secret>"
+```
+
+Deploy the external webhook without Supabase JWT verification because RevenueCat is not a Supabase-authenticated client. Authentication is instead enforced by the private RevenueCat bearer token:
+
+```powershell
+supabase functions deploy revenuecat-webhook --no-verify-jwt
+```
+
+In RevenueCat Dashboard, create a webhook pointing to:
+
+```text
+https://<your-project-ref>.supabase.co/functions/v1/revenuecat-webhook
+```
+
+Configure its Authorization header exactly as:
+
+```text
+Bearer <same REVENUECAT_WEBHOOK_AUTH_TOKEN>
+```
+
+Never put `REVENUECAT_WEBHOOK_AUTH_TOKEN` or `SUPABASE_SERVICE_ROLE_KEY` in `EXPO_PUBLIC_*` variables or inside the mobile app.
+
+Supported paid-state events include initial purchase, renewal, product change, cancellation/uncancellation, billing issue, expiration, subscription pause and subscription extension. Cancellation does not immediately remove access; the stored expiry continues to control access until RevenueCat sends expiration or a later state event.
 
 ## Access authority
 
-`CustomerInfo` is currently read only as SDK state. It does **not** directly unlock Premium features. Effective Premium access still comes from `public.premium_entitlements` in Supabase. The later RevenueCat webhook/sync step will write paid entitlement state into that table.
+RevenueCat `CustomerInfo` is useful for immediate purchase UI confirmation, but effective Premium feature access comes from `public.premium_entitlements` in Supabase. The webhook writes Apple/Google paid state into that table with the service role. Admin-granted Premium stays in its own independent `admin_grant` rows.
 
-This prevents a client-only purchase status from becoming the source of truth.
+This prevents a client-only purchase result from becoming the source of truth.
 
 ## Expo testing
 
