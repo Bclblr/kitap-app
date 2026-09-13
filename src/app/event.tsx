@@ -1,12 +1,12 @@
 import AppLoadingState from '@/components/AppLoadingState';
-import { useThemedStyles } from '@/theme/use-themed-styles';
-import { useAppTheme } from '@/providers/ThemeProvider';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Image from '@/components/SafeImage';
-
+import { useScreenRefresh, ScreenRefreshSource } from '@/hooks/use-screen-refresh';
 import { supabase } from '@/lib/supabase';
+import { useAppTheme } from '@/providers/ThemeProvider';
+import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, View as SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type EventDetail = {
   id: string;
@@ -31,80 +31,71 @@ export default function EventScreen() {
   const [isAttending, setIsAttending] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  const loadEvent = useCallback(async (source: ScreenRefreshSource) => {
+    if (!id) {
+      setEvent(null);
+      setErrorMessage('Etkinlik bilgisi bulunamadı.');
+      setLoading(false);
+      return;
+    }
 
-    async function loadEvent() {
-      if (!id) {
-        setErrorMessage('Etkinlik bilgisi bulunamadı.');
-        setLoading(false);
-        return;
-      }
+    if (source === 'manual') setLoading(true);
 
-      try {
-        setLoading(true);
-        setErrorMessage(null);
+    try {
+      setErrorMessage(null);
 
-        const [{ data, error }, userResult, attendeeResult] = await Promise.all([
-          supabase
-            .from('events')
-            .select('id, title, description, event_date, location, image_url, created_by')
-            .eq('id', id)
-            .single(),
-          supabase.auth.getUser(),
-          supabase
-            .from('event_attendees')
-            .select('user_id', { count: 'exact' })
-            .eq('event_id', id),
-        ]);
+      const [{ data, error }, userResult, attendeeResult] = await Promise.all([
+        supabase
+          .from('events')
+          .select('id, title, description, event_date, location, image_url, created_by')
+          .eq('id', id)
+          .single(),
+        supabase.auth.getUser(),
+        supabase
+          .from('event_attendees')
+          .select('user_id', { count: 'exact' })
+          .eq('event_id', id),
+      ]);
 
-        if (!active) return;
-
-        if (error || !data) {
-          console.error('Event detail error:', error);
-          setEvent(null);
-          setErrorMessage('Etkinlik yüklenemedi.');
-          return;
-        }
-
-        setEvent(data as EventDetail);
-        setAttendeeCount(attendeeResult.count ?? 0);
-
-        const user = userResult.data.user;
-        setCurrentUserId(user?.id ?? null);
-
-        if (user) {
-          const { data: attendance, error: attendanceError } = await supabase
-            .from('event_attendees')
-            .select('event_id')
-            .eq('event_id', id)
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          if (!active) return;
-
-          if (attendanceError) {
-            console.error('Event attendance status error:', attendanceError);
-          } else {
-            setIsAttending(Boolean(attendance));
-          }
-        }
-      } catch (error) {
-        if (!active) return;
+      if (error || !data) {
         console.error('Event detail error:', error);
         setEvent(null);
         setErrorMessage('Etkinlik yüklenemedi.');
-      } finally {
-        if (active) setLoading(false);
+        return;
       }
+
+      setEvent(data as EventDetail);
+      setAttendeeCount(attendeeResult.count ?? 0);
+
+      const user = userResult.data.user;
+      setCurrentUserId(user?.id ?? null);
+
+      if (user) {
+        const { data: attendance, error: attendanceError } = await supabase
+          .from('event_attendees')
+          .select('event_id')
+          .eq('event_id', id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (attendanceError) {
+          console.error('Event attendance status error:', attendanceError);
+        } else {
+          setIsAttending(Boolean(attendance));
+        }
+      } else {
+        setIsAttending(false);
+      }
+    } catch (error) {
+      console.error('Event detail error:', error);
+      setEvent(null);
+      setErrorMessage('Etkinlik yüklenemedi.');
+    } finally {
+      setLoading(false);
     }
-
-    void loadEvent();
-
-    return () => {
-      active = false;
-    };
   }, [id]);
+
+  const { refreshing, onRefresh } = useScreenRefresh(loadEvent);
 
   async function toggleAttendance() {
     if (!event || attendanceLoading) return;
@@ -189,7 +180,10 @@ export default function EventScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <Pressable onPress={() => router.back()} style={styles.topBack} accessibilityRole="button" accessibilityLabel="Geri dön">
           <Text style={[styles.topBackText, { color: colors.primary }]}>‹ Geri</Text>
         </Pressable>
