@@ -53,7 +53,8 @@
     "test:security": "node scripts/test-reader-security.cjs",
     "audit:routes": "node scripts/audit-reader-routes.cjs",
     "audit:mobile-auth": "node scripts/audit-mobile-auth.cjs",
-    "audit:media-upload": "node scripts/audit-media-upload.cjs"
+    "audit:media-upload": "node scripts/audit-media-upload.cjs",
+    "audit:release-security": "node scripts/audit-release-security.cjs"
   },
   "private": true
 }
