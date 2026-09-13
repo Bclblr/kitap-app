@@ -99,6 +99,13 @@ export default function RegisterScreen() {
     }
   }
 
+  async function markSocialRegistrationPending() {
+    const { error } = await supabase.auth.updateUser({
+      data: { onboarding_pending: true },
+    });
+    if (error) throw error;
+  }
+
   async function handleGoogleRegister() {
     setLoading(true);
 
@@ -106,6 +113,7 @@ export default function RegisterScreen() {
       const session = await signInWithGoogle();
 
       if (session) {
+        await markSocialRegistrationPending();
         router.replace('/onboarding');
       }
     } catch (error) {
@@ -129,6 +137,7 @@ export default function RegisterScreen() {
       const session = await signInWithApple();
 
       if (session) {
+        await markSocialRegistrationPending();
         router.replace('/onboarding');
       }
     } catch (error) {
