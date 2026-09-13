@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import RuntimeGate from '@/components/RuntimeGate';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import { NetworkProvider, NetworkStatusBanner } from '@/providers/NetworkProvider';
 import { ThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
 
 export default function RootLayout() {
@@ -13,9 +14,11 @@ export default function RootLayout() {
     <AppErrorBoundary>
       <SafeAreaProvider>
         <ThemeProvider>
-          <AuthProvider>
-            <GuardedLayout />
-          </AuthProvider>
+          <NetworkProvider>
+            <AuthProvider>
+              <GuardedLayout />
+            </AuthProvider>
+          </NetworkProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </AppErrorBoundary>
@@ -49,6 +52,7 @@ function GuardedLayout() {
       style={{ flex: 1, backgroundColor: colors.background }}
     >
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      <NetworkStatusBanner />
       <RuntimeGate>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
           <Stack.Protected guard={!session}>
