@@ -24,6 +24,7 @@ type UserRow = {
   full_name: string | null;
   profile_image: string | null;
   role: AppRole;
+  isVerified: boolean;
 };
 
 const ROLES: AppRole[] = ['user', 'moderator', 'admin', 'super_admin'];
@@ -57,21 +58,32 @@ export default function AdminUsersScreen() {
 
       setCanManageAdmins(access.canManageAdmins);
 
-      const [{ data: profiles, error: profileError }, { data: roles, error: roleError }] = await Promise.all([
+      const [
+        { data: profiles, error: profileError },
+        { data: roles, error: roleError },
+        { data: verifiedRows, error: verifiedError },
+      ] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, username, full_name, profile_image')
           .order('username', { ascending: true }),
         supabase.from('user_roles').select('user_id, role'),
+        supabase.from('verified_accounts').select('user_id, is_verified'),
       ]);
 
       if (profileError) throw profileError;
       if (roleError) throw roleError;
+      if (verifiedError) throw verifiedError;
 
       const roleMap = new Map<string, AppRole>();
       for (const row of roles ?? []) {
         const role = row.role as AppRole;
         if (ROLES.includes(role)) roleMap.set(row.user_id, role);
+      }
+
+      const verifiedMap = new Map<string, boolean>();
+      for (const row of verifiedRows ?? []) {
+        verifiedMap.set(row.user_id, row.is_verified === true);
       }
 
       setUsers(
@@ -81,6 +93,7 @@ export default function AdminUsersScreen() {
           full_name: profile.full_name,
           profile_image: profile.profile_image,
           role: roleMap.get(profile.id) ?? 'user',
+          isVerified: verifiedMap.get(profile.id) ?? false,
         }))
       );
     } catch (error) {
@@ -153,6 +166,36 @@ export default function AdminUsersScreen() {
     }
   }
 
+  const grantVerification = useCallback(
+    async (user: UserRow) => {
+      if (updatingId || user.isVerified) return;
+
+      setUpdatingId(user.id);
+      try {
+        const { error } = await supabase.rpc('admin_grant_verification', {
+          p_user_id: user.id,
+          p_reason: 'Admin panelinden doğrulanmış hesap rozeti verildi',
+        });
+        if (error) throw error;
+
+        setUsers((current) =>
+          current.map((item) => (item.id === user.id ? { ...item, isVerified: true } : item))
+        );
+
+        Alert.alert(
+          'Hesap doğrulandı',
+          `${user.username || 'Kullanıcı'} için doğrulanmış hesap rozeti aktif edildi.`
+        );
+      } catch (error) {
+        console.error('Doğrulanmış hesap rozeti verilemedi:', error);
+        Alert.alert('Hata', 'Doğrulanmış hesap rozeti verilemedi. Supabase migration ve admin yetkisini kontrol et.');
+      } finally {
+        setUpdatingId(null);
+      }
+    },
+    [updatingId]
+  );
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -190,6 +233,13 @@ export default function AdminUsersScreen() {
             </Text>
             <Text style={styles.summaryLabel}>Yetkili hesap</Text>
           </View>
+          <View style={styles.summaryDivider} />
+          <View>
+            <Text style={styles.summaryValue}>
+              {users.filter((user) => user.isVerified).length.toLocaleString('tr-TR')}
+            </Text>
+            <Text style={styles.summaryLabel}>Doğrulanmış</Text>
+          </View>
         </View>
 
         <View style={styles.searchBox}>
@@ -208,49 +258,89 @@ export default function AdminUsersScreen() {
         <Text style={styles.resultText}>{filteredUsers.length} kullanıcı gösteriliyor</Text>
 
         <View style={styles.userList}>
-          {filteredUsers.map((user) => (
-            <View key={user.id} style={styles.userCard}>
-              <View style={styles.userHeader}>
-                {user.profile_image ? (
-                  <Image source={{ uri: user.profile_image }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Feather name="user" size={20} color={colors.textSecondary} />
+          {filteredUsers.map((user) => {
+            const updating = updatingId === user.id;
+            return (
+              <View key={user.id} style={styles.userCard}>
+                <View style={styles.userHeader}>
+                  {user.profile_image ? (
+                    <Image source={{ uri: user.profile_image }} style={styles.avatar} />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Feather name="user" size={20} color={colors.textSecondary} />
+                    </View>
+                  )}
+
+                  <View style={styles.userCopy}>
+                    <View style={styles.usernameRow}>
+                      <Text style={styles.username}>{user.username || 'Kitap Okuru'}</Text>
+                      {user.isVerified ? (
+                        <View style={styles.verifiedIcon} accessibilityLabel="Doğrulanmış hesap">
+                          <Feather name="check" size={11} color="#FFFFFF" />
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={styles.fullName}>{user.full_name || 'Ad soyad belirtilmemiş'}</Text>
+                    <Text style={styles.userId} numberOfLines={1}>{user.id}</Text>
                   </View>
-                )}
 
-                <View style={styles.userCopy}>
-                  <Text style={styles.username}>{user.username || 'Kitap Okuru'}</Text>
-                  <Text style={styles.fullName}>{user.full_name || 'Ad soyad belirtilmemiş'}</Text>
-                  <Text style={styles.userId} numberOfLines={1}>{user.id}</Text>
+                  <View style={styles.roleBadge}>
+                    <Text style={styles.roleBadgeText}>{ROLE_LABELS[user.role]}</Text>
+                  </View>
                 </View>
 
-                <View style={styles.roleBadge}>
-                  <Text style={styles.roleBadgeText}>{ROLE_LABELS[user.role]}</Text>
+                <View style={styles.verificationRow}>
+                  <View style={styles.verificationCopy}>
+                    <Text style={styles.verificationLabel}>Doğrulanmış hesap</Text>
+                    <Text style={styles.verificationValue}>
+                      {user.isVerified ? 'Rozet aktif' : 'Rozet verilmemiş'}
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    onPress={() => void grantVerification(user)}
+                    disabled={user.isVerified || updating || updatingId !== null}
+                    style={[
+                      styles.verifyButton,
+                      user.isVerified && styles.verifyButtonActive,
+                      (updating || (updatingId !== null && !updating)) && styles.verifyButtonDisabled,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısına doğrulanmış hesap rozeti ver`}
+                  >
+                    {updating ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Feather name={user.isVerified ? 'check-circle' : 'award'} size={16} color="#FFFFFF" />
+                    )}
+                    <Text style={styles.verifyButtonText}>
+                      {user.isVerified ? 'Doğrulandı' : 'Rozet Ver'}
+                    </Text>
+                  </Pressable>
                 </View>
+
+                {canManageAdmins ? (
+                  <View style={styles.roleRow}>
+                    {ROLES.map((role) => {
+                      const active = role === user.role;
+                      return (
+                        <Pressable
+                          key={role}
+                          disabled={updatingId === user.id}
+                          onPress={() => void changeRole(user, role)}
+                          style={[styles.roleButton, active && styles.roleButtonActive]}
+                        >
+                          <Text style={[styles.roleButtonText, active && styles.roleButtonTextActive]}>
+                            {ROLE_LABELS[role]}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
               </View>
-
-              {canManageAdmins ? (
-                <View style={styles.roleRow}>
-                  {ROLES.map((role) => {
-                    const active = role === user.role;
-                    return (
-                      <Pressable
-                        key={role}
-                        disabled={updatingId === user.id}
-                        onPress={() => void changeRole(user, role)}
-                        style={[styles.roleButton, active && styles.roleButtonActive]}
-                      >
-                        <Text style={[styles.roleButtonText, active && styles.roleButtonTextActive]}>
-                          {ROLE_LABELS[role]}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         {filteredUsers.length === 0 ? (
@@ -288,11 +378,21 @@ const baseStyles = StyleSheet.create({
   avatar: { width: 46, height: 46, borderRadius: 23 },
   avatarPlaceholder: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#20202A' },
   userCopy: { flex: 1, marginLeft: 11, minWidth: 0 },
+  usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   username: { color: '#F5F5F8', fontSize: 15, fontWeight: '800' },
+  verifiedIcon: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#4C83FF' },
   fullName: { marginTop: 2, color: '#A5A5B3', fontSize: 12 },
   userId: { marginTop: 3, color: '#686876', fontSize: 10 },
   roleBadge: { marginLeft: 8, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#21182F' },
   roleBadgeText: { color: '#BDA8FF', fontSize: 10, fontWeight: '800' },
+  verificationRow: { marginTop: 13, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#292934', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  verificationCopy: { flex: 1 },
+  verificationLabel: { color: '#747483', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  verificationValue: { marginTop: 4, color: '#D4D4DC', fontSize: 12, fontWeight: '700' },
+  verifyButton: { minHeight: 38, paddingHorizontal: 13, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#315FC5', borderWidth: 1, borderColor: '#527BE0' },
+  verifyButtonActive: { backgroundColor: '#285B46', borderColor: '#3D7F63' },
+  verifyButtonDisabled: { opacity: 0.6 },
+  verifyButtonText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 13, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#292934' },
   roleButton: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: '#0F0F15', borderWidth: 1, borderColor: '#30303D' },
   roleButtonActive: { backgroundColor: '#2B1E3E', borderColor: '#60458A' },
