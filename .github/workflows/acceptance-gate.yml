@@ -17,6 +17,8 @@ jobs:
       - run: npm ci
       - name: TypeScript
         run: npm run typecheck
+      - name: Lint
+        run: npm run lint
       - name: Route audit
         run: npm run audit:routes
       - name: Reader security tests
@@ -25,4 +27,8 @@ jobs:
         run: npm run audit:mobile-auth
       - name: Media upload preflight
         run: npm run audit:media-upload
+      - name: Web bundle smoke build
+        env:
+          EXPO_PUBLIC_ADS_ENABLED: 'false'
+        run: npx expo export --platform web --output-dir dist-ci
       # Physical-device acceptance is intentionally tracked separately.
