@@ -193,6 +193,29 @@ export async function loadGoogleMonthlyPremiumPlan(): Promise<RevenueCatStorePla
   return storePlanFromPackage(monthlyPackage, 'android', 'monthly');
 }
 
+export async function loadGoogleAnnualPremiumPlan(): Promise<RevenueCatStorePlan | null> {
+  if (!configured || Platform.OS !== 'android') return null;
+
+  const offerings = await Purchases.getOfferings();
+  const annualPackage = offerings.current?.annual ?? null;
+
+  if (!annualPackage) return null;
+
+  const expectedProductId =
+    process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_ANNUAL_PRODUCT_ID?.trim() || null;
+
+  if (
+    expectedProductId &&
+    annualPackage.product.identifier !== expectedProductId
+  ) {
+    throw new Error(
+      `RevenueCat Google annual product mismatch. Expected ${expectedProductId}, received ${annualPackage.product.identifier}.`
+    );
+  }
+
+  return storePlanFromPackage(annualPackage, 'android', 'annual');
+}
+
 export async function detachRevenueCatUser() {
   if (!configured || !configuredUserId || Platform.OS === 'web') return;
 
