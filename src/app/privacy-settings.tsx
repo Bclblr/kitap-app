@@ -100,6 +100,15 @@ export default function PrivacySettingsScreen() {
     void saveSettings(discoverable, value, isPrivate);
   }
 
+  function goBackSafely() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/');
+  }
+
   const options: { key: MessagePermission; title: string; description: string }[] = [
     { key: 'everyone', title: 'Herkes', description: 'Engellemediğin kullanıcılar sana mesaj gönderebilir.' },
     { key: 'followers', title: 'Beni takip edenler', description: 'Yalnızca seni takip eden kullanıcılar yeni mesaj gönderebilir.' },
@@ -110,7 +119,7 @@ export default function PrivacySettingsScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Geri dön">
+          <Pressable onPress={goBackSafely} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Geri dön">
             <Text style={styles.backText}>‹</Text>
           </Pressable>
           <Text style={styles.title}>Profil Gizliliği</Text>
