@@ -9,7 +9,9 @@ import { loadSuggestedReaders, rankReaders, SuggestedReader } from '@/lib/reader
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import VerifiedBadge from './VerifiedBadge';
+import PremiumBadge from './PremiumBadge';
 import { loadVerifiedUserIds } from '@/lib/verification';
+import { loadPremiumUserIds } from '@/lib/premium';
 
 export default function ReaderSuggestions({ limit = 10 }: { limit?: number }) {
   const social = useReaderSocial();
@@ -22,6 +24,7 @@ export default function ReaderSuggestions({ limit = 10 }: { limit?: number }) {
   const [hidden, setHidden] = useState<Record<string, number>>({});
   const [requestPending, setRequestPending] = useState<Set<string>>(new Set());
   const [verifiedUserIds, setVerifiedUserIds] = useState<Set<string>>(new Set());
+  const [premiumUserIds, setPremiumUserIds] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(Date.now);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -62,7 +65,10 @@ export default function ReaderSuggestions({ limit = 10 }: { limit?: number }) {
           }
 
           const readerIds = readers.map((reader) => reader.id);
-          const nextVerifiedUserIds = await loadVerifiedUserIds(readerIds).catch(() => new Set<string>());
+          const [nextVerifiedUserIds, nextPremiumUserIds] = await Promise.all([
+            loadVerifiedUserIds(readerIds).catch(() => new Set<string>()),
+            loadPremiumUserIds(readerIds).catch(() => new Set<string>()),
+          ]);
           let nextRequestPending = new Set<string>();
           if (readerIds.length) {
             const requests = await supabase
@@ -83,6 +89,7 @@ export default function ReaderSuggestions({ limit = 10 }: { limit?: number }) {
             setCandidates(readers);
             setRequestPending(nextRequestPending);
             setVerifiedUserIds(nextVerifiedUserIds);
+            setPremiumUserIds(nextPremiumUserIds);
             setHidden((current) =>
               Object.fromEntries(
                 [...new Set([...Object.keys(hiddenRows), ...Object.keys(current)])].map((id) => [
@@ -239,6 +246,7 @@ export default function ReaderSuggestions({ limit = 10 }: { limit?: number }) {
                     {reader.is_private ? '  🔒' : ''}
                   </Text>
                   {verifiedUserIds.has(reader.id) ? <VerifiedBadge size={16} /> : null}
+                  {premiumUserIds.has(reader.id) ? <PremiumBadge size={16} /> : null}
                 </View>
                 <Text numberOfLines={1} style={ui.muted}>@{reader.username}</Text>
                 <Text

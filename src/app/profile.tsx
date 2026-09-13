@@ -7,10 +7,12 @@ import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
 import VerifiedBadge from '@/components/VerifiedBadge';
+import PremiumBadge from '@/components/PremiumBadge';
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
 import { isUserVerified } from '@/lib/verification';
+import { isUserPremium } from '@/lib/premium';
 
 type NotificationType = 'like' | 'comment' | 'repost';
 
@@ -103,6 +105,7 @@ export default function ProfileScreen() {
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
 
   const [profile, setProfile] =
     useState<ProfileData>(DEFAULT_PROFILE);
@@ -191,11 +194,16 @@ export default function ProfileScreen() {
       if (!targetUserId) {
         setProfile(DEFAULT_PROFILE);
         setIsVerified(false);
+        setIsPremium(false);
         return;
       }
 
-      const verified = await isUserVerified(targetUserId).catch(() => false);
+      const [verified, premium] = await Promise.all([
+        isUserVerified(targetUserId).catch(() => false),
+        isUserPremium(targetUserId).catch(() => false),
+      ]);
       setIsVerified(verified);
+      setIsPremium(premium);
 
       const { data, error } =
         await supabase
@@ -2215,6 +2223,7 @@ export default function ProfileScreen() {
                   </Text>
 
                   {isVerified ? <VerifiedBadge size={19} /> : null}
+              {isPremium ? <PremiumBadge size={19} /> : null}
 
                 </View>
                 <Text style={styles.handle}>@{profile.username.toLowerCase().replace(/\s+/g, '')}</Text>

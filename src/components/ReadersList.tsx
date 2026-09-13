@@ -7,7 +7,9 @@ import { notifySocialChanged, useReaderSocial } from '@/hooks/use-reader-social'
 import { Action, Busy, useReaderStyles } from './ReaderUI';
 import ReaderSuggestions from './ReaderSuggestions';
 import VerifiedBadge from './VerifiedBadge';
+import PremiumBadge from './PremiumBadge';
 import { loadVerifiedUserIds } from '@/lib/verification';
+import { loadPremiumUserIds } from '@/lib/premium';
 
 type Reader = {
   id: string;
@@ -17,6 +19,7 @@ type Reader = {
   is_private: boolean;
   request_pending: boolean;
   is_verified: boolean;
+  is_premium: boolean;
 };
 
 const DIRECTORY_PAGE_SIZE = 30;
@@ -121,8 +124,12 @@ function ReaderDirectory({
           const result = await request;
           if (result.error) throw result.error;
 
-          const baseReaders = (result.data ?? []) as Omit<Reader, 'is_private' | 'request_pending' | 'is_verified'>[];
-          const verifiedIds = await loadVerifiedUserIds(baseReaders.map((reader) => reader.id)).catch(() => new Set<string>());
+          const baseReaders = (result.data ?? []) as Omit<Reader, 'is_private' | 'request_pending' | 'is_verified' | 'is_premium'>[];
+          const readerIds = baseReaders.map((reader) => reader.id);
+          const [verifiedIds, premiumIds] = await Promise.all([
+            loadVerifiedUserIds(readerIds).catch(() => new Set<string>()),
+            loadPremiumUserIds(readerIds).catch(() => new Set<string>()),
+          ]);
           const relationshipEntries = await Promise.all(
             baseReaders.map(async (reader) => {
               if (!social.userId || reader.id === social.userId) {
@@ -157,6 +164,7 @@ function ReaderDirectory({
               is_private: relationship?.is_private ?? false,
               request_pending: relationship?.request_pending ?? false,
               is_verified: verifiedIds.has(reader.id),
+              is_premium: premiumIds.has(reader.id),
             };
           });
 
@@ -303,6 +311,7 @@ function ReaderDirectory({
                         {reader.is_private ? '  🔒' : ''}
                       </Text>
                       {reader.is_verified ? <VerifiedBadge size={16} /> : null}
+                      {reader.is_premium ? <PremiumBadge size={16} /> : null}
                     </View>
                     <Text numberOfLines={1} style={ui.muted}>
                       @{reader.username}

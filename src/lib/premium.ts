@@ -118,3 +118,26 @@ export async function loadCurrentUserPremiumAccess(): Promise<PremiumAccess> {
 
   return resolvePremiumAccess((data ?? []) as PremiumEntitlement[]);
 }
+
+
+export async function loadPremiumUserIds(userIds: string[]): Promise<Set<string>> {
+  const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (uniqueIds.length === 0) return new Set<string>();
+
+  const { data, error } = await supabase.rpc('get_premium_badge_user_ids', {
+    p_user_ids: uniqueIds,
+  });
+  if (error) throw error;
+
+  return new Set(
+    (data ?? [])
+      .map((row: { user_id?: string | null }) => row.user_id)
+      .filter((value: string | null | undefined): value is string => Boolean(value))
+  );
+}
+
+export async function isUserPremium(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  const ids = await loadPremiumUserIds([userId]);
+  return ids.has(userId);
+}
