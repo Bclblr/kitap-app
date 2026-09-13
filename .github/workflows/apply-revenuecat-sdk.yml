@@ -1,0 +1,30 @@
+name: Apply RevenueCat SDK
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-revenuecat-sdk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install react-native-purchases@10.9.1 --save
+      - name: Commit package files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Install RevenueCat SDK"
+          git push origin main
