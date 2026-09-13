@@ -1,5 +1,5 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -8,6 +8,7 @@ import RuntimeGate from '@/components/RuntimeGate';
 import StoryMediaMaintenance from '@/components/StoryMediaMaintenance';
 import { installGlobalErrorMonitoring } from '@/lib/error-monitoring';
 import { configureProductionLogging } from '@/lib/production-logging';
+import { trackProductEvent } from '@/lib/product-analytics';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { ContentFilterProvider } from '@/providers/ContentFilterProvider';
 import { NetworkProvider, NetworkStatusBanner } from '@/providers/NetworkProvider';
@@ -39,7 +40,15 @@ function GuardedLayout() {
   const { colors, scheme, ready } = useAppTheme();
   const router = useRouter();
   const segments = useSegments();
+  const trackedUserRef = useRef<string | null>(null);
   const onboardingPending = session?.user?.user_metadata?.onboarding_pending === true;
+
+  useEffect(() => {
+    const userId = session?.user?.id ?? null;
+    if (!userId || trackedUserRef.current === userId) return;
+    trackedUserRef.current = userId;
+    void trackProductEvent('app_open', { source: 'authenticated_session' });
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (loading || !ready || !session || !onboardingPending) return;
