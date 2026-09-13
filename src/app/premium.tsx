@@ -53,6 +53,17 @@ export default function PremiumScreen() {
     );
   }
 
+  function openAdvancedStats() {
+    if (!premium.isPremium) {
+      Alert.alert(
+        'Premium özelliği',
+        'Gelişmiş okuma istatistikleri aktif Premium üyelikle kullanılabilir.'
+      );
+      return;
+    }
+    router.push('/premium-reading-stats');
+  }
+
   const paidLabel = premium.paidSources.includes('apple')
     ? 'Apple üzerinden Premium'
     : premium.paidSources.includes('google')
@@ -87,7 +98,7 @@ export default function PremiumScreen() {
 
           <View style={[styles.statusBox, { borderColor: colors.border, backgroundColor: colors.background }]}> 
             <View style={styles.statusTopRow}>
-              <Text style={[styles.statusTitle, { color: colors.text }]}>
+              <Text style={[styles.statusTitle, { color: colors.text }]}> 
                 {premium.isPremium ? 'Premium aktif' : 'Ücretsiz hesap'}
               </Text>
               <View style={[styles.statusPill, { backgroundColor: premium.isPremium ? colors.primary : colors.border }]}> 
@@ -116,6 +127,24 @@ export default function PremiumScreen() {
             </View>
           ))}
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Gelişmiş okuma istatistiklerini aç"
+          onPress={openAdvancedStats}
+          style={[styles.featureAction, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+        >
+          <View style={[styles.featureActionIcon, { backgroundColor: colors.primarySoft }]}> 
+            <Feather name="bar-chart-2" size={21} color={colors.primary} />
+          </View>
+          <View style={styles.featureActionText}>
+            <Text style={[styles.featureActionTitle, { color: colors.text }]}>Gelişmiş Okuma İstatistikleri</Text>
+            <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}> 
+              {premium.isPremium ? 'Son 30 günlük ayrıntılı analizini görüntüle.' : 'Premium ile son 30 günlük ayrıntılı analizini aç.'}
+            </Text>
+          </View>
+          <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
+        </Pressable>
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Planını seç</Text>
         <View style={styles.planGrid}>
@@ -182,6 +211,11 @@ const styles = StyleSheet.create({
   benefitText: { flex: 1, gap: 3 },
   benefitTitle: { fontSize: 14, fontWeight: '800' },
   benefitBody: { fontSize: 13, lineHeight: 18 },
+  featureAction: { marginTop: 12, borderWidth: 1, borderRadius: 18, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  featureActionIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  featureActionText: { flex: 1, gap: 3 },
+  featureActionTitle: { fontSize: 14, fontWeight: '900' },
+  featureActionBody: { fontSize: 12, lineHeight: 17 },
   planGrid: { gap: 12 },
   planCard: { borderWidth: 1, borderRadius: 20, padding: 17, gap: 9, overflow: 'hidden' },
   highlightedPlan: { borderWidth: 2 },
