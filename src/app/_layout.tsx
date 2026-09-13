@@ -121,6 +121,7 @@ function GuardedLayout() {
               'my-works',
               'profile-settings',
               'premium',
+              'premium-reading-stats',
               'quote-create',
               'read',
               'readers',
