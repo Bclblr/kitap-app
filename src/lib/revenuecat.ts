@@ -235,6 +235,15 @@ export async function purchasePremiumPlan(
   return { plan, snapshot };
 }
 
+export async function restorePremiumPurchases(): Promise<RevenueCatSnapshot> {
+  if (!configured || (Platform.OS !== 'ios' && Platform.OS !== 'android')) {
+    throw new Error('RevenueCat is not configured for this device.');
+  }
+
+  const customerInfo = await Purchases.restorePurchases();
+  return snapshotFromCustomerInfo(customerInfo);
+}
+
 export async function detachRevenueCatUser() {
   if (!configured || !configuredUserId || Platform.OS === 'web') return;
 
