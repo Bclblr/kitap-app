@@ -360,6 +360,11 @@ export default function ProfileSettingsScreen() {
           <Text style={styles.adminButtonArrow}>›</Text>
         </Pressable>
 
+        <Pressable onPress={() => router.push('/community-invites')} style={styles.adminButton} disabled={saving}>
+          <Text style={styles.adminButtonText}>✉️ Topluluk Davetleri</Text>
+          <Text style={styles.adminButtonArrow}>›</Text>
+        </Pressable>
+
         <Pressable onPress={() => router.push('/privacy-data')} style={styles.adminButton} disabled={saving}>
           <Text style={styles.adminButtonText}>🔐 Gizlilik ve Verilerim</Text>
           <Text style={styles.adminButtonArrow}>›</Text>
