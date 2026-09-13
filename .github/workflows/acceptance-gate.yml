@@ -23,4 +23,6 @@ jobs:
         run: npm run test:security
       - name: Mobile auth preflight
         run: npm run audit:mobile-auth
+      - name: Media upload preflight
+        run: npm run audit:media-upload
       # Physical-device acceptance is intentionally tracked separately.
