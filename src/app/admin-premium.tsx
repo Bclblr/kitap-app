@@ -61,6 +61,7 @@ export default function AdminPremiumScreen() {
   const [users, setUsers] = useState<PremiumUserRow[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const goBackSafely = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -147,6 +148,34 @@ export default function AdminPremiumScreen() {
   const paidCount = users.filter((user) => user.hasPaidPremium).length;
   const adminCount = users.filter((user) => user.hasAdminPremium).length;
 
+  const grantFreePremium = useCallback(
+    async (user: PremiumUserRow) => {
+      if (updatingId) return;
+      if (user.hasAdminPremium) {
+        Alert.alert('Bilgi', 'Bu kullanıcıya zaten admin tarafından Premium verilmiş.');
+        return;
+      }
+
+      setUpdatingId(user.id);
+      try {
+        const { error } = await supabase.rpc('admin_grant_premium', {
+          p_user_id: user.id,
+          p_reason: 'Admin panelinden ücretsiz Premium verildi',
+        });
+        if (error) throw error;
+
+        await loadUsers();
+        Alert.alert('Premium verildi', `${user.username || 'Kullanıcı'} artık admin hediyesi Premium kullanıyor.`);
+      } catch (error) {
+        console.error('Ücretsiz Premium verilemedi:', error);
+        Alert.alert('Hata', 'Ücretsiz Premium verilemedi. Yetki ve Supabase migration durumunu kontrol et.');
+      } finally {
+        setUpdatingId(null);
+      }
+    },
+    [loadUsers, updatingId]
+  );
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -190,9 +219,9 @@ export default function AdminPremiumScreen() {
         </View>
 
         <View style={styles.infoCard}>
-          <Feather name="info" size={18} color={colors.primary} />
+          <Feather name="gift" size={18} color={colors.primary} />
           <Text style={styles.infoText}>
-            Bu ekran şimdilik Premium durumunu güvenli biçimde görüntüler. Ücretsiz Premium verme ve geri alma kontrolleri sonraki adımlarda eklenecek.
+            Admin hediyesi Premium, Apple veya Google Play üzerinden ücret ödeyen kullanıcının aboneliğine dokunmaz. Bu adımda verilen admin Premium süresizdir; süre ve geri alma kontrolleri sonraki adımlarda eklenecek.
           </Text>
         </View>
 
@@ -212,48 +241,72 @@ export default function AdminPremiumScreen() {
         <Text style={styles.resultText}>{filteredUsers.length} kullanıcı gösteriliyor</Text>
 
         <View style={styles.userList}>
-          {filteredUsers.map((user) => (
-            <View key={user.id} style={styles.userCard}>
-              <View style={styles.userHeader}>
-                {user.profile_image ? (
-                  <Image source={{ uri: user.profile_image }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Feather name="user" size={20} color={colors.textSecondary} />
+          {filteredUsers.map((user) => {
+            const updating = updatingId === user.id;
+            return (
+              <View key={user.id} style={styles.userCard}>
+                <View style={styles.userHeader}>
+                  {user.profile_image ? (
+                    <Image source={{ uri: user.profile_image }} style={styles.avatar} />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Feather name="user" size={20} color={colors.textSecondary} />
+                    </View>
+                  )}
+
+                  <View style={styles.userCopy}>
+                    <Text style={styles.username}>{user.username || 'Kitap Okuru'}</Text>
+                    <Text style={styles.fullName}>{user.full_name || 'Ad soyad belirtilmemiş'}</Text>
+                    <Text style={styles.userId} numberOfLines={1}>{user.id}</Text>
                   </View>
-                )}
 
-                <View style={styles.userCopy}>
-                  <Text style={styles.username}>{user.username || 'Kitap Okuru'}</Text>
-                  <Text style={styles.fullName}>{user.full_name || 'Ad soyad belirtilmemiş'}</Text>
-                  <Text style={styles.userId} numberOfLines={1}>{user.id}</Text>
+                  <View style={[styles.statusBadge, user.isPremium && styles.statusBadgeActive]}>
+                    <Text style={[styles.statusBadgeText, user.isPremium && styles.statusBadgeTextActive]}>
+                      {user.isPremium ? 'PREMIUM' : 'FREE'}
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={[styles.statusBadge, user.isPremium && styles.statusBadgeActive]}>
-                  <Text style={[styles.statusBadgeText, user.isPremium && styles.statusBadgeTextActive]}>
-                    {user.isPremium ? 'PREMIUM' : 'FREE'}
+                <View style={styles.detailRow}>
+                  <View style={styles.detailBlock}>
+                    <Text style={styles.detailLabel}>Kaynak</Text>
+                    <Text style={styles.detailValue}>{formatSource(user)}</Text>
+                  </View>
+                  <View style={styles.detailBlock}>
+                    <Text style={styles.detailLabel}>En yakın bitiş</Text>
+                    <Text style={styles.detailValue}>{user.isPremium ? formatDate(user.nextExpirationAt) : '—'}</Text>
+                  </View>
+                </View>
+
+                <Pressable
+                  onPress={() => void grantFreePremium(user)}
+                  disabled={updating || user.hasAdminPremium || updatingId !== null}
+                  style={[
+                    styles.grantButton,
+                    user.hasAdminPremium && styles.grantButtonActive,
+                    (updating || (updatingId !== null && !updating)) && styles.grantButtonDisabled,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısına ücretsiz Premium ver`}
+                >
+                  {updating ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Feather name={user.hasAdminPremium ? 'check-circle' : 'gift'} size={17} color="#FFFFFF" />
+                  )}
+                  <Text style={styles.grantButtonText}>
+                    {user.hasAdminPremium ? 'Admin Premium Aktif' : 'Ücretsiz Premium Ver'}
                   </Text>
-                </View>
-              </View>
+                </Pressable>
 
-              <View style={styles.detailRow}>
-                <View style={styles.detailBlock}>
-                  <Text style={styles.detailLabel}>Kaynak</Text>
-                  <Text style={styles.detailValue}>{formatSource(user)}</Text>
-                </View>
-                <View style={styles.detailBlock}>
-                  <Text style={styles.detailLabel}>En yakın bitiş</Text>
-                  <Text style={styles.detailValue}>{user.isPremium ? formatDate(user.nextExpirationAt) : '—'}</Text>
-                </View>
+                {user.entitlements.length > 0 ? (
+                  <Text style={styles.historyText}>
+                    Toplam {user.entitlements.length} Premium kaydı
+                  </Text>
+                ) : null}
               </View>
-
-              {user.entitlements.length > 0 ? (
-                <Text style={styles.historyText}>
-                  Toplam {user.entitlements.length} Premium kaydı
-                </Text>
-              ) : null}
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         {filteredUsers.length === 0 ? (
@@ -305,6 +358,10 @@ const baseStyles = StyleSheet.create({
   detailBlock: { flex: 1 },
   detailLabel: { color: '#747483', fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   detailValue: { marginTop: 4, color: '#D4D4DC', fontSize: 12, fontWeight: '700' },
+  grantButton: { marginTop: 13, minHeight: 44, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#6C3CC5', borderWidth: 1, borderColor: '#8B67D5' },
+  grantButtonActive: { backgroundColor: '#285B46', borderColor: '#3D7F63' },
+  grantButtonDisabled: { opacity: 0.6 },
+  grantButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
   historyText: { marginTop: 9, color: '#747483', fontSize: 11 },
   emptyCard: { marginTop: 24, alignItems: 'center', padding: 28, borderRadius: 18, backgroundColor: '#15151D', borderWidth: 1, borderColor: '#292934' },
   emptyTitle: { marginTop: 10, color: '#F5F5F8', fontSize: 16, fontWeight: '800' },
