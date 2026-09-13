@@ -26,6 +26,12 @@ type AdminNotification = {
 };
 type NotificationItem = InteractionNotification | SocialNotification | AdminNotification;
 
+type SocialProfile = {
+  id: string;
+  username: string | null;
+  profile_image: string | null;
+};
+
 export default function NotificationsScreen() {
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
@@ -54,7 +60,7 @@ export default function NotificationsScreen() {
       const [interactionResult, socialResult, adminResult] = await Promise.all([
         supabase.from('notifications').select(`id, actor_id, type, message, read, created_at, post_id, review_id, profiles:actor_id(username, profile_image)`)
           .eq('user_id', user.id).order('created_at', { ascending: false }).limit(100),
-        supabase.from('social_notifications').select(`id, actor_id, type, message, read, created_at, profiles:actor_id(username, profile_image)`)
+        supabase.from('social_notifications').select('id, actor_id, type, message, read, created_at')
           .eq('user_id', user.id).order('created_at', { ascending: false }).limit(100),
         supabase.rpc('get_my_admin_notifications', { p_limit: 100 }),
       ]);
@@ -62,6 +68,29 @@ export default function NotificationsScreen() {
       if (interactionResult.error) console.error('Etkileşim bildirimleri:', interactionResult.error);
       if (socialResult.error) console.error('Sosyal bildirimler:', socialResult.error);
       if (adminResult.error) console.error('Yönetim bildirimleri:', adminResult.error);
+
+      const socialRows = socialResult.data ?? [];
+      const socialActorIds = Array.from(new Set(
+        socialRows
+          .map((n: any) => typeof n.actor_id === 'string' ? n.actor_id : null)
+          .filter((id: string | null): id is string => Boolean(id))
+      ));
+
+      let socialProfiles = new Map<string, SocialProfile>();
+      if (socialActorIds.length > 0) {
+        const profileResult = await supabase
+          .from('profiles')
+          .select('id, username, profile_image')
+          .in('id', socialActorIds);
+
+        if (profileResult.error) {
+          console.error('Sosyal bildirim profilleri:', profileResult.error);
+        } else {
+          socialProfiles = new Map(
+            ((profileResult.data ?? []) as SocialProfile[]).map((profile) => [profile.id, profile])
+          );
+        }
+      }
 
       const interactions: InteractionNotification[] = (interactionResult.data ?? [])
         .filter((n: any) => n.type === 'like' ? prefs.likes : n.type === 'comment' ? prefs.comments : n.type === 'repost' ? prefs.reposts : true)
@@ -71,12 +100,16 @@ export default function NotificationsScreen() {
           review_id: n.review_id ? String(n.review_id) : null, username: String(n.profiles?.username ?? 'Kullanıcı'),
           profile_image: typeof n.profiles?.profile_image === 'string' ? n.profiles.profile_image : null }));
 
-      const socials: SocialNotification[] = prefs.follows ? (socialResult.data ?? []).map((n: any) => ({
-        source: 'social', id: String(n.id), actor_id: n.actor_id ? String(n.actor_id) : null,
-        type: n.type as SocialType, message: String(n.message ?? ''), read: n.read === true,
-        created_at: String(n.created_at ?? ''), username: String(n.profiles?.username ?? 'Kullanıcı'),
-        profile_image: typeof n.profiles?.profile_image === 'string' ? n.profiles.profile_image : null,
-      })) : [];
+      const socials: SocialNotification[] = prefs.follows ? socialRows.map((n: any) => {
+        const actorId = n.actor_id ? String(n.actor_id) : null;
+        const actorProfile = actorId ? socialProfiles.get(actorId) : undefined;
+        return {
+          source: 'social', id: String(n.id), actor_id: actorId,
+          type: n.type as SocialType, message: String(n.message ?? ''), read: n.read === true,
+          created_at: String(n.created_at ?? ''), username: String(actorProfile?.username ?? 'Kullanıcı'),
+          profile_image: typeof actorProfile?.profile_image === 'string' ? actorProfile.profile_image : null,
+        };
+      }) : [];
 
       const admins: AdminNotification[] = prefs.system ? (adminResult.data ?? []).map((n: any) => ({
         source: 'admin', id: String(n.id), title: String(n.title ?? 'Duyuru'), message: String(n.message ?? ''),
