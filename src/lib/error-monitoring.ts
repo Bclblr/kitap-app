@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 
 const MAX_MESSAGE = 1000;
 const MAX_STACK = 8000;
+let globalHandlerInstalled = false;
 
 function redact(value: string, maxLength: number) {
   return value
@@ -40,4 +41,30 @@ export async function reportAppError(
   } catch {
     // Monitoring must never create a second application failure.
   }
+}
+
+type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
+type ErrorUtilsLike = {
+  getGlobalHandler?: () => GlobalErrorHandler;
+  setGlobalHandler?: (handler: GlobalErrorHandler) => void;
+};
+
+export function installGlobalErrorMonitoring() {
+  if (globalHandlerInstalled) return;
+  globalHandlerInstalled = true;
+
+  if (typeof __DEV__ !== 'undefined' && __DEV__) return;
+
+  const errorUtils = (globalThis as typeof globalThis & { ErrorUtils?: ErrorUtilsLike }).ErrorUtils;
+  if (!errorUtils?.setGlobalHandler) return;
+
+  const previousHandler = errorUtils.getGlobalHandler?.();
+
+  errorUtils.setGlobalHandler((error, isFatal) => {
+    void reportAppError(error, {
+      kind: isFatal ? 'global_fatal_js' : 'global_js',
+    });
+
+    previousHandler?.(error, isFatal);
+  });
 }
