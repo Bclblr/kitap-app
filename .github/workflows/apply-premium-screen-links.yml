@@ -20,6 +20,7 @@ jobs:
           node-version: 24
           cache: npm
 
+      # Retry after the Premium screen theme-key fix.
       - name: Apply Premium screen links
         run: python .github/scripts/apply_premium_screen_links.py
 
