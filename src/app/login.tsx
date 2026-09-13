@@ -27,6 +27,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const canSubmit = email.trim().length > 0 && password.length > 0;
+
   async function routeAfterLogin() {
     const { data } = await supabase.auth.getUser();
     if (data.user?.user_metadata?.onboarding_pending === true) {
@@ -138,12 +140,6 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Feather name="arrow-left" size={22} color={colors.text} />
-          </Pressable>
-        </View>
-
         <View style={styles.brandWrap}>
           <View style={styles.logoMark}>
             <Feather name="book-open" size={28} color="#A985FF" />
@@ -172,12 +168,7 @@ export default function LoginScreen() {
             />
           </View>
 
-          <View style={styles.passwordLabelRow}>
-            <Text style={styles.label}>Şifre</Text>
-            <Pressable onPress={() => router.push('/forgot-password')}>
-              <Text style={styles.forgotLink}>Şifremi unuttum</Text>
-            </Pressable>
-          </View>
+          <Text style={styles.label}>Şifre</Text>
           <View style={styles.inputWrap}>
             <Feather name="lock" size={18} color="#777783" />
             <TextInput
@@ -191,16 +182,24 @@ export default function LoginScreen() {
             />
           </View>
 
+          <View style={styles.forgotRow}>
+            <Pressable onPress={() => router.push('/forgot-password')}>
+              <Text style={styles.forgotLink}>Şifremi unuttum</Text>
+            </Pressable>
+          </View>
+
           <Pressable
             onPress={handleLogin}
-            disabled={loading}
+            disabled={loading || !canSubmit}
             style={({ pressed }) => [
               styles.button,
-              loading && styles.disabledButton,
-              pressed && !loading && styles.buttonPressed,
+              (loading || !canSubmit) && styles.disabledButton,
+              pressed && !loading && canSubmit && styles.buttonPressed,
             ]}
           >
-            <Text style={styles.buttonText}>{loading ? 'Giriş yapılıyor...' : 'E-posta ile Giriş Yap'}</Text>
+            <Text style={[styles.buttonText, !canSubmit && styles.disabledButtonText]}>
+              {loading ? 'Giriş yapılıyor...' : 'E-posta ile Giriş Yap'}
+            </Text>
           </Pressable>
 
           <View style={styles.orRow}>
@@ -233,9 +232,7 @@ export default function LoginScreen() {
 
 const baseStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#09090D' },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 32 },
-  topBar: { paddingTop: 18, minHeight: 62, justifyContent: 'center' },
-  backButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: '#24242C', backgroundColor: '#111116', alignItems: 'center', justifyContent: 'center' },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 30, paddingBottom: 32 },
   brandWrap: { alignItems: 'center', marginTop: 18, marginBottom: 24 },
   logoMark: { width: 60, height: 60, borderRadius: 19, backgroundColor: '#17121F', borderWidth: 1, borderColor: '#2E2340', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   brandTitle: { fontSize: 29, fontWeight: '800', color: '#F5F5F8', letterSpacing: -0.7 },
@@ -251,13 +248,14 @@ const baseStyles = StyleSheet.create({
   orLine: { flex: 1, height: 1, backgroundColor: '#292932' },
   orText: { color: '#666672', fontSize: 12, fontWeight: '700' },
   label: { marginBottom: 8, fontSize: 12, fontWeight: '700', color: '#B5B5BE' },
-  passwordLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  forgotLink: { marginBottom: 8, color: '#A985FF', fontSize: 12, fontWeight: '800' },
+  forgotRow: { alignItems: 'flex-end', marginTop: -7, marginBottom: 12 },
+  forgotLink: { color: '#A985FF', fontSize: 12, fontWeight: '800' },
   inputWrap: { height: 54, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: '#0C0C11', borderRadius: 15, borderWidth: 1, borderColor: '#292932', paddingHorizontal: 15, marginBottom: 17 },
   input: { flex: 1, height: '100%', color: '#F2F2F5', fontSize: 15 },
   button: { height: 54, borderRadius: 15, backgroundColor: '#A985FF', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   buttonPressed: { opacity: 0.84 },
-  disabledButton: { opacity: 0.55 },
+  disabledButton: { opacity: 0.38 },
+  disabledButtonText: { color: '#5F5668' },
   buttonText: { color: '#0B0710', fontSize: 15, fontWeight: '800' },
   switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 21 },
   switchText: { color: '#85858F', fontSize: 14 },
