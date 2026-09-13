@@ -6,10 +6,13 @@ import { StatusBar } from 'expo-status-bar';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import RuntimeGate from '@/components/RuntimeGate';
 import StoryMediaMaintenance from '@/components/StoryMediaMaintenance';
+import { configureProductionLogging } from '@/lib/production-logging';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { ContentFilterProvider } from '@/providers/ContentFilterProvider';
 import { NetworkProvider, NetworkStatusBanner } from '@/providers/NetworkProvider';
 import { ThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
+
+configureProductionLogging();
 
 export default function RootLayout() {
   return (
