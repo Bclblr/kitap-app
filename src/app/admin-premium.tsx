@@ -14,13 +14,12 @@ import {
 
 import Image from '@/components/SafeImage';
 import { getCurrentAdminAccess } from '@/lib/admin';
-import {
-  resolvePremiumAccess,
-  type PremiumEntitlement,
-} from '@/lib/premium';
+import { resolvePremiumAccess, type PremiumEntitlement } from '@/lib/premium';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
+
+type GrantDuration = '7_days' | '30_days' | '1_year' | 'unlimited';
 
 type PremiumUserRow = {
   id: string;
@@ -34,6 +33,13 @@ type PremiumUserRow = {
   nextExpirationAt: string | null;
   entitlements: PremiumEntitlement[];
 };
+
+const DURATIONS: Array<{ value: GrantDuration; label: string }> = [
+  { value: '7_days', label: '7 Gün' },
+  { value: '30_days', label: '30 Gün' },
+  { value: '1_year', label: '1 Yıl' },
+  { value: 'unlimited', label: 'Süresiz' },
+];
 
 function formatSource(user: PremiumUserRow) {
   const labels: string[] = [];
@@ -54,6 +60,10 @@ function formatDate(value: string | null) {
   }).format(date);
 }
 
+function durationLabel(value: GrantDuration) {
+  return DURATIONS.find((item) => item.value === value)?.label ?? 'Süresiz';
+}
+
 export default function AdminPremiumScreen() {
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
@@ -62,6 +72,7 @@ export default function AdminPremiumScreen() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [durationByUser, setDurationByUser] = useState<Record<string, GrantDuration>>({});
 
   const goBackSafely = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -136,7 +147,6 @@ export default function AdminPremiumScreen() {
   const filteredUsers = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase('tr-TR');
     if (!needle) return users;
-
     return users.filter((user) => {
       const username = (user.username ?? '').toLocaleLowerCase('tr-TR');
       const fullName = (user.full_name ?? '').toLocaleLowerCase('tr-TR');
@@ -156,16 +166,21 @@ export default function AdminPremiumScreen() {
         return;
       }
 
+      const duration = durationByUser[user.id] ?? '30_days';
       setUpdatingId(user.id);
       try {
         const { error } = await supabase.rpc('admin_grant_premium', {
           p_user_id: user.id,
-          p_reason: 'Admin panelinden ücretsiz Premium verildi',
+          p_duration: duration,
+          p_reason: `Admin panelinden ${durationLabel(duration)} ücretsiz Premium verildi`,
         });
         if (error) throw error;
 
         await loadUsers();
-        Alert.alert('Premium verildi', `${user.username || 'Kullanıcı'} artık admin hediyesi Premium kullanıyor.`);
+        Alert.alert(
+          'Premium verildi',
+          `${user.username || 'Kullanıcı'} için ${durationLabel(duration)} admin Premium tanımlandı.`
+        );
       } catch (error) {
         console.error('Ücretsiz Premium verilemedi:', error);
         Alert.alert('Hata', 'Ücretsiz Premium verilemedi. Yetki ve Supabase migration durumunu kontrol et.');
@@ -173,13 +188,12 @@ export default function AdminPremiumScreen() {
         setUpdatingId(null);
       }
     },
-    [loadUsers, updatingId]
+    [durationByUser, loadUsers, updatingId]
   );
 
   const revokeFreePremium = useCallback(
     (user: PremiumUserRow) => {
       if (updatingId || !user.hasAdminPremium) return;
-
       Alert.alert(
         'Admin Premium geri alınsın mı?',
         user.hasPaidPremium
@@ -198,7 +212,6 @@ export default function AdminPremiumScreen() {
                   p_reason: 'Admin panelinden ücretsiz Premium geri alındı',
                 });
                 if (error) throw error;
-
                 await loadUsers();
                 Alert.alert(
                   'Admin Premium kaldırıldı',
@@ -246,27 +259,16 @@ export default function AdminPremiumScreen() {
         </View>
 
         <View style={styles.summaryCard}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{premiumCount.toLocaleString('tr-TR')}</Text>
-            <Text style={styles.summaryLabel}>Aktif Premium</Text>
-          </View>
+          <View style={styles.summaryItem}><Text style={styles.summaryValue}>{premiumCount.toLocaleString('tr-TR')}</Text><Text style={styles.summaryLabel}>Aktif Premium</Text></View>
           <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{paidCount.toLocaleString('tr-TR')}</Text>
-            <Text style={styles.summaryLabel}>Ücretli</Text>
-          </View>
+          <View style={styles.summaryItem}><Text style={styles.summaryValue}>{paidCount.toLocaleString('tr-TR')}</Text><Text style={styles.summaryLabel}>Ücretli</Text></View>
           <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{adminCount.toLocaleString('tr-TR')}</Text>
-            <Text style={styles.summaryLabel}>Admin hediyesi</Text>
-          </View>
+          <View style={styles.summaryItem}><Text style={styles.summaryValue}>{adminCount.toLocaleString('tr-TR')}</Text><Text style={styles.summaryLabel}>Admin hediyesi</Text></View>
         </View>
 
         <View style={styles.infoCard}>
           <Feather name="gift" size={18} color={colors.primary} />
-          <Text style={styles.infoText}>
-            Admin hediyesi Premium, Apple veya Google Play aboneliğinden tamamen bağımsızdır. Admin Premium geri alınsa bile aktif ücretli abonelik varsa kullanıcının Premium erişimi devam eder.
-          </Text>
+          <Text style={styles.infoText}>Admin Premium için 7 gün, 30 gün, 1 yıl veya süresiz seçeneklerinden biri seçilebilir. Ücretli Apple/Google abonelikleri bağımsız kalır.</Text>
         </View>
 
         <View style={styles.searchBox}>
@@ -287,84 +289,69 @@ export default function AdminPremiumScreen() {
         <View style={styles.userList}>
           {filteredUsers.map((user) => {
             const updating = updatingId === user.id;
+            const selectedDuration = durationByUser[user.id] ?? '30_days';
             return (
               <View key={user.id} style={styles.userCard}>
                 <View style={styles.userHeader}>
-                  {user.profile_image ? (
-                    <Image source={{ uri: user.profile_image }} style={styles.avatar} />
-                  ) : (
-                    <View style={styles.avatarPlaceholder}>
-                      <Feather name="user" size={20} color={colors.textSecondary} />
-                    </View>
-                  )}
-
+                  {user.profile_image ? <Image source={{ uri: user.profile_image }} style={styles.avatar} /> : <View style={styles.avatarPlaceholder}><Feather name="user" size={20} color={colors.textSecondary} /></View>}
                   <View style={styles.userCopy}>
                     <Text style={styles.username}>{user.username || 'Kitap Okuru'}</Text>
                     <Text style={styles.fullName}>{user.full_name || 'Ad soyad belirtilmemiş'}</Text>
                     <Text style={styles.userId} numberOfLines={1}>{user.id}</Text>
                   </View>
-
                   <View style={[styles.statusBadge, user.isPremium && styles.statusBadgeActive]}>
-                    <Text style={[styles.statusBadgeText, user.isPremium && styles.statusBadgeTextActive]}>
-                      {user.isPremium ? 'PREMIUM' : 'FREE'}
-                    </Text>
+                    <Text style={[styles.statusBadgeText, user.isPremium && styles.statusBadgeTextActive]}>{user.isPremium ? 'PREMIUM' : 'FREE'}</Text>
                   </View>
                 </View>
 
                 <View style={styles.detailRow}>
-                  <View style={styles.detailBlock}>
-                    <Text style={styles.detailLabel}>Kaynak</Text>
-                    <Text style={styles.detailValue}>{formatSource(user)}</Text>
-                  </View>
-                  <View style={styles.detailBlock}>
-                    <Text style={styles.detailLabel}>En yakın bitiş</Text>
-                    <Text style={styles.detailValue}>{user.isPremium ? formatDate(user.nextExpirationAt) : '—'}</Text>
-                  </View>
+                  <View style={styles.detailBlock}><Text style={styles.detailLabel}>Kaynak</Text><Text style={styles.detailValue}>{formatSource(user)}</Text></View>
+                  <View style={styles.detailBlock}><Text style={styles.detailLabel}>En yakın bitiş</Text><Text style={styles.detailValue}>{user.isPremium ? formatDate(user.nextExpirationAt) : '—'}</Text></View>
                 </View>
 
                 {user.hasAdminPremium ? (
                   <Pressable
                     onPress={() => revokeFreePremium(user)}
                     disabled={updating || updatingId !== null}
-                    style={[
-                      styles.revokeButton,
-                      (updating || (updatingId !== null && !updating)) && styles.grantButtonDisabled,
-                    ]}
+                    style={[styles.revokeButton, (updating || (updatingId !== null && !updating)) && styles.grantButtonDisabled]}
                     accessibilityRole="button"
                     accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısının admin Premium hakkını geri al`}
                   >
-                    {updating ? (
-                      <ActivityIndicator size="small" color="#FFB4BC" />
-                    ) : (
-                      <Feather name="x-circle" size={17} color="#FFB4BC" />
-                    )}
+                    {updating ? <ActivityIndicator size="small" color="#FFB4BC" /> : <Feather name="x-circle" size={17} color="#FFB4BC" />}
                     <Text style={styles.revokeButtonText}>Admin Premium'u Geri Al</Text>
                   </Pressable>
                 ) : (
-                  <Pressable
-                    onPress={() => void grantFreePremium(user)}
-                    disabled={updating || updatingId !== null}
-                    style={[
-                      styles.grantButton,
-                      (updating || (updatingId !== null && !updating)) && styles.grantButtonDisabled,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısına ücretsiz Premium ver`}
-                  >
-                    {updating ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Feather name="gift" size={17} color="#FFFFFF" />
-                    )}
-                    <Text style={styles.grantButtonText}>Ücretsiz Premium Ver</Text>
-                  </Pressable>
+                  <>
+                    <Text style={styles.durationTitle}>Premium süresi</Text>
+                    <View style={styles.durationRow}>
+                      {DURATIONS.map((item) => {
+                        const active = item.value === selectedDuration;
+                        return (
+                          <Pressable
+                            key={item.value}
+                            onPress={() => setDurationByUser((current) => ({ ...current, [user.id]: item.value }))}
+                            disabled={updatingId !== null}
+                            style={[styles.durationChip, active && styles.durationChipActive]}
+                          >
+                            <Text style={[styles.durationChipText, active && styles.durationChipTextActive]}>{item.label}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <Pressable
+                      onPress={() => void grantFreePremium(user)}
+                      disabled={updating || updatingId !== null}
+                      style={[styles.grantButton, (updating || (updatingId !== null && !updating)) && styles.grantButtonDisabled]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısına ${durationLabel(selectedDuration)} ücretsiz Premium ver`}
+                    >
+                      {updating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Feather name="gift" size={17} color="#FFFFFF" />}
+                      <Text style={styles.grantButtonText}>{durationLabel(selectedDuration)} Premium Ver</Text>
+                    </Pressable>
+                  </>
                 )}
 
-                {user.entitlements.length > 0 ? (
-                  <Text style={styles.historyText}>
-                    Toplam {user.entitlements.length} Premium kaydı
-                  </Text>
-                ) : null}
+                {user.entitlements.length > 0 ? <Text style={styles.historyText}>Toplam {user.entitlements.length} Premium kaydı</Text> : null}
               </View>
             );
           })}
@@ -419,6 +406,12 @@ const baseStyles = StyleSheet.create({
   detailBlock: { flex: 1 },
   detailLabel: { color: '#747483', fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   detailValue: { marginTop: 4, color: '#D4D4DC', fontSize: 12, fontWeight: '700' },
+  durationTitle: { marginTop: 13, color: '#8E8E9D', fontSize: 11, fontWeight: '800' },
+  durationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 8 },
+  durationChip: { paddingHorizontal: 11, paddingVertical: 8, borderRadius: 10, backgroundColor: '#0F0F15', borderWidth: 1, borderColor: '#30303D' },
+  durationChipActive: { backgroundColor: '#2B1E3E', borderColor: '#7656A8' },
+  durationChipText: { color: '#8E8E9D', fontSize: 11, fontWeight: '800' },
+  durationChipTextActive: { color: '#D7CAFF' },
   grantButton: { marginTop: 13, minHeight: 44, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#6C3CC5', borderWidth: 1, borderColor: '#8B67D5' },
   grantButtonDisabled: { opacity: 0.6 },
   grantButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
