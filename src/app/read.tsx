@@ -612,9 +612,9 @@ export default function ReadScreen() {
                   ) : null}
                 </View>
               </View>
-              <Pressable onPress={() => openBook(currentBook)} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Okumaya Devam Et</Text>
-                <Text style={styles.primaryButtonArrow}>›</Text>
+              <Pressable onPress={() => openBook(currentBook)} style={styles.continueButton}>
+                <Text style={styles.continueButtonText}>Okumaya Devam Et</Text>
+                <Text style={styles.continueButtonArrow}>›</Text>
               </Pressable>
             </View>
 
@@ -896,6 +896,9 @@ const baseStyles = StyleSheet.create({
   primaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#F18B31', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginTop: 15 },
   primaryButtonText: { color: '#1B1108', fontSize: 14, fontWeight: '900' },
   primaryButtonArrow: { color: '#1B1108', fontSize: 25, lineHeight: 26, marginLeft: 8 },
+  continueButton: { minHeight: 46, borderRadius: 14, backgroundColor: '#8058D9', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 15 },
+  continueButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  continueButtonArrow: { color: '#FFFFFF', fontSize: 22, lineHeight: 24, marginLeft: 8 },
   horizontalList: { gap: 11, paddingRight: 16 },
   smallBookCard: { width: 132, padding: 10, borderRadius: 16, backgroundColor: '#111218', borderWidth: 1, borderColor: '#292A33' },
   smallCover: { width: '100%', height: 148, borderRadius: 10, backgroundColor: '#191A21' },
