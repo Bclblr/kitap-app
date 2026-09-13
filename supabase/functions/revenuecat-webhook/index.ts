@@ -1,0 +1,162 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+type RevenueCatWebhook = {
+  event?: {
+    id?: string;
+    type?: string;
+    app_user_id?: string;
+    product_id?: string | null;
+    entitlement_ids?: string[] | null;
+    purchased_at_ms?: number | null;
+    expiration_at_ms?: number | null;
+    event_timestamp_ms?: number | null;
+    store?: string | null;
+    transaction_id?: string | null;
+    original_transaction_id?: string | null;
+    period_type?: string | null;
+  };
+};
+
+const PREMIUM_ENTITLEMENT_ID = 'premium';
+
+function jsonResponse(status: number, body: Record<string, unknown>) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function toIso(ms: number | null | undefined) {
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return null;
+  return new Date(ms).toISOString();
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function mapSource(store: string | null | undefined): 'apple' | 'google' | null {
+  if (store === 'APP_STORE') return 'apple';
+  if (store === 'PLAY_STORE') return 'google';
+  return null;
+}
+
+function mapStatus(type: string, periodType?: string | null) {
+  if (type === 'EXPIRATION') return 'expired';
+  if (type === 'SUBSCRIPTION_PAUSED') return 'inactive';
+  if (type === 'BILLING_ISSUE') return 'grace_period';
+  if (periodType === 'TRIAL') return 'trialing';
+  return 'active';
+}
+
+const supportedEvents = new Set([
+  'INITIAL_PURCHASE',
+  'RENEWAL',
+  'PRODUCT_CHANGE',
+  'CANCELLATION',
+  'UNCANCELLATION',
+  'BILLING_ISSUE',
+  'EXPIRATION',
+  'SUBSCRIPTION_PAUSED',
+  'SUBSCRIPTION_EXTENDED',
+]);
+
+Deno.serve(async (request) => {
+  if (request.method !== 'POST') {
+    return jsonResponse(405, { error: 'method_not_allowed' });
+  }
+
+  const webhookToken = Deno.env.get('REVENUECAT_WEBHOOK_AUTH_TOKEN');
+  const authorization = request.headers.get('Authorization');
+
+  if (!webhookToken || authorization !== `Bearer ${webhookToken}`) {
+    return jsonResponse(401, { error: 'invalid_webhook_authorization' });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error('revenuecat-webhook: required Supabase environment variables are missing');
+    return jsonResponse(500, { error: 'server_configuration_error' });
+  }
+
+  let payload: RevenueCatWebhook;
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonResponse(400, { error: 'invalid_json' });
+  }
+
+  const event = payload.event;
+  if (!event?.id || !event.type || !event.app_user_id) {
+    return jsonResponse(400, { error: 'missing_required_event_fields' });
+  }
+
+  if (!isUuid(event.app_user_id)) {
+    return jsonResponse(400, { error: 'invalid_app_user_id' });
+  }
+
+  const source = mapSource(event.store);
+  if (!source) {
+    return jsonResponse(200, { ok: true, ignored: 'unsupported_store' });
+  }
+
+  if (!supportedEvents.has(event.type)) {
+    return jsonResponse(200, { ok: true, ignored: 'unsupported_event_type' });
+  }
+
+  const entitlementIds = event.entitlement_ids ?? [];
+  if (!entitlementIds.includes(PREMIUM_ENTITLEMENT_ID)) {
+    return jsonResponse(200, { ok: true, ignored: 'non_premium_event' });
+  }
+
+  const sourceReference =
+    event.original_transaction_id?.trim() || event.transaction_id?.trim() || null;
+
+  if (!sourceReference) {
+    return jsonResponse(400, { error: 'missing_source_reference' });
+  }
+
+  const providerEventAt = toIso(event.event_timestamp_ms);
+  if (!providerEventAt) {
+    return jsonResponse(400, { error: 'invalid_event_timestamp' });
+  }
+
+  const startedAt = toIso(event.purchased_at_ms) ?? providerEventAt;
+  const expiresAt = toIso(event.expiration_at_ms);
+  const status = mapStatus(event.type, event.period_type);
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data, error } = await admin.rpc('process_revenuecat_premium_event', {
+    p_event_id: event.id,
+    p_event_type: event.type,
+    p_user_id: event.app_user_id,
+    p_source: source,
+    p_product_id: event.product_id ?? null,
+    p_source_reference: sourceReference,
+    p_status: status,
+    p_started_at: startedAt,
+    p_expires_at: expiresAt,
+    p_provider_event_at: providerEventAt,
+  });
+
+  if (error) {
+    console.error('revenuecat-webhook: sync failed', {
+      eventId: event.id,
+      eventType: event.type,
+      source,
+      error,
+    });
+    return jsonResponse(500, { error: 'premium_sync_failed' });
+  }
+
+  return jsonResponse(200, {
+    ok: true,
+    processed: data === true,
+    duplicate: data === false,
+  });
+});
