@@ -170,6 +170,29 @@ export async function loadAppleAnnualPremiumPlan(): Promise<RevenueCatStorePlan 
   return storePlanFromPackage(annualPackage, 'ios', 'annual');
 }
 
+export async function loadGoogleMonthlyPremiumPlan(): Promise<RevenueCatStorePlan | null> {
+  if (!configured || Platform.OS !== 'android') return null;
+
+  const offerings = await Purchases.getOfferings();
+  const monthlyPackage = offerings.current?.monthly ?? null;
+
+  if (!monthlyPackage) return null;
+
+  const expectedProductId =
+    process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_MONTHLY_PRODUCT_ID?.trim() || null;
+
+  if (
+    expectedProductId &&
+    monthlyPackage.product.identifier !== expectedProductId
+  ) {
+    throw new Error(
+      `RevenueCat Google monthly product mismatch. Expected ${expectedProductId}, received ${monthlyPackage.product.identifier}.`
+    );
+  }
+
+  return storePlanFromPackage(monthlyPackage, 'android', 'monthly');
+}
+
 export async function detachRevenueCatUser() {
   if (!configured || !configuredUserId || Platform.OS === 'web') return;
 
