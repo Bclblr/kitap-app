@@ -176,6 +176,50 @@ export default function AdminPremiumScreen() {
     [loadUsers, updatingId]
   );
 
+  const revokeFreePremium = useCallback(
+    (user: PremiumUserRow) => {
+      if (updatingId || !user.hasAdminPremium) return;
+
+      Alert.alert(
+        'Admin Premium geri alınsın mı?',
+        user.hasPaidPremium
+          ? 'Yalnızca admin tarafından verilen Premium kaldırılacak. Kullanıcının ücretli Apple/Google Premium hakkı devam edecek.'
+          : 'Yalnızca admin tarafından verilen Premium hakkı kaldırılacak.',
+        [
+          { text: 'Vazgeç', style: 'cancel' },
+          {
+            text: 'Geri Al',
+            style: 'destructive',
+            onPress: async () => {
+              setUpdatingId(user.id);
+              try {
+                const { error } = await supabase.rpc('admin_revoke_premium', {
+                  p_user_id: user.id,
+                  p_reason: 'Admin panelinden ücretsiz Premium geri alındı',
+                });
+                if (error) throw error;
+
+                await loadUsers();
+                Alert.alert(
+                  'Admin Premium kaldırıldı',
+                  user.hasPaidPremium
+                    ? `${user.username || 'Kullanıcı'} ücretli Premium hakkını kullanmaya devam ediyor.`
+                    : `${user.username || 'Kullanıcı'} artık admin hediyesi Premium kullanmıyor.`
+                );
+              } catch (error) {
+                console.error('Admin Premium geri alınamadı:', error);
+                Alert.alert('Hata', 'Admin Premium geri alınamadı. Yetki ve Supabase migration durumunu kontrol et.');
+              } finally {
+                setUpdatingId(null);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [loadUsers, updatingId]
+  );
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -221,7 +265,7 @@ export default function AdminPremiumScreen() {
         <View style={styles.infoCard}>
           <Feather name="gift" size={18} color={colors.primary} />
           <Text style={styles.infoText}>
-            Admin hediyesi Premium, Apple veya Google Play üzerinden ücret ödeyen kullanıcının aboneliğine dokunmaz. Bu adımda verilen admin Premium süresizdir; süre ve geri alma kontrolleri sonraki adımlarda eklenecek.
+            Admin hediyesi Premium, Apple veya Google Play aboneliğinden tamamen bağımsızdır. Admin Premium geri alınsa bile aktif ücretli abonelik varsa kullanıcının Premium erişimi devam eder.
           </Text>
         </View>
 
@@ -278,26 +322,43 @@ export default function AdminPremiumScreen() {
                   </View>
                 </View>
 
-                <Pressable
-                  onPress={() => void grantFreePremium(user)}
-                  disabled={updating || user.hasAdminPremium || updatingId !== null}
-                  style={[
-                    styles.grantButton,
-                    user.hasAdminPremium && styles.grantButtonActive,
-                    (updating || (updatingId !== null && !updating)) && styles.grantButtonDisabled,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısına ücretsiz Premium ver`}
-                >
-                  {updating ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Feather name={user.hasAdminPremium ? 'check-circle' : 'gift'} size={17} color="#FFFFFF" />
-                  )}
-                  <Text style={styles.grantButtonText}>
-                    {user.hasAdminPremium ? 'Admin Premium Aktif' : 'Ücretsiz Premium Ver'}
-                  </Text>
-                </Pressable>
+                {user.hasAdminPremium ? (
+                  <Pressable
+                    onPress={() => revokeFreePremium(user)}
+                    disabled={updating || updatingId !== null}
+                    style={[
+                      styles.revokeButton,
+                      (updating || (updatingId !== null && !updating)) && styles.grantButtonDisabled,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısının admin Premium hakkını geri al`}
+                  >
+                    {updating ? (
+                      <ActivityIndicator size="small" color="#FFB4BC" />
+                    ) : (
+                      <Feather name="x-circle" size={17} color="#FFB4BC" />
+                    )}
+                    <Text style={styles.revokeButtonText}>Admin Premium'u Geri Al</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={() => void grantFreePremium(user)}
+                    disabled={updating || updatingId !== null}
+                    style={[
+                      styles.grantButton,
+                      (updating || (updatingId !== null && !updating)) && styles.grantButtonDisabled,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısına ücretsiz Premium ver`}
+                  >
+                    {updating ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Feather name="gift" size={17} color="#FFFFFF" />
+                    )}
+                    <Text style={styles.grantButtonText}>Ücretsiz Premium Ver</Text>
+                  </Pressable>
+                )}
 
                 {user.entitlements.length > 0 ? (
                   <Text style={styles.historyText}>
@@ -359,9 +420,10 @@ const baseStyles = StyleSheet.create({
   detailLabel: { color: '#747483', fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   detailValue: { marginTop: 4, color: '#D4D4DC', fontSize: 12, fontWeight: '700' },
   grantButton: { marginTop: 13, minHeight: 44, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#6C3CC5', borderWidth: 1, borderColor: '#8B67D5' },
-  grantButtonActive: { backgroundColor: '#285B46', borderColor: '#3D7F63' },
   grantButtonDisabled: { opacity: 0.6 },
   grantButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
+  revokeButton: { marginTop: 13, minHeight: 44, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#281419', borderWidth: 1, borderColor: '#6E303A' },
+  revokeButtonText: { color: '#FFB4BC', fontSize: 12, fontWeight: '900' },
   historyText: { marginTop: 9, color: '#747483', fontSize: 11 },
   emptyCard: { marginTop: 24, alignItems: 'center', padding: 28, borderRadius: 18, backgroundColor: '#15151D', borderWidth: 1, borderColor: '#292934' },
   emptyTitle: { marginTop: 10, color: '#F5F5F8', fontSize: 16, fontWeight: '800' },
