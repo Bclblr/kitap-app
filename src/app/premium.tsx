@@ -53,7 +53,7 @@ export default function PremiumScreen() {
     );
   }
 
-  function openPremiumFeature(path: '/premium-reading-stats' | '/premium-year-report' | '/premium-reading-goals' | '/premium-profile-customization' | '/premium-shelf-customization', message: string) {
+  function openPremiumFeature(path: '/premium-reading-stats' | '/premium-year-report' | '/premium-reading-goals' | '/premium-profile-customization' | '/premium-shelf-customization' | '/premium-quote-cards', message: string) {
     if (!premium.isPremium) {
       Alert.alert('Premium özelliği', message);
       return;
@@ -210,6 +210,24 @@ export default function PremiumScreen() {
             <Text style={[styles.featureActionTitle, { color: colors.text }]}>Raf Kişiselleştirme</Text>
             <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}> 
               {premium.isPremium ? 'Raf adlarını, görünümünü ve vurgu rengini yönet.' : 'Premium ile raf görünümünü kişiselleştir.'}
+            </Text>
+          </View>
+          <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Premium alıntı kartlarını aç"
+          onPress={() => openPremiumFeature('/premium-quote-cards', 'Premium alıntı kartları aktif Premium üyelikle kullanılabilir.')}
+          style={[styles.featureAction, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+        >
+          <View style={[styles.featureActionIcon, { backgroundColor: colors.primarySoft }]}> 
+            <Feather name="image" size={21} color={colors.primary} />
+          </View>
+          <View style={styles.featureActionText}>
+            <Text style={[styles.featureActionTitle, { color: colors.text }]}>Alıntı ve Paylaşım Kartları</Text>
+            <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}> 
+              {premium.isPremium ? 'Editoryal, Gece ve Minimal kart şablonlarını kullan.' : 'Premium ile özel alıntı kartı şablonlarını aç.'}
             </Text>
           </View>
           <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />

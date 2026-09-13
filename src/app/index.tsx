@@ -29,6 +29,7 @@ import { loadVerifiedUserIds } from '@/lib/verification';
 import { loadPremiumUserIds } from '@/lib/premium';
 import { storyAge } from '@/lib/reader-date';
 import { BookCoverData, existingBookCover, loadBookCover, openLibraryWorkUrl } from '@/lib/open-library-cover';
+import { normalizeQuoteCardTemplate, quoteCardPalette, QuoteCardTemplate } from '@/lib/quote-card';
 
 type Comment = {
   id: string;
@@ -91,6 +92,7 @@ type Post = BookCoverData & {
   reposted?: boolean;
   isReview?: boolean;
   isQuote?: boolean;
+  card_template_key?: QuoteCardTemplate;
 };
 
 type Story = {
@@ -615,6 +617,7 @@ export default function HomeScreen() {
           book_title: quote.book_title,
           rating: 0,
           created_at: quote.created_at,
+          card_template_key: normalizeQuoteCardTemplate(quote.card_template_key),
           isQuote: true,
         }));
 
@@ -1377,10 +1380,12 @@ export default function HomeScreen() {
             const feedReposted = post.isReview ? reviewForPost?.reposted : post.reposted;
             const feedReposts = post.isReview ? reviewForPost?.reposts : post.reposts;
 
+            const quoteCard = post.isQuote ? quoteCardPalette(normalizeQuoteCardTemplate(post.card_template_key), colors) : null;
+
             return (
               <Fragment key={post.id}>
                 {feedIndex === 5 && <ReadersList limit={10} />}
-                <View key={post.id} style={[styles.postCard, post.isQuote && styles.quotePostCard, post.rating > 0 && styles.reviewPostCard]}>
+                <View key={post.id} style={[styles.postCard, post.isQuote && styles.quotePostCard, post.rating > 0 && styles.reviewPostCard, quoteCard ? { backgroundColor: quoteCard.background, borderColor: quoteCard.border } : null]}>
                   {feedIndex > 0 && feedIndex % 9 === 0 && <AdSlot />}
                   <View style={styles.userRow}>
                     <View style={styles.avatar}>{post.profile_image ? <Image source={{ uri: post.profile_image }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{post.username?.trim().charAt(0).toUpperCase() || 'K'}</Text>}</View>
@@ -1390,7 +1395,7 @@ export default function HomeScreen() {
 
                   {(post.isQuote || post.rating > 0) && <Text style={styles.feedTypeLabel}>{post.isQuote ? 'ALINTI' : 'KİTAP İNCELEMESİ'}</Text>}
                   {post.image_url && <Image source={{ uri: post.image_url }} style={styles.postImage} />}
-                  {post.text && <HashtagText text={post.isQuote ? `“${post.text}”` : post.text} style={[styles.postText, post.isQuote && styles.quotePostText]} />}
+                  {post.text && <HashtagText text={post.isQuote ? `“${post.text}”` : post.text} style={[styles.postText, post.isQuote && styles.quotePostText, quoteCard ? { color: quoteCard.text } : null]} />}
                   {post.book_title && (
                     <Pressable onPress={() => { if (post.book_key) openBook(post.book_key); }} style={styles.bookAttachment}>
                       <View style={styles.bookAttachmentIcon}><BookCover uri={existingBookCover(post) ?? bookCoverUrls[post.book_key || post.key || post.workKey || ''] ?? null} style={styles.bookAttachmentCover}><Text style={styles.bookAttachmentEmoji}>▥</Text></BookCover></View>
