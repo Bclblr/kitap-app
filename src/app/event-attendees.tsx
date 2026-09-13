@@ -1,11 +1,12 @@
 import AppErrorState from '@/components/AppErrorState';
 import AppLoadingState from '@/components/AppLoadingState';
 import Image from '@/components/SafeImage';
+import { useScreenRefresh, ScreenRefreshSource } from '@/hooks/use-screen-refresh';
 import { supabase } from '@/lib/supabase';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Pressable, RefreshControl, View as SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type EventAttendee = {
   user_id: string;
@@ -21,7 +22,7 @@ export default function EventAttendeesScreen() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadAttendees = useCallback(async () => {
+  const loadAttendees = useCallback(async (source: ScreenRefreshSource) => {
     if (!id) {
       setAttendees([]);
       setErrorMessage('Etkinlik bilgisi bulunamadı.');
@@ -29,8 +30,9 @@ export default function EventAttendeesScreen() {
       return;
     }
 
+    if (source === 'manual') setLoading(true);
+
     try {
-      setLoading(true);
       setErrorMessage(null);
 
       const { data, error } = await supabase.rpc('get_event_attendees', {
@@ -48,13 +50,14 @@ export default function EventAttendeesScreen() {
     }
   }, [id]);
 
-  useEffect(() => {
-    void loadAttendees();
-  }, [loadAttendees]);
+  const { refreshing, onRefresh, refresh } = useScreenRefresh(loadAttendees);
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>‹ Geri</Text>
         </Pressable>
@@ -70,7 +73,7 @@ export default function EventAttendeesScreen() {
           <AppErrorState
             title="Katılımcılar açılamadı"
             message={errorMessage}
-            onAction={() => void loadAttendees()}
+            onAction={() => void refresh()}
           />
         ) : attendees.length === 0 ? (
           <View style={styles.messageBox}>
