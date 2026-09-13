@@ -1,13 +1,23 @@
-import { useThemedStyles } from '@/theme/use-themed-styles';
-import { useAppTheme } from '@/providers/ThemeProvider';
-import { Feather } from '@expo/vector-icons';
-import { supabase } from "@/lib/supabase";
+import Image from '@/components/SafeImage';
 import { Action } from '@/components/ReaderUI';
 import { readerDate } from '@/lib/reader-date';
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import Image from '@/components/SafeImage';
+import { supabase } from '@/lib/supabase';
+import { useAppTheme } from '@/providers/ThemeProvider';
+import { useThemedStyles } from '@/theme/use-themed-styles';
+import { Feather } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  View as SafeAreaView,
+} from 'react-native';
 
 type CommunityDetail = {
   id: string;
@@ -47,6 +57,16 @@ type CommunityPost = {
   comments_count: number;
 };
 
+type CommunityPostRow = {
+  id: string;
+  community_id: string;
+  user_id: string;
+  text: string;
+  created_at: string;
+};
+
+const COMMUNITY_POST_PAGE_SIZE = 20;
+
 export default function CommunityScreen() {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -62,30 +82,23 @@ export default function CommunityScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [membershipUpdating, setMembershipUpdating] = useState(false);
+
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [communityPostsLoading, setCommunityPostsLoading] = useState(false);
-  const [postText, setPostText] = useState("");
+  const [communityPostsLoadingMore, setCommunityPostsLoadingMore] = useState(false);
+  const [communityPostsHasMore, setCommunityPostsHasMore] = useState(true);
+  const [communityPostsOffset, setCommunityPostsOffset] = useState(0);
+
+  const [postText, setPostText] = useState('');
   const [posting, setPosting] = useState(false);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
-  const [pendingLikePostIds, setPendingLikePostIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(
-    null,
-  );
-  const [postComments, setPostComments] = useState<
-    Record<string, CommunityPostComment[]>
-  >({});
-  const [commentsLoadingPostId, setCommentsLoadingPostId] = useState<
-    string | null
-  >(null);
+  const [pendingLikePostIds, setPendingLikePostIds] = useState<Set<string>>(new Set());
+  const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null);
+  const [postComments, setPostComments] = useState<Record<string, CommunityPostComment[]>>({});
+  const [commentsLoadingPostId, setCommentsLoadingPostId] = useState<string | null>(null);
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
-  const [commentPostingPostId, setCommentPostingPostId] = useState<
-    string | null
-  >(null);
-  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(
-    null,
-  );
+  const [commentPostingPostId, setCommentPostingPostId] = useState<string | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -104,162 +117,199 @@ export default function CommunityScreen() {
         if (mounted) setCurrentUserId(userId);
 
         const { data, error } = await supabase
-          .from("communities")
-          .select("id, name, description, image_url, created_by, created_at")
-          .eq("id", communityId)
+          .from('communities')
+          .select('id, name, description, image_url, created_by, created_at')
+          .eq('id', communityId)
           .maybeSingle();
 
         if (error) throw error;
         if (!mounted) return;
 
         setCommunity(data as CommunityDetail | null);
+
         if (userId) {
           const permission = await supabase.rpc('community_admin', { cid: communityId });
           if (mounted) setIsAdmin(permission.data === true);
         }
 
         const countResult = await supabase
-          .from("community_members")
-          .select("*", { count: "exact", head: true })
-          .eq("community_id", communityId);
+          .from('community_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('community_id', communityId);
 
         if (mounted) setMemberCount(countResult.count ?? 0);
 
         if (userId) {
           const membership = await supabase
-            .from("community_members")
-            .select("user_id")
-            .eq("community_id", communityId)
-            .eq("user_id", userId)
+            .from('community_members')
+            .select('user_id')
+            .eq('community_id', communityId)
+            .eq('user_id', userId)
             .maybeSingle();
 
           if (mounted) setIsMember(Boolean(membership.data));
         }
 
         const { data: memberRows } = await supabase
-          .from("community_members")
-          .select("user_id")
-          .eq("community_id", communityId)
-          .order("joined_at", { ascending: true })
+          .from('community_members')
+          .select('user_id')
+          .eq('community_id', communityId)
+          .order('joined_at', { ascending: true })
           .limit(6);
 
-        const ids = (memberRows ?? [])
-          .map((row) => row.user_id)
-          .filter(Boolean);
+        const ids = (memberRows ?? []).map((row) => row.user_id).filter(Boolean);
 
         if (ids.length) {
           const { data: profiles } = await supabase
-            .from("profiles")
-            .select("id, username, profile_image")
-            .in("id", ids);
+            .from('profiles')
+            .select('id, username, profile_image')
+            .in('id', ids);
 
           if (mounted) {
             setMembers(
               (profiles ?? []).map((profile) => ({
                 user_id: profile.id,
-                username: profile.username || "Kullanıcı",
+                username: profile.username || 'Kullanıcı',
                 profile_image: profile.profile_image,
               })),
             );
           }
+        } else if (mounted) {
+          setMembers([]);
         }
       } catch (error) {
-        console.error("Community load error:", error);
+        console.error('Community load error:', error);
       } finally {
         if (mounted) setLoading(false);
       }
     }
 
     void load();
-
     return () => {
       mounted = false;
     };
   }, [communityId]);
 
-  async function loadCommunityPosts() {
-    if (!communityId) return;
+  const enrichCommunityPosts = useCallback(
+    async (rows: CommunityPostRow[], activeUserId: string | null): Promise<CommunityPost[]> => {
+      if (!rows.length) return [];
 
-    setCommunityPostsLoading(true);
-
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      const activeUserId = user?.id ?? null;
-
-      const { data, error } = await supabase
-        .from("community_posts")
-        .select("id, community_id, user_id, text, created_at")
-        .eq("community_id", communityId)
-        .order("created_at", { ascending: false })
-        .limit(30);
-
-      if (error) throw error;
-
-      const rows = data ?? [];
-      const ids = rows.map((row) => row.user_id).filter(Boolean);
-
-      const { data: profiles } = ids.length
-        ? await supabase
-            .from("profiles")
-            .select("id, username, profile_image")
-            .in("id", ids)
+      const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))];
+      const { data: profiles } = userIds.length
+        ? await supabase.from('profiles').select('id, username, profile_image').in('id', userIds)
         : { data: [] };
 
-      const profileMap = new Map(
-        (profiles ?? []).map((profile) => [profile.id, profile]),
-      );
-
+      const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
       const postIds = rows.map((row) => row.id).filter(Boolean);
 
-      const { data: likeRows } = postIds.length
-        ? await supabase
-            .from("community_post_likes")
-            .select("post_id, user_id")
-            .in("post_id", postIds)
-        : { data: [] };
+      const [likesResult, commentsResult] = await Promise.all([
+        postIds.length
+          ? supabase.from('community_post_likes').select('post_id, user_id').in('post_id', postIds)
+          : Promise.resolve({ data: [], error: null }),
+        postIds.length
+          ? supabase.from('community_post_comments').select('post_id').in('post_id', postIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
 
-      const { data: commentRows, error: commentError } = postIds.length
-        ? await supabase
-            .from("community_post_comments")
-            .select("post_id")
-            .in("post_id", postIds)
-        : { data: [], error: null };
+      if (likesResult.error) console.error('Community post likes load error:', likesResult.error);
+      if (commentsResult.error) console.error('Community post comments count error:', commentsResult.error);
 
-      if (commentError) {
-        console.error("Community post comments count error:", commentError);
+      const likeRows = likesResult.data ?? [];
+      const commentRows = commentsResult.data ?? [];
+      const likeCountMap = new Map<string, number>();
+      const commentCountMap = new Map<string, number>();
+      const likedByCurrentUser = new Set<string>();
+
+      for (const like of likeRows) {
+        likeCountMap.set(like.post_id, (likeCountMap.get(like.post_id) ?? 0) + 1);
+        if (activeUserId && like.user_id === activeUserId) likedByCurrentUser.add(like.post_id);
       }
 
-      setCommunityPosts(
-        rows.map((row) => ({
-          ...row,
-          username: profileMap.get(row.user_id)?.username || "Kullanıcı",
-          profile_image: profileMap.get(row.user_id)?.profile_image ?? null,
-          likes_count: (likeRows ?? []).filter(
-            (like) => like.post_id === row.id,
-          ).length,
-          liked: (likeRows ?? []).some(
-            (like) => like.post_id === row.id && like.user_id === activeUserId,
-          ),
-          comments_count: (commentRows ?? []).filter(
-            (comment) => comment.post_id === row.id,
-          ).length,
-        })) as CommunityPost[],
-      );
-    } catch (error) {
-      console.error("Community posts error:", error);
-      setCommunityPosts([]);
-    } finally {
-      setCommunityPostsLoading(false);
-    }
-  }
+      for (const comment of commentRows) {
+        commentCountMap.set(comment.post_id, (commentCountMap.get(comment.post_id) ?? 0) + 1);
+      }
+
+      return rows.map((row) => ({
+        ...row,
+        username: profileMap.get(row.user_id)?.username || 'Kullanıcı',
+        profile_image: profileMap.get(row.user_id)?.profile_image ?? null,
+        likes_count: likeCountMap.get(row.id) ?? 0,
+        liked: likedByCurrentUser.has(row.id),
+        comments_count: commentCountMap.get(row.id) ?? 0,
+      }));
+    },
+    [],
+  );
+
+  const loadCommunityPosts = useCallback(
+    async (reset = true) => {
+      if (!communityId) return;
+      if (reset ? communityPostsLoading : communityPostsLoadingMore) return;
+      if (!reset && !communityPostsHasMore) return;
+
+      if (reset) setCommunityPostsLoading(true);
+      else setCommunityPostsLoadingMore(true);
+
+      const offset = reset ? 0 : communityPostsOffset;
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const activeUserId = user?.id ?? null;
+
+        const { data, error } = await supabase
+          .from('community_posts')
+          .select('id, community_id, user_id, text, created_at')
+          .eq('community_id', communityId)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(offset, offset + COMMUNITY_POST_PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        const rows = (data ?? []) as CommunityPostRow[];
+        const enriched = await enrichCommunityPosts(rows, activeUserId);
+
+        setCommunityPosts((current) => {
+          if (reset) return enriched;
+          const existingIds = new Set(current.map((item) => item.id));
+          return [...current, ...enriched.filter((item) => !existingIds.has(item.id))];
+        });
+        setCommunityPostsHasMore(rows.length === COMMUNITY_POST_PAGE_SIZE);
+        setCommunityPostsOffset(offset + rows.length);
+      } catch (error) {
+        console.error('Community posts error:', error);
+        if (reset) {
+          setCommunityPosts([]);
+          setCommunityPostsOffset(0);
+          setCommunityPostsHasMore(true);
+        }
+      } finally {
+        if (reset) setCommunityPostsLoading(false);
+        else setCommunityPostsLoadingMore(false);
+      }
+    },
+    [
+      communityId,
+      communityPostsHasMore,
+      communityPostsLoading,
+      communityPostsLoadingMore,
+      communityPostsOffset,
+      enrichCommunityPosts,
+    ],
+  );
+
+  useEffect(() => {
+    setCommunityPosts([]);
+    setCommunityPostsOffset(0);
+    setCommunityPostsHasMore(true);
+    const timer = setTimeout(() => void loadCommunityPosts(true), 0);
+    return () => clearTimeout(timer);
+  }, [communityId]);
 
   async function toggleCommunityPostLike(post: CommunityPost) {
-    if (!currentUserId || !post.id) return;
-    if (pendingLikePostIds.has(post.id)) return;
-
+    if (!currentUserId || !post.id || pendingLikePostIds.has(post.id)) return;
     const wasLiked = post.liked;
 
     setCommunityPosts((current) =>
@@ -268,67 +318,37 @@ export default function CommunityScreen() {
           ? {
               ...item,
               liked: !wasLiked,
-              likes_count: wasLiked
-                ? Math.max(0, item.likes_count - 1)
-                : item.likes_count + 1,
+              likes_count: wasLiked ? Math.max(0, item.likes_count - 1) : item.likes_count + 1,
             }
           : item,
       ),
     );
 
-    setPendingLikePostIds((current) => {
-      const next = new Set(current);
-      next.add(post.id);
-      return next;
-    });
+    setPendingLikePostIds((current) => new Set(current).add(post.id));
 
     try {
-      if (wasLiked) {
-        const { error } = await supabase
-          .from("community_post_likes")
-          .delete()
-          .eq("post_id", post.id)
-          .eq("user_id", currentUserId);
+      const result = wasLiked
+        ? await supabase
+            .from('community_post_likes')
+            .delete()
+            .eq('post_id', post.id)
+            .eq('user_id', currentUserId)
+        : await supabase.from('community_post_likes').insert({ post_id: post.id, user_id: currentUserId });
 
-        if (error) {
-          console.error("Community post unlike error:", error);
-          setCommunityPosts((current) =>
-            current.map((item) =>
-              item.id === post.id
-                ? {
-                    ...item,
-                    liked: true,
-                    likes_count: item.likes_count + 1,
-                  }
-                : item,
-            ),
-          );
-          return;
-        }
-      } else {
-        const { error } = await supabase
-          .from("community_post_likes")
-          .insert({
-            post_id: post.id,
-            user_id: currentUserId,
-          });
-
-        if (error) {
-          console.error("Community post like error:", error);
-          setCommunityPosts((current) =>
-            current.map((item) =>
-              item.id === post.id
-                ? {
-                    ...item,
-                    liked: false,
-                    likes_count: Math.max(0, item.likes_count - 1),
-                  }
-                : item,
-            ),
-          );
-          return;
-        }
-      }
+      if (result.error) throw result.error;
+    } catch (error) {
+      console.error('Community post like error:', error);
+      setCommunityPosts((current) =>
+        current.map((item) =>
+          item.id === post.id
+            ? {
+                ...item,
+                liked: wasLiked,
+                likes_count: wasLiked ? item.likes_count + 1 : Math.max(0, item.likes_count - 1),
+              }
+            : item,
+        ),
+      );
     } finally {
       setPendingLikePostIds((current) => {
         const next = new Set(current);
@@ -349,87 +369,57 @@ export default function CommunityScreen() {
 
     try {
       const { data: rows, error } = await supabase
-        .from("community_post_comments")
-        .select("id, post_id, user_id, text, created_at")
-        .eq("post_id", postId)
-        .order("created_at", { ascending: true });
+        .from('community_post_comments')
+        .select('id, post_id, user_id, text, created_at')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error("Community comments load error:", error);
-        return;
-      }
-
+      if (error) throw error;
       const comments = rows ?? [];
       const userIds = [...new Set(comments.map((comment) => comment.user_id))];
-
       const { data: profiles } = userIds.length
-        ? await supabase
-            .from("profiles")
-            .select("id, username, profile_image")
-            .in("id", userIds)
+        ? await supabase.from('profiles').select('id, username, profile_image').in('id', userIds)
         : { data: [] };
-
-      const profileMap = new Map(
-        (profiles ?? []).map((profile) => [profile.id, profile]),
-      );
+      const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
 
       setPostComments((current) => ({
         ...current,
         [postId]: comments.map((comment) => ({
           ...comment,
-          username:
-            profileMap.get(comment.user_id)?.username || "Kullanıcı",
-          profile_image:
-            profileMap.get(comment.user_id)?.profile_image ?? null,
+          username: profileMap.get(comment.user_id)?.username || 'Kullanıcı',
+          profile_image: profileMap.get(comment.user_id)?.profile_image ?? null,
         })),
       }));
     } catch (error) {
-      console.error("Community comments error:", error);
+      console.error('Community comments error:', error);
     } finally {
       setCommentsLoadingPostId(null);
     }
   }
 
   async function createCommunityPostComment(postId: string) {
-    const text = (commentTexts[postId] ?? "").trim();
-
-    if (
-      !currentUserId ||
-      !postId ||
-      !text ||
-      commentPostingPostId === postId
-    ) {
-      return;
-    }
+    const text = (commentTexts[postId] ?? '').trim();
+    if (!currentUserId || !postId || !text || commentPostingPostId === postId) return;
 
     setCommentPostingPostId(postId);
-
     try {
       const { data: insertedComment, error } = await supabase
-        .from("community_post_comments")
-        .insert({
-          post_id: postId,
-          user_id: currentUserId,
-          text,
-        })
-        .select("id, post_id, user_id, text, created_at")
+        .from('community_post_comments')
+        .insert({ post_id: postId, user_id: currentUserId, text })
+        .select('id, post_id, user_id, text, created_at')
         .single();
 
-      if (error) {
-        console.error("Community comment create error:", error);
-        Alert.alert("Hata", "Yorum gönderilemedi.");
-        return;
-      }
+      if (error) throw error;
 
       const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, username, profile_image")
-        .eq("id", currentUserId)
+        .from('profiles')
+        .select('id, username, profile_image')
+        .eq('id', currentUserId)
         .maybeSingle();
 
       const newComment: CommunityPostComment = {
         ...insertedComment,
-        username: profile?.username || "Kullanıcı",
+        username: profile?.username || 'Kullanıcı',
         profile_image: profile?.profile_image ?? null,
       };
 
@@ -437,147 +427,112 @@ export default function CommunityScreen() {
         ...current,
         [postId]: [...(current[postId] ?? []), newComment],
       }));
-
       setCommunityPosts((current) =>
         current.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                comments_count: post.comments_count + 1,
-              }
-            : post,
+          post.id === postId ? { ...post, comments_count: post.comments_count + 1 } : post,
         ),
       );
-
-      setCommentTexts((current) => ({
-        ...current,
-        [postId]: "",
-      }));
+      setCommentTexts((current) => ({ ...current, [postId]: '' }));
     } catch (error) {
-      console.error("Community comment error:", error);
-      Alert.alert("Hata", "Yorum gönderilemedi.");
+      console.error('Community comment error:', error);
+      Alert.alert('Hata', 'Yorum gönderilemedi.');
     } finally {
       setCommentPostingPostId(null);
     }
   }
 
-  async function deleteCommunityPostComment(
-    postId: string,
-    comment: CommunityPostComment,
-  ) {
-    if (
-      !currentUserId ||
-      comment.user_id !== currentUserId ||
-      deletingCommentId
-    ) {
-      return;
-    }
+  async function deleteCommunityPostComment(postId: string, comment: CommunityPostComment) {
+    if (!currentUserId || comment.user_id !== currentUserId || deletingCommentId) return;
 
     setDeletingCommentId(comment.id);
-
     try {
       const { error } = await supabase
-        .from("community_post_comments")
+        .from('community_post_comments')
         .delete()
-        .eq("id", comment.id)
-        .eq("user_id", currentUserId);
+        .eq('id', comment.id)
+        .eq('user_id', currentUserId);
 
-      if (error) {
-        console.error("Community comment delete error:", error);
-        Alert.alert("Hata", "Yorum silinemedi.");
-        return;
-      }
+      if (error) throw error;
 
       setPostComments((current) => ({
         ...current,
-        [postId]: (current[postId] ?? []).filter(
-          (item) => item.id !== comment.id,
-        ),
+        [postId]: (current[postId] ?? []).filter((item) => item.id !== comment.id),
       }));
-
       setCommunityPosts((current) =>
         current.map((post) =>
           post.id === postId
-            ? {
-                ...post,
-                comments_count: Math.max(0, post.comments_count - 1),
-              }
+            ? { ...post, comments_count: Math.max(0, post.comments_count - 1) }
             : post,
         ),
       );
     } catch (error) {
-      console.error("Community comment delete error:", error);
-      Alert.alert("Hata", "Yorum silinemedi.");
+      console.error('Community comment delete error:', error);
+      Alert.alert('Hata', 'Yorum silinemedi.');
     } finally {
       setDeletingCommentId(null);
     }
   }
-
-  useEffect(() => {
-    const timer = setTimeout(() => void loadCommunityPosts(), 0);
-    return () => clearTimeout(timer);
-  }, [communityId]);
 
   async function createCommunityPost() {
     const text = postText.trim();
     if (!communityId || !currentUserId || !isMember || posting || !text) return;
 
     setPosting(true);
+    try {
+      const { error } = await supabase
+        .from('community_posts')
+        .insert({ community_id: communityId, user_id: currentUserId, text });
+      if (error) throw error;
 
-    const { error } = await supabase
-      .from("community_posts")
-      .insert({ community_id: communityId, user_id: currentUserId, text });
-
-    if (error) {
-      console.error("Community post create error:", error);
-    } else {
-      setPostText("");
-      await loadCommunityPosts();
+      setPostText('');
+      setCommunityPostsOffset(0);
+      setCommunityPostsHasMore(true);
+      await loadCommunityPosts(true);
+    } catch (error) {
+      console.error('Community post create error:', error);
+      Alert.alert('Hata', 'Paylaşım gönderilemedi.');
+    } finally {
+      setPosting(false);
     }
-
-    setPosting(false);
   }
 
   async function deleteCommunityPost(post: CommunityPost) {
-    if (!currentUserId || post.user_id !== currentUserId || deletingPostId) {
-      return;
-    }
+    if (!currentUserId || post.user_id !== currentUserId || deletingPostId) return;
 
     setDeletingPostId(post.id);
+    try {
+      const { error } = await supabase
+        .from('community_posts')
+        .delete()
+        .eq('id', post.id)
+        .eq('user_id', currentUserId);
+      if (error) throw error;
 
-    const { error } = await supabase
-      .from("community_posts")
-      .delete()
-      .eq("id", post.id)
-      .eq("user_id", currentUserId);
-
-    if (error) {
-      console.error("Community post delete error:", error);
-    } else {
       setCommunityPosts((items) => items.filter((item) => item.id !== post.id));
+      setCommunityPostsOffset((offset) => Math.max(0, offset - 1));
+    } catch (error) {
+      console.error('Community post delete error:', error);
+      Alert.alert('Hata', 'Paylaşım silinemedi.');
+    } finally {
+      setDeletingPostId(null);
     }
-
-    setDeletingPostId(null);
   }
 
   async function toggleMembership() {
     if (!communityId || !currentUserId || membershipUpdating) return;
-
     setMembershipUpdating(true);
 
     const result = isMember
       ? await supabase
-          .from("community_members")
+          .from('community_members')
           .delete()
-          .eq("community_id", communityId)
-          .eq("user_id", currentUserId)
-      : await supabase
-          .from("community_members")
-          .insert({ community_id: communityId, user_id: currentUserId });
+          .eq('community_id', communityId)
+          .eq('user_id', currentUserId)
+      : await supabase.from('community_members').insert({ community_id: communityId, user_id: currentUserId });
 
     if (result.error) {
-      console.error("Community membership error:", result.error);
-      Alert.alert("İşlem başarısız", "Topluluk üyeliği güncellenemedi.");
+      console.error('Community membership error:', result.error);
+      Alert.alert('İşlem başarısız', 'Topluluk üyeliği güncellenemedi.');
     } else {
       setIsMember(!isMember);
       setMemberCount((count) => Math.max(0, count + (isMember ? -1 : 1)));
@@ -588,7 +543,7 @@ export default function CommunityScreen() {
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
-    else router.replace("/explore");
+    else router.replace('/explore');
   };
 
   if (loading) {
@@ -615,12 +570,12 @@ export default function CommunityScreen() {
     );
   }
 
-  const initial = community.name.charAt(0).toLocaleUpperCase("tr-TR");
+  const initial = community.name.charAt(0).toLocaleUpperCase('tr-TR');
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Pressable onPress={goBack}>
+        <Pressable onPress={goBack} accessibilityRole="button" accessibilityLabel="Geri dön">
           <Text style={styles.back}>‹ Geri</Text>
         </Pressable>
 
@@ -635,11 +590,14 @@ export default function CommunityScreen() {
 
           <Text style={styles.title}>{community.name}</Text>
           <Text style={styles.count}>{memberCount} üye</Text>
-          {isAdmin && <Action label="Topluluğu düzenle" onPress={() => router.push({ pathname: '/community-editor', params: { id: communityId } })} />}
-
-          {community.description ? (
-            <Text style={styles.description}>{community.description}</Text>
+          {isAdmin ? (
+            <Action
+              label="Topluluğu düzenle"
+              onPress={() => router.push({ pathname: '/community-editor', params: { id: communityId } })}
+            />
           ) : null}
+
+          {community.description ? <Text style={styles.description}>{community.description}</Text> : null}
 
           <Pressable
             disabled={membershipUpdating || !currentUserId || community.created_by === currentUserId}
@@ -648,10 +606,10 @@ export default function CommunityScreen() {
           >
             <Text style={styles.ctaText}>
               {membershipUpdating
-                ? "Güncelleniyor..."
+                ? 'Güncelleniyor...'
                 : isMember
-                  ? "Topluluktan Ayrıl"
-                  : "Topluluğa Katıl"}
+                  ? 'Topluluktan Ayrıl'
+                  : 'Topluluğa Katıl'}
             </Text>
           </Pressable>
         </View>
@@ -669,204 +627,175 @@ export default function CommunityScreen() {
                 multiline
                 style={styles.postInput}
               />
-
-              <Pressable
-                disabled={posting}
-                onPress={createCommunityPost}
-                style={styles.cta}
-              >
-                <Text style={styles.ctaText}>
-                  {posting ? "Paylaşılıyor..." : "Paylaş"}
-                </Text>
+              <Pressable disabled={posting} onPress={createCommunityPost} style={styles.cta}>
+                <Text style={styles.ctaText}>{posting ? 'Paylaşılıyor...' : 'Paylaş'}</Text>
               </Pressable>
             </>
           ) : (
-            <Text style={styles.emptySmall}>
-              Paylaşım yapmak için topluluğa katıl.
-            </Text>
+            <Text style={styles.emptySmall}>Paylaşım yapmak için topluluğa katıl.</Text>
           )}
 
           {communityPostsLoading ? (
             <ActivityIndicator color="#9B72F2" style={styles.postsLoader} />
           ) : communityPosts.length ? (
-            communityPosts.map((post) => (
-              <View key={post.id} style={styles.postCard}>
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: "/profile",
-                      params: { userId: post.user_id },
-                    })
-                  }
-                >
-                  {post.profile_image ? (
-                    <Image
-                      source={{ uri: post.profile_image }}
-                      style={styles.avatar}
-                    />
-                  ) : (
-                    <View style={[styles.avatar, styles.avatarMark]}>
-                      <Text style={styles.avatarText}>
-                        {post.username.charAt(0).toLocaleUpperCase("tr-TR")}
-                      </Text>
+            <>
+              {communityPosts.map((post) => (
+                <View key={post.id} style={styles.postCard}>
+                  <Pressable
+                    onPress={() => router.push({ pathname: '/profile', params: { userId: post.user_id } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${post.username} profilini aç`}
+                  >
+                    <View style={styles.postAuthorRow}>
+                      {post.profile_image ? (
+                        <Image source={{ uri: post.profile_image }} style={styles.avatar} />
+                      ) : (
+                        <View style={[styles.avatar, styles.avatarMark]}>
+                          <Text style={styles.avatarText}>
+                            {post.username.charAt(0).toLocaleUpperCase('tr-TR')}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.postAuthorInfo}>
+                        <Text style={styles.memberName}>{post.username}</Text>
+                        <Text style={styles.postDate}>{readerDate(post.created_at)}</Text>
+                      </View>
                     </View>
-                  )}
-
-                  <Text style={styles.memberName}>{post.username}</Text>
-                </Pressable>
-
-                <Text style={styles.postDate}>
-                  {readerDate(post.created_at)}
-                </Text>
-
-                <Text style={styles.postBody}>{post.text}</Text>
-
-                <View style={styles.actionRow}>
-                  <Pressable
-                    disabled={pendingLikePostIds.has(post.id)}
-                    onPress={() => void toggleCommunityPostLike(post)}
-                    style={[styles.socialAction, post.liked && styles.socialActionActive]}
-                    accessibilityLabel={post.liked ? 'Beğeniyi kaldır' : 'Beğen'}
-                  >
-                    <Feather
-                      name="heart"
-                      size={20}
-                      color={post.liked ? colors.primary : colors.textSecondary}
-                    />
-                    <Text style={[styles.socialCount, post.liked && styles.likedText]}>
-                      {post.likes_count}
-                    </Text>
                   </Pressable>
 
-                  <Pressable
-                    onPress={() => void togglePostComments(post.id)}
-                    style={styles.socialAction}
-                    accessibilityLabel="Yorumlar"
-                  >
-                    <Feather name="message-circle" size={20} color={colors.textSecondary} />
-                    <Text style={styles.socialCount}>{post.comments_count}</Text>
-                  </Pressable>
+                  <Text style={styles.postBody}>{post.text}</Text>
 
-                  {post.user_id === currentUserId ? (
+                  <View style={styles.actionRow}>
                     <Pressable
-                      onPress={() => void deleteCommunityPost(post)}
-                      style={styles.socialAction}
-                      accessibilityLabel="Gönderiyi sil"
+                      disabled={pendingLikePostIds.has(post.id)}
+                      onPress={() => void toggleCommunityPostLike(post)}
+                      style={[styles.socialAction, post.liked && styles.socialActionActive]}
+                      accessibilityLabel={post.liked ? 'Beğeniyi kaldır' : 'Beğen'}
                     >
-                      <Feather name="trash-2" size={19} color="#D87987" />
+                      <Feather
+                        name="heart"
+                        size={20}
+                        color={post.liked ? colors.primary : colors.textSecondary}
+                      />
+                      <Text style={[styles.socialCount, post.liked && styles.likedText]}>
+                        {post.likes_count}
+                      </Text>
                     </Pressable>
+
+                    <Pressable
+                      onPress={() => void togglePostComments(post.id)}
+                      style={styles.socialAction}
+                      accessibilityLabel="Yorumlar"
+                    >
+                      <Feather name="message-circle" size={20} color={colors.textSecondary} />
+                      <Text style={styles.socialCount}>{post.comments_count}</Text>
+                    </Pressable>
+
+                    {post.user_id === currentUserId ? (
+                      <Pressable
+                        disabled={deletingPostId === post.id}
+                        onPress={() => void deleteCommunityPost(post)}
+                        style={styles.socialAction}
+                        accessibilityLabel="Gönderiyi sil"
+                      >
+                        <Feather name="trash-2" size={19} color="#D87987" />
+                      </Pressable>
+                    ) : null}
+                  </View>
+
+                  {openCommentsPostId === post.id ? (
+                    <View style={styles.commentsBox}>
+                      {isMember ? (
+                        <View style={styles.commentComposer}>
+                          <TextInput
+                            value={commentTexts[post.id] ?? ''}
+                            onChangeText={(text) =>
+                              setCommentTexts((current) => ({ ...current, [post.id]: text }))
+                            }
+                            placeholder="Yorum yaz..."
+                            placeholderTextColor="#777983"
+                            multiline
+                            style={styles.commentInput}
+                          />
+                          <Pressable
+                            disabled={
+                              commentPostingPostId === post.id || !(commentTexts[post.id] ?? '').trim()
+                            }
+                            onPress={() => void createCommunityPostComment(post.id)}
+                            style={[
+                              styles.commentSendButton,
+                              (commentPostingPostId === post.id ||
+                                !(commentTexts[post.id] ?? '').trim()) &&
+                                styles.commentSendButtonDisabled,
+                            ]}
+                          >
+                            <Text style={styles.commentSendText}>
+                              {commentPostingPostId === post.id ? 'Gönderiliyor...' : 'Gönder'}
+                            </Text>
+                          </Pressable>
+                        </View>
+                      ) : (
+                        <Text style={styles.commentMemberNotice}>
+                          Yorum yapmak için topluluğa katıl.
+                        </Text>
+                      )}
+
+                      {commentsLoadingPostId === post.id ? (
+                        <ActivityIndicator color="#9B72F2" style={styles.commentLoader} />
+                      ) : (postComments[post.id] ?? []).length ? (
+                        (postComments[post.id] ?? []).map((comment) => (
+                          <View key={comment.id} style={styles.commentItem}>
+                            {comment.profile_image ? (
+                              <Image source={{ uri: comment.profile_image }} style={styles.commentAvatar} />
+                            ) : (
+                              <View style={[styles.commentAvatar, styles.avatarMark]}>
+                                <Text style={styles.commentAvatarText}>
+                                  {comment.username.charAt(0).toLocaleUpperCase('tr-TR')}
+                                </Text>
+                              </View>
+                            )}
+                            <View style={styles.commentContent}>
+                              <Text style={styles.commentUsername}>{comment.username}</Text>
+                              <Text style={styles.commentText}>{comment.text}</Text>
+                              {comment.user_id === currentUserId ? (
+                                <Pressable
+                                  disabled={deletingCommentId === comment.id}
+                                  onPress={() => void deleteCommunityPostComment(post.id, comment)}
+                                >
+                                  <Text style={styles.commentDeleteText}>
+                                    {deletingCommentId === comment.id ? 'Siliniyor...' : 'Sil'}
+                                  </Text>
+                                </Pressable>
+                              ) : null}
+                            </View>
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={styles.noComments}>Henüz yorum yok.</Text>
+                      )}
+                    </View>
                   ) : null}
                 </View>
+              ))}
 
-                {openCommentsPostId === post.id ? (
-                  <View style={styles.commentsBox}>
-                    {isMember ? (
-                      <View style={styles.commentComposer}>
-                        <TextInput
-                          value={commentTexts[post.id] ?? ""}
-                          onChangeText={(text) =>
-                            setCommentTexts((current) => ({
-                              ...current,
-                              [post.id]: text,
-                            }))
-                          }
-                          placeholder="Yorum yaz..."
-                          placeholderTextColor="#777983"
-                          multiline
-                          style={styles.commentInput}
-                        />
-
-                        <Pressable
-                          disabled={
-                            commentPostingPostId === post.id ||
-                            !(commentTexts[post.id] ?? "").trim()
-                          }
-                          onPress={() =>
-                            void createCommunityPostComment(post.id)
-                          }
-                          style={[
-                            styles.commentSendButton,
-                            (commentPostingPostId === post.id ||
-                              !(commentTexts[post.id] ?? "").trim()) &&
-                              styles.commentSendButtonDisabled,
-                          ]}
-                        >
-                          <Text style={styles.commentSendText}>
-                            {commentPostingPostId === post.id
-                              ? "Gönderiliyor..."
-                              : "Gönder"}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <Text style={styles.commentMemberNotice}>
-                        Yorum yapmak için topluluğa katıl.
-                      </Text>
-                    )}
-
-                    {commentsLoadingPostId === post.id ? (
-                      <ActivityIndicator
-                        color="#9B72F2"
-                        style={styles.commentLoader}
-                      />
-                    ) : (postComments[post.id] ?? []).length ? (
-                      (postComments[post.id] ?? []).map((comment) => (
-                        <View key={comment.id} style={styles.commentItem}>
-                          {comment.profile_image ? (
-                            <Image
-                              source={{ uri: comment.profile_image }}
-                              style={styles.commentAvatar}
-                            />
-                          ) : (
-                            <View
-                              style={[
-                                styles.commentAvatar,
-                                styles.avatarMark,
-                              ]}
-                            >
-                              <Text style={styles.commentAvatarText}>
-                                {comment.username
-                                  .charAt(0)
-                                  .toLocaleUpperCase("tr-TR")}
-                              </Text>
-                            </View>
-                          )}
-
-                          <View style={styles.commentContent}>
-                            <Text style={styles.commentUsername}>
-                              {comment.username}
-                            </Text>
-                            <Text style={styles.commentText}>
-                              {comment.text}
-                            </Text>
-
-                            {comment.user_id === currentUserId ? (
-                              <Pressable
-                                disabled={deletingCommentId === comment.id}
-                                onPress={() =>
-                                  void deleteCommunityPostComment(
-                                    post.id,
-                                    comment,
-                                  )
-                                }
-                              >
-                                <Text style={styles.commentDeleteText}>
-                                  {deletingCommentId === comment.id
-                                    ? "Siliniyor..."
-                                    : "Sil"}
-                                </Text>
-                              </Pressable>
-                            ) : null}
-                          </View>
-                        </View>
-                      ))
-                    ) : (
-                      <Text style={styles.noComments}>Henüz yorum yok.</Text>
-                    )}
-                  </View>
-                ) : null}
-              </View>
-            ))
+              {communityPostsHasMore ? (
+                <Pressable
+                  disabled={communityPostsLoadingMore}
+                  onPress={() => void loadCommunityPosts(false)}
+                  style={styles.loadMoreButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Daha fazla topluluk gönderisi yükle"
+                >
+                  {communityPostsLoadingMore ? (
+                    <ActivityIndicator color="#CDBBFF" />
+                  ) : (
+                    <Text style={styles.loadMoreText}>Daha fazla yükle</Text>
+                  )}
+                </Pressable>
+              ) : (
+                <Text style={styles.endOfFeed}>Tüm gönderileri gördün.</Text>
+              )}
+            </>
           ) : (
             <Text style={styles.emptySmall}>Henüz paylaşım yok.</Text>
           )}
@@ -876,12 +805,7 @@ export default function CommunityScreen() {
           <Text style={styles.section}>Üyeler</Text>
           {memberCount > 0 ? (
             <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: "/community-members",
-                  params: { id: communityId },
-                })
-              }
+              onPress={() => router.push({ pathname: '/community-members', params: { id: communityId } })}
               accessibilityRole="button"
               accessibilityLabel="Tüm topluluk üyelerini gör"
             >
@@ -894,27 +818,18 @@ export default function CommunityScreen() {
           members.map((member) => (
             <Pressable
               key={member.user_id}
-              onPress={() =>
-                router.push({
-                  pathname: "/profile",
-                  params: { userId: member.user_id },
-                })
-              }
+              onPress={() => router.push({ pathname: '/profile', params: { userId: member.user_id } })}
               style={styles.member}
             >
               {member.profile_image ? (
-                <Image
-                  source={{ uri: member.profile_image }}
-                  style={styles.avatar}
-                />
+                <Image source={{ uri: member.profile_image }} style={styles.avatar} />
               ) : (
                 <View style={[styles.avatar, styles.avatarMark]}>
                   <Text style={styles.avatarText}>
-                    {member.username.charAt(0).toLocaleUpperCase("tr-TR")}
+                    {member.username.charAt(0).toLocaleUpperCase('tr-TR')}
                   </Text>
                 </View>
               )}
-
               <Text style={styles.memberName}>{member.username}</Text>
               <Text style={styles.arrow}>›</Text>
             </Pressable>
@@ -928,20 +843,116 @@ export default function CommunityScreen() {
 }
 
 const baseStyles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#08090D" },
+  safe: { flex: 1, backgroundColor: '#08090D' },
+  content: { padding: 18, paddingBottom: 50 },
+  loader: { marginTop: 80 },
+  back: { color: '#B58AF6', fontSize: 15, marginBottom: 14 },
+  hero: {
+    backgroundColor: '#111218',
+    borderColor: '#302F4A',
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
+  },
+  cover: {
+    width: '100%',
+    height: 130,
+    borderRadius: 14,
+    backgroundColor: '#24253A',
+  },
+  mark: { justifyContent: 'center', alignItems: 'center' },
+  markText: { color: '#D5D7FF', fontSize: 48, fontWeight: '900' },
+  title: { color: '#F7F7F9', fontSize: 24, fontWeight: '900', marginTop: 15 },
+  count: { color: '#B58AF6', marginTop: 5 },
+  description: { color: '#9A9CA7', marginTop: 10, lineHeight: 19 },
+  cta: {
+    backgroundColor: '#8058D9',
+    borderRadius: 13,
+    padding: 13,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  ctaText: { color: '#FFF', fontWeight: '800' },
+  feed: { marginTop: 4 },
+  section: {
+    color: '#F2F2F5',
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 22,
+    marginBottom: 8,
+  },
+  postInput: {
+    minHeight: 80,
+    backgroundColor: '#111218',
+    borderColor: '#302F4A',
+    borderWidth: 1,
+    borderRadius: 14,
+    color: '#F4F4F6',
+    padding: 12,
+    textAlignVertical: 'top',
+  },
+  postsLoader: { margin: 20 },
+  postCard: {
+    backgroundColor: '#111218',
+    borderColor: '#2D2E37',
+    borderWidth: 1,
+    borderRadius: 15,
+    padding: 13,
+    marginTop: 10,
+  },
+  postAuthorRow: { flexDirection: 'row', alignItems: 'center' },
+  postAuthorInfo: { flex: 1, marginLeft: 12 },
+  postDate: { color: '#777983', fontSize: 10, marginTop: 4 },
+  postBody: { color: '#F4F4F6', fontSize: 14, lineHeight: 20, marginTop: 14 },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#25262E',
+  },
+  socialAction: {
+    minWidth: 46,
+    height: 38,
+    paddingHorizontal: 10,
+    borderRadius: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  socialActionActive: {
+    backgroundColor: '#1D1728',
+    borderWidth: 1,
+    borderColor: '#302342',
+  },
+  socialCount: { color: '#777983', fontSize: 11, fontWeight: '700' },
+  likedText: { color: '#9B72F2' },
+  loadMoreButton: {
+    minHeight: 46,
+    marginTop: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#302342',
+    backgroundColor: '#1D1728',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreText: { color: '#CDBBFF', fontSize: 13, fontWeight: '800' },
+  endOfFeed: { color: '#777983', fontSize: 12, textAlign: 'center', paddingVertical: 16 },
   commentsBox: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#25262E",
+    borderTopColor: '#25262E',
     gap: 12,
   },
-  commentLoader: {
-    marginVertical: 10,
-  },
+  commentLoader: { marginVertical: 10 },
   commentComposer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: 8,
     marginBottom: 4,
   },
@@ -949,216 +960,88 @@ const baseStyles = StyleSheet.create({
     flex: 1,
     minHeight: 42,
     maxHeight: 100,
-    backgroundColor: "#17181F",
+    backgroundColor: '#17181F',
     borderWidth: 1,
-    borderColor: "#292A34",
+    borderColor: '#292A34',
     borderRadius: 13,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: "#F5F5F7",
+    color: '#F5F5F7',
     fontSize: 14,
   },
   commentSendButton: {
     minHeight: 42,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#8058D9",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#8058D9',
     borderRadius: 12,
     paddingHorizontal: 14,
   },
-  commentSendButtonDisabled: {
-    opacity: 0.45,
-  },
-  commentSendText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  commentMemberNotice: {
-    color: "#777983",
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  commentItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
+  commentSendButtonDisabled: { opacity: 0.45 },
+  commentSendText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  commentMemberNotice: { color: '#777983', fontSize: 12, marginBottom: 4 },
+  commentItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   commentAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#24253A",
+    backgroundColor: '#24253A',
   },
-  commentAvatarText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "800",
-  },
+  commentAvatarText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   commentContent: {
     flex: 1,
-    backgroundColor: "#17181F",
+    backgroundColor: '#17181F',
     borderRadius: 12,
     paddingHorizontal: 11,
     paddingVertical: 8,
   },
-  commentUsername: {
-    color: "#F5F5F7",
-    fontSize: 13,
-    fontWeight: "800",
-    marginBottom: 3,
-  },
-  commentText: {
-    color: "#C5C6CE",
-    fontSize: 13,
-    lineHeight: 18,
-  },
+  commentUsername: { color: '#F5F5F7', fontSize: 13, fontWeight: '800', marginBottom: 3 },
+  commentText: { color: '#C5C6CE', fontSize: 13, lineHeight: 18 },
   commentDeleteText: {
-    color: "#D88A8A",
+    color: '#D88A8A',
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: '700',
     marginTop: 6,
-    alignSelf: "flex-start",
+    alignSelf: 'flex-start',
   },
-  noComments: {
-    color: "#777983",
-    fontSize: 13,
-  },
-  content: { padding: 18, paddingBottom: 50 },
-  loader: { marginTop: 80 },
-  back: { color: "#B58AF6", fontSize: 15, marginBottom: 14 },
-  hero: {
-    backgroundColor: "#111218",
-    borderColor: "#302F4A",
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 18,
-  },
-  cover: {
-    width: "100%",
-    height: 130,
-    borderRadius: 14,
-    backgroundColor: "#24253A",
-  },
-  mark: { justifyContent: "center", alignItems: "center" },
-  markText: { color: "#D5D7FF", fontSize: 48, fontWeight: "900" },
-  title: { color: "#F7F7F9", fontSize: 24, fontWeight: "900", marginTop: 15 },
-  count: { color: "#B58AF6", marginTop: 5 },
-  description: { color: "#9A9CA7", marginTop: 10, lineHeight: 19 },
-  cta: {
-    backgroundColor: "#8058D9",
-    borderRadius: 13,
-    padding: 13,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  ctaText: { color: "#FFF", fontWeight: "800" },
+  noComments: { color: '#777983', fontSize: 13 },
+  emptySmall: { color: '#8A8C96', paddingVertical: 15 },
   membersSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 22,
     marginBottom: 10,
   },
   membersSeeAll: {
-    color: "#B58AF6",
+    color: '#B58AF6',
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: '800',
     paddingVertical: 8,
     paddingLeft: 12,
   },
-  section: {
-    color: "#F2F2F5",
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: 22,
-    marginBottom: 8,
-  },
-  feed: { marginTop: 4 },
-  postInput: {
-    minHeight: 80,
-    backgroundColor: "#111218",
-    borderColor: "#302F4A",
-    borderWidth: 1,
-    borderRadius: 14,
-    color: "#F4F4F6",
-    padding: 12,
-    textAlignVertical: "top",
-  },
-  postsLoader: { margin: 20 },
-  postCard: {
-    backgroundColor: "#111218",
-    borderColor: "#2D2E37",
-    borderWidth: 1,
-    borderRadius: 15,
-    padding: 13,
-    marginTop: 10,
-  },
-  postDate: {
-    color: "#777983",
-    fontSize: 10,
-    marginTop: 6,
-    flexShrink: 1,
-  },
-  postBody: {
-    color: "#F4F4F6",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 14,
-  },
-  actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#25262E",
-  },
-  socialAction: {
-    minWidth: 46,
-    height: 38,
-    paddingHorizontal: 10,
-    borderRadius: 13,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-  socialActionActive: {
-    backgroundColor: "#1D1728",
-    borderWidth: 1,
-    borderColor: "#302342",
-  },
-  socialCount: {
-    color: "#777983",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  likedText: { color: "#9B72F2" },
-  emptySmall: { color: "#8A8C96", paddingVertical: 15 },
   member: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 12,
-    backgroundColor: "#111218",
+    backgroundColor: '#111218',
     borderBottomWidth: 1,
-    borderBottomColor: "#252630",
+    borderBottomColor: '#252630',
   },
   avatar: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: "#24253A",
+    backgroundColor: '#24253A',
   },
   avatarMark: {
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#7F8FEF",
+    borderColor: '#7F8FEF',
   },
-  avatarText: { color: "#D5D7FF", fontWeight: "800" },
-  memberName: { color: "#F4F4F6", marginLeft: 12, flex: 1 },
-  arrow: { color: "#B58AF6", fontSize: 22 },
-  empty: { color: "#8A8C96", textAlign: "center", marginTop: 60 },
+  avatarText: { color: '#D5D7FF', fontWeight: '800' },
+  memberName: { color: '#F4F4F6', flex: 1 },
+  arrow: { color: '#B58AF6', fontSize: 22 },
+  empty: { color: '#8A8C96', textAlign: 'center', marginTop: 60 },
 });
