@@ -53,26 +53,12 @@ export default function PremiumScreen() {
     );
   }
 
-  function openAdvancedStats() {
+  function openPremiumFeature(path: '/premium-reading-stats' | '/premium-year-report' | '/premium-reading-goals', message: string) {
     if (!premium.isPremium) {
-      Alert.alert(
-        'Premium özelliği',
-        'Gelişmiş okuma istatistikleri aktif Premium üyelikle kullanılabilir.'
-      );
+      Alert.alert('Premium özelliği', message);
       return;
     }
-    router.push('/premium-reading-stats');
-  }
-
-  function openYearReport() {
-    if (!premium.isPremium) {
-      Alert.alert(
-        'Premium özelliği',
-        'Yıllık Okuma Raporu aktif Premium üyelikle kullanılabilir.'
-      );
-      return;
-    }
-    router.push('/premium-year-report');
+    router.push(path);
   }
 
   const paidLabel = premium.paidSources.includes('apple')
@@ -142,7 +128,7 @@ export default function PremiumScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Gelişmiş okuma istatistiklerini aç"
-          onPress={openAdvancedStats}
+          onPress={() => openPremiumFeature('/premium-reading-stats', 'Gelişmiş okuma istatistikleri aktif Premium üyelikle kullanılabilir.')}
           style={[styles.featureAction, { backgroundColor: colors.surface, borderColor: colors.primary }]}
         >
           <View style={[styles.featureActionIcon, { backgroundColor: colors.primarySoft }]}> 
@@ -160,7 +146,7 @@ export default function PremiumScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Yıllık okuma raporunu aç"
-          onPress={openYearReport}
+          onPress={() => openPremiumFeature('/premium-year-report', 'Yıllık Okuma Raporu aktif Premium üyelikle kullanılabilir.')}
           style={[styles.featureAction, { backgroundColor: colors.surface, borderColor: colors.primary }]}
         >
           <View style={[styles.featureActionIcon, { backgroundColor: colors.primarySoft }]}> 
@@ -170,6 +156,24 @@ export default function PremiumScreen() {
             <Text style={[styles.featureActionTitle, { color: colors.text }]}>Yıllık Okuma Raporu</Text>
             <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}> 
               {premium.isPremium ? 'Bu yılın okuma özetini ve aylık dağılımını görüntüle.' : 'Premium ile yıllık okuma raporunu aç.'}
+            </Text>
+          </View>
+          <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Gelişmiş okuma hedeflerini aç"
+          onPress={() => openPremiumFeature('/premium-reading-goals', 'Gelişmiş okuma hedefleri aktif Premium üyelikle kullanılabilir.')}
+          style={[styles.featureAction, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+        >
+          <View style={[styles.featureActionIcon, { backgroundColor: colors.primarySoft }]}> 
+            <Feather name="target" size={21} color={colors.primary} />
+          </View>
+          <View style={styles.featureActionText}>
+            <Text style={[styles.featureActionTitle, { color: colors.text }]}>Gelişmiş Okuma Hedefleri</Text>
+            <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}> 
+              {premium.isPremium ? 'Haftalık, aylık, yıllık ve seri hedeflerini yönet.' : 'Premium ile uzun dönemli okuma hedeflerini aç.'}
             </Text>
           </View>
           <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
