@@ -147,6 +147,29 @@ export async function loadAppleMonthlyPremiumPlan(): Promise<RevenueCatStorePlan
   return storePlanFromPackage(monthlyPackage, 'ios', 'monthly');
 }
 
+export async function loadAppleAnnualPremiumPlan(): Promise<RevenueCatStorePlan | null> {
+  if (!configured || Platform.OS !== 'ios') return null;
+
+  const offerings = await Purchases.getOfferings();
+  const annualPackage = offerings.current?.annual ?? null;
+
+  if (!annualPackage) return null;
+
+  const expectedProductId =
+    process.env.EXPO_PUBLIC_REVENUECAT_IOS_ANNUAL_PRODUCT_ID?.trim() || null;
+
+  if (
+    expectedProductId &&
+    annualPackage.product.identifier !== expectedProductId
+  ) {
+    throw new Error(
+      `RevenueCat Apple annual product mismatch. Expected ${expectedProductId}, received ${annualPackage.product.identifier}.`
+    );
+  }
+
+  return storePlanFromPackage(annualPackage, 'ios', 'annual');
+}
+
 export async function detachRevenueCatUser() {
   if (!configured || !configuredUserId || Platform.OS === 'web') return;
 
