@@ -12,6 +12,7 @@ import { trackProductEvent } from '@/lib/product-analytics';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { ContentFilterProvider } from '@/providers/ContentFilterProvider';
 import { NetworkProvider, NetworkStatusBanner } from '@/providers/NetworkProvider';
+import { PremiumProvider } from '@/providers/PremiumProvider';
 import { ThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
 
 configureProductionLogging();
@@ -24,9 +25,11 @@ export default function RootLayout() {
         <ThemeProvider>
           <NetworkProvider>
             <AuthProvider>
-              <ContentFilterProvider>
-                <GuardedLayout />
-              </ContentFilterProvider>
+              <PremiumProvider>
+                <ContentFilterProvider>
+                  <GuardedLayout />
+                </ContentFilterProvider>
+              </PremiumProvider>
             </AuthProvider>
           </NetworkProvider>
         </ThemeProvider>
