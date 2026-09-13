@@ -1,8 +1,14 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PremiumBadge from '@/components/PremiumBadge';
+import {
+  loadCurrentPremiumPlan,
+  purchasePremiumPlan,
+  RevenueCatStorePlan,
+} from '@/lib/revenuecat';
 import { usePremium } from '@/providers/PremiumProvider';
 import { useAppTheme } from '@/providers/ThemeProvider';
 
@@ -31,18 +37,91 @@ export default function PremiumScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
   const premium = usePremium();
+  const [monthlyPlan, setMonthlyPlan] = useState<RevenueCatStorePlan | null>(null);
+  const [annualPlan, setAnnualPlan] = useState<RevenueCatStorePlan | null>(null);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [purchasing, setPurchasing] = useState<'monthly' | 'annual' | null>(null);
 
-  function purchaseNotReady(plan: 'Aylık' | 'Yıllık') {
-    Alert.alert(
-      `${plan} Premium`,
-      'Satın alma altyapısı mağaza ürünleri ve RevenueCat bağlantısı tamamlandığında bu ekrandan etkinleşecek. Fiyatlar mağazadan otomatik alınacak.'
-    );
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPlans() {
+      if (!premium.revenueCat.configured) {
+        if (!cancelled) {
+          setMonthlyPlan(null);
+          setAnnualPlan(null);
+          setPlansLoading(false);
+        }
+        return;
+      }
+
+      setPlansLoading(true);
+      try {
+        const [monthly, annual] = await Promise.all([
+          loadCurrentPremiumPlan('monthly'),
+          loadCurrentPremiumPlan('annual'),
+        ]);
+
+        if (!cancelled) {
+          setMonthlyPlan(monthly);
+          setAnnualPlan(annual);
+        }
+      } catch (error) {
+        console.warn('Premium mağaza planları alınamadı:', error);
+        if (!cancelled) {
+          setMonthlyPlan(null);
+          setAnnualPlan(null);
+        }
+      } finally {
+        if (!cancelled) setPlansLoading(false);
+      }
+    }
+
+    void loadPlans();
+    return () => {
+      cancelled = true;
+    };
+  }, [premium.revenueCat.configured]);
+
+  async function handlePurchase(period: 'monthly' | 'annual') {
+    if (purchasing) return;
+
+    const plan = period === 'monthly' ? monthlyPlan : annualPlan;
+    if (!premium.revenueCat.configured || !plan) {
+      Alert.alert(
+        'Satın alma kullanılamıyor',
+        'Bu cihazda mağaza ürünü henüz hazır değil. RevenueCat anahtarlarını ve mağaza Offering yapılandırmasını kontrol et.'
+      );
+      return;
+    }
+
+    setPurchasing(period);
+    try {
+      const result = await purchasePremiumPlan(period);
+      await premium.reload();
+
+      Alert.alert(
+        'Satın alma tamamlandı',
+        `${result.plan.priceString} tutarındaki ${period === 'monthly' ? 'aylık' : 'yıllık'} Premium satın alma RevenueCat tarafından doğrulandı. Premium erişimi sunucu senkronizasyonu tamamlandığında etkinleşecek.`
+      );
+    } catch (error) {
+      const purchaseError = error as { userCancelled?: boolean; message?: string };
+      if (purchaseError.userCancelled) return;
+
+      console.warn('Premium satın alma hatası:', error);
+      Alert.alert(
+        'Satın alma tamamlanamadı',
+        purchaseError.message || 'Mağaza işlemi sırasında bir hata oluştu. Lütfen tekrar dene.'
+      );
+    } finally {
+      setPurchasing(null);
+    }
   }
 
   function restoreNotReady() {
     Alert.alert(
       'Satın alımları geri yükle',
-      'Geri yükleme işlemi RevenueCat bağlantısı tamamlandığında bu ekrandan kullanılabilecek.'
+      'Geri yükleme işlemi bir sonraki Premium adımında RevenueCat üzerinden etkinleştirilecek.'
     );
   }
 
@@ -190,7 +269,7 @@ export default function PremiumScreen() {
           </View>
           <View style={styles.featureActionText}>
             <Text style={[styles.featureActionTitle, { color: colors.text }]}>Profil Kişiselleştirme</Text>
-            <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}>
+            <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}> 
               {premium.isPremium ? 'Tema, düzen, profil vurgusu ve Premium çerçeveni yönet.' : 'Premium ile özel profil temalarını aç.'}
             </Text>
           </View>
@@ -237,10 +316,22 @@ export default function PremiumScreen() {
         <View style={styles.planGrid}>
           <View style={[styles.planCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
             <Text style={[styles.planName, { color: colors.text }]}>Aylık</Text>
-            <Text style={[styles.pricePlaceholder, { color: colors.primary }]}>Mağaza fiyatı</Text>
-            <Text style={[styles.planCaption, { color: colors.textSecondary }]}>Her ay yenilenir. Fiyat mağazadan alınacaktır.</Text>
-            <Pressable onPress={() => purchaseNotReady('Aylık')} style={[styles.primaryButton, { backgroundColor: colors.primary }]}> 
-              <Text style={styles.primaryButtonText}>Aylık Premium</Text>
+            <Text style={[styles.pricePlaceholder, { color: colors.primary }]}> 
+              {plansLoading ? 'Fiyat yükleniyor…' : monthlyPlan?.priceString ?? 'Mağaza fiyatı'}
+            </Text>
+            <Text style={[styles.planCaption, { color: colors.textSecondary }]}>Her ay yenilenir. Fiyat mağazadan alınır.</Text>
+            <Pressable
+              disabled={purchasing !== null || plansLoading || !monthlyPlan}
+              onPress={() => void handlePurchase('monthly')}
+              style={[
+                styles.primaryButton,
+                { backgroundColor: colors.primary },
+                (purchasing !== null || plansLoading || !monthlyPlan) && styles.disabledButton,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {purchasing === 'monthly' ? 'İşleniyor…' : 'Aylık Premium'}
+              </Text>
             </Pressable>
           </View>
 
@@ -249,10 +340,22 @@ export default function PremiumScreen() {
               <Text style={styles.recommendedText}>ÖNERİLEN</Text>
             </View>
             <Text style={[styles.planName, { color: colors.text }]}>Yıllık</Text>
-            <Text style={[styles.pricePlaceholder, { color: colors.primary }]}>Mağaza fiyatı</Text>
+            <Text style={[styles.pricePlaceholder, { color: colors.primary }]}> 
+              {plansLoading ? 'Fiyat yükleniyor…' : annualPlan?.priceString ?? 'Mağaza fiyatı'}
+            </Text>
             <Text style={[styles.planCaption, { color: colors.textSecondary }]}>Yıllık plan. Gerçek fiyat ve varsa indirim mağazadan alınır.</Text>
-            <Pressable onPress={() => purchaseNotReady('Yıllık')} style={[styles.primaryButton, { backgroundColor: colors.primary }]}> 
-              <Text style={styles.primaryButtonText}>Yıllık Premium</Text>
+            <Pressable
+              disabled={purchasing !== null || plansLoading || !annualPlan}
+              onPress={() => void handlePurchase('annual')}
+              style={[
+                styles.primaryButton,
+                { backgroundColor: colors.primary },
+                (purchasing !== null || plansLoading || !annualPlan) && styles.disabledButton,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {purchasing === 'annual' ? 'İşleniyor…' : 'Yıllık Premium'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -312,6 +415,7 @@ const styles = StyleSheet.create({
   pricePlaceholder: { fontSize: 17, fontWeight: '800' },
   planCaption: { fontSize: 13, lineHeight: 18 },
   primaryButton: { minHeight: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  disabledButton: { opacity: 0.5 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   actionsCard: { marginTop: 18, borderWidth: 1, borderRadius: 20, padding: 14, gap: 10 },
   secondaryButton: { minHeight: 46, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
