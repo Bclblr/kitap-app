@@ -7,11 +7,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+type CommunityRole = 'owner' | 'admin' | 'member';
+
 type Member = {
   user_id: string;
   username: string;
   profile_image: string | null;
   joined_at: string | null;
+  role: CommunityRole;
 };
 
 type InviteCandidate = {
@@ -34,6 +37,7 @@ export default function CommunityMembersScreen() {
   const [inviteResults, setInviteResults] = useState<InviteCandidate[]>([]);
   const [inviteSearching, setInviteSearching] = useState(false);
   const [invitingUserId, setInvitingUserId] = useState<string | null>(null);
+  const [managingUserId, setManagingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -53,7 +57,7 @@ export default function CommunityMembersScreen() {
           supabase.rpc('community_admin', { cid: communityId }),
           supabase
             .from('community_members')
-            .select('user_id, joined_at')
+            .select('user_id, joined_at, role')
             .eq('community_id', communityId)
             .order('joined_at', { ascending: true }),
         ]);
@@ -81,11 +85,13 @@ export default function CommunityMembersScreen() {
         setMembers(
           rows.map((row) => {
             const profile = profileMap.get(row.user_id);
+            const role: CommunityRole = row.role === 'owner' || row.role === 'admin' ? row.role : 'member';
             return {
               user_id: row.user_id,
               username: profile?.username || 'Kullanıcı',
               profile_image: profile?.profile_image ?? null,
               joined_at: row.joined_at ?? null,
+              role,
             };
           }),
         );
@@ -157,6 +163,67 @@ export default function CommunityMembersScreen() {
     }
   }
 
+  async function changeMemberRole(member: Member) {
+    if (!communityId || !isAdmin || member.role === 'owner' || managingUserId) return;
+    const nextRole: CommunityRole = member.role === 'admin' ? 'member' : 'admin';
+    setManagingUserId(member.user_id);
+    try {
+      const { error: roleError } = await supabase.rpc('set_community_member_role', {
+        p_community_id: communityId,
+        p_user_id: member.user_id,
+        p_role: nextRole,
+      });
+      if (roleError) throw roleError;
+      setMembers((current) =>
+        current.map((item) =>
+          item.user_id === member.user_id ? { ...item, role: nextRole } : item,
+        ),
+      );
+    } catch (roleError) {
+      console.error('Community member role error:', roleError);
+      Alert.alert('Yetki güncellenemedi', 'Üyenin topluluk rolü değiştirilemedi.');
+    } finally {
+      setManagingUserId(null);
+    }
+  }
+
+  function confirmRemoveMember(member: Member) {
+    if (!communityId || !isAdmin || member.role === 'owner' || managingUserId) return;
+    Alert.alert(
+      'Üyeyi topluluktan çıkar',
+      `${member.username} topluluktan çıkarılsın mı?`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'Çıkar', style: 'destructive', onPress: () => void removeMember(member) },
+      ],
+    );
+  }
+
+  async function removeMember(member: Member) {
+    if (!communityId || !isAdmin || member.role === 'owner' || managingUserId) return;
+    setManagingUserId(member.user_id);
+    try {
+      const { error: removeError } = await supabase.rpc('remove_community_member', {
+        p_community_id: communityId,
+        p_user_id: member.user_id,
+      });
+      if (removeError) throw removeError;
+      setMembers((current) => current.filter((item) => item.user_id !== member.user_id));
+      Alert.alert('Üye çıkarıldı', `${member.username} artık bu topluluğun üyesi değil.`);
+    } catch (removeError) {
+      console.error('Community member remove error:', removeError);
+      Alert.alert('Üye çıkarılamadı', 'Topluluk üyeliği güncellenemedi.');
+    } finally {
+      setManagingUserId(null);
+    }
+  }
+
+  function roleLabel(role: CommunityRole) {
+    if (role === 'owner') return 'Topluluk sahibi';
+    if (role === 'admin') return 'Topluluk yöneticisi';
+    return 'Topluluk üyesi';
+  }
+
   return (
     <View style={styles.safe}>
       <View style={styles.header}>
@@ -193,7 +260,7 @@ export default function CommunityMembersScreen() {
           {isAdmin ? (
             <View style={styles.inviteBox}>
               <Text style={styles.inviteTitle}>Üye Davet Et</Text>
-              <Text style={styles.inviteHint}>Kullanıcı adıyla ara ve özel topluluğa davet gönder.</Text>
+              <Text style={styles.inviteHint}>Kullanıcı adıyla ara ve topluluğa davet gönder.</Text>
               <View style={styles.searchBox}>
                 <Feather name="search" size={18} color={colors.textSecondary} />
                 <TextInput
@@ -244,28 +311,62 @@ export default function CommunityMembersScreen() {
               <Text style={styles.emptyText}>Henüz üye yok.</Text>
             </View>
           ) : (
-            members.map((member) => (
-              <Pressable
-                key={member.user_id}
-                onPress={() => router.push({ pathname: '/profile', params: { userId: member.user_id } })}
-                style={({ pressed }) => [styles.member, pressed && styles.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel={`${member.username} profilini aç`}
-              >
-                {member.profile_image ? (
-                  <Image source={{ uri: member.profile_image }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarFallback}>
-                    <Text style={styles.avatarText}>{member.username.charAt(0).toLocaleUpperCase('tr-TR')}</Text>
-                  </View>
-                )}
-                <View style={styles.memberInfo}>
-                  <Text style={styles.username}>{member.username}</Text>
-                  <Text style={styles.memberLabel}>Topluluk üyesi</Text>
+            members.map((member) => {
+              const canManage = isAdmin && member.role !== 'owner';
+              const isManaging = managingUserId === member.user_id;
+              return (
+                <View key={member.user_id} style={styles.memberCard}>
+                  <Pressable
+                    onPress={() => router.push({ pathname: '/profile', params: { userId: member.user_id } })}
+                    style={({ pressed }) => [styles.memberMain, pressed && styles.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${member.username} profilini aç`}
+                  >
+                    {member.profile_image ? (
+                      <Image source={{ uri: member.profile_image }} style={styles.avatar} />
+                    ) : (
+                      <View style={styles.avatarFallback}>
+                        <Text style={styles.avatarText}>{member.username.charAt(0).toLocaleUpperCase('tr-TR')}</Text>
+                      </View>
+                    )}
+                    <View style={styles.memberInfo}>
+                      <Text style={styles.username}>{member.username}</Text>
+                      <Text style={[styles.memberLabel, member.role !== 'member' && styles.roleHighlight]}>
+                        {roleLabel(member.role)}
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={20} color={colors.textSecondary} />
+                  </Pressable>
+
+                  {canManage ? (
+                    <View style={styles.manageRow}>
+                      <Pressable
+                        disabled={isManaging}
+                        onPress={() => void changeMemberRole(member)}
+                        style={styles.roleButton}
+                        accessibilityRole="button"
+                        accessibilityLabel={member.role === 'admin' ? 'Yönetici yetkisini kaldır' : 'Yönetici yap'}
+                      >
+                        <Feather name="shield" size={15} color="#C7B3FF" />
+                        <Text style={styles.roleButtonText}>
+                          {isManaging ? 'İşleniyor...' : member.role === 'admin' ? 'Admin Yetkisini Kaldır' : 'Admin Yap'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        disabled={isManaging}
+                        onPress={() => confirmRemoveMember(member)}
+                        style={styles.removeButton}
+                        accessibilityRole="button"
+                        accessibilityLabel="Üyeyi topluluktan çıkar"
+                      >
+                        <Feather name="user-x" size={15} color="#E18B94" />
+                        <Text style={styles.removeButtonText}>Çıkar</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
-                <Feather name="chevron-right" size={20} color={colors.textSecondary} />
-              </Pressable>
-            ))
+              );
+            })
           )}
         </ScrollView>
       )}
@@ -298,7 +399,8 @@ const baseStyles = StyleSheet.create({
   inviteUsername: { flex: 1, marginLeft: 10, color: '#F5F5F7', fontSize: 14, fontWeight: '800' },
   inviteButton: { minHeight: 36, borderRadius: 11, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#8058D9' },
   inviteButtonText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
-  member: { minHeight: 68, flexDirection: 'row', alignItems: 'center', backgroundColor: '#111218', borderWidth: 1, borderColor: '#2D2E37', borderRadius: 16, paddingHorizontal: 12, marginBottom: 10 },
+  memberCard: { backgroundColor: '#111218', borderWidth: 1, borderColor: '#2D2E37', borderRadius: 16, marginBottom: 10, overflow: 'hidden' },
+  memberMain: { minHeight: 68, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
   pressed: { opacity: 0.65 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#24253A' },
   avatarFallback: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#24253A', alignItems: 'center', justifyContent: 'center' },
@@ -306,4 +408,10 @@ const baseStyles = StyleSheet.create({
   memberInfo: { flex: 1, minWidth: 0, marginLeft: 12 },
   username: { color: '#F5F5F7', fontSize: 15, fontWeight: '800' },
   memberLabel: { color: '#8E8F98', fontSize: 12, marginTop: 3 },
+  roleHighlight: { color: '#B58AF6', fontWeight: '800' },
+  manageRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 2 },
+  roleButton: { flex: 1, minHeight: 38, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#1D1728', borderWidth: 1, borderColor: '#4A3569', paddingHorizontal: 10 },
+  roleButtonText: { color: '#C7B3FF', fontSize: 11, fontWeight: '900' },
+  removeButton: { minHeight: 38, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#201317', borderWidth: 1, borderColor: '#55272D', paddingHorizontal: 12 },
+  removeButtonText: { color: '#E18B94', fontSize: 11, fontWeight: '900' },
 });
