@@ -1,3 +1,5 @@
+import { CONTENT_FILTER_PLACEHOLDER } from '@/lib/content-filter';
+import { useContentFilter } from '@/providers/ContentFilterProvider';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useRouter } from 'expo-router';
 import { StyleProp, Text, TextStyle } from 'react-native';
@@ -12,6 +14,19 @@ const HASHTAG_REGEX = /(#[A-Za-z0-9_À-ÖØ-öø-ÿÇĞİÖŞÜçğıöşü]+)/g
 export default function HashtagText({ text, style }: HashtagTextProps) {
   const router = useRouter();
   const { scheme } = useAppTheme();
+  const { shouldFilterText } = useContentFilter();
+
+  if (shouldFilterText(text)) {
+    return (
+      <Text
+        style={style}
+        accessibilityLabel="İçerik filtresi nedeniyle gizlenmiş metin"
+      >
+        {CONTENT_FILTER_PLACEHOLDER}
+      </Text>
+    );
+  }
+
   const parts = text.split(HASHTAG_REGEX);
 
   // Hashtag rengi parent Text stilinden bağımsız, doğrudan tema rengine sabitlenir.
