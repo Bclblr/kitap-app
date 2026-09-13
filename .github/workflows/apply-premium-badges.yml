@@ -1,0 +1,40 @@
+name: Apply premium badge surfaces
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-premium-badges.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply premium badge patch
+        run: python .github/scripts/apply_premium_badges.py
+
+      - name: Typecheck
+        run: |
+          npm ci
+          npm run typecheck
+
+      - name: Remove one-shot helpers
+        run: rm -f .github/workflows/apply-premium-badges.yml .github/scripts/apply_premium_badges.py
+
+      - name: Commit premium badge surfaces
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Show premium badges across user surfaces"
+          git push
