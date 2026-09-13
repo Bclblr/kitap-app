@@ -55,4 +55,58 @@ $$;
 revoke all on function public.track_product_event(text, jsonb) from public;
 grant execute on function public.track_product_event(text, jsonb) to authenticated;
 
+create or replace function public.capture_shelf_analytics()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.product_analytics_events(user_id, event_name, metadata)
+  values (
+    new.user_id,
+    'shelf_updated',
+    jsonb_build_object('status', new.status)
+  );
+  return new;
+end;
+$$;
+
+create or replace function public.capture_content_analytics()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.product_analytics_events(user_id, event_name, metadata)
+  values (
+    new.user_id,
+    'content_created',
+    jsonb_build_object('content_type', tg_table_name)
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists product_analytics_shelf on public.user_book_status;
+create trigger product_analytics_shelf
+after insert or update of status on public.user_book_status
+for each row execute function public.capture_shelf_analytics();
+
+drop trigger if exists product_analytics_post_created on public.posts;
+create trigger product_analytics_post_created
+after insert on public.posts
+for each row execute function public.capture_content_analytics();
+
+drop trigger if exists product_analytics_review_created on public.reviews;
+create trigger product_analytics_review_created
+after insert on public.reviews
+for each row execute function public.capture_content_analytics();
+
+drop trigger if exists product_analytics_quote_created on public.quotes;
+create trigger product_analytics_quote_created
+after insert on public.quotes
+for each row execute function public.capture_content_analytics();
+
 commit;
