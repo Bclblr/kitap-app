@@ -151,7 +151,11 @@ export default function OnboardingScreen() {
 
   if (loadingProfile) {
     return (
-      <View style={styles.loadingContainer}>
+      <View
+        style={styles.loadingContainer}
+        accessibilityRole="progressbar"
+        accessibilityLabel="Profilin hazırlanıyor"
+      >
         <ActivityIndicator color={colors.primary} size="large" />
         <Text style={styles.loadingText}>Profilin hazırlanıyor…</Text>
       </View>
@@ -165,18 +169,18 @@ export default function OnboardingScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.heroIcon}>
+        <View style={styles.heroIcon} accessible={false}>
           <Feather name="book-open" size={30} color={colors.primary} />
         </View>
         <Text style={styles.eyebrow}>HOŞ GELDİN</Text>
-        <Text style={styles.title}>Okuma dünyanı hazırlayalım.</Text>
+        <Text style={styles.title} accessibilityRole="header">Okuma dünyanı hazırlayalım.</Text>
         <Text style={styles.subtitle}>
           Profilini tamamlayıp okuma hedefini seçerek sana daha iyi bir başlangıç hazırlayalım.
         </Text>
 
         <View style={styles.card}>
           <Text style={styles.step}>1 / 3</Text>
-          <Text style={styles.cardTitle}>Sana nasıl hitap edelim?</Text>
+          <Text style={styles.cardTitle} accessibilityRole="header">Sana nasıl hitap edelim?</Text>
           <Text style={styles.cardDescription}>Adını veya görünen adını ekleyebilirsin. Bu alan isteğe bağlıdır.</Text>
           <TextInput
             value={fullName}
@@ -185,12 +189,14 @@ export default function OnboardingScreen() {
             placeholderTextColor="#6E6E7A"
             style={styles.input}
             maxLength={60}
+            accessibilityLabel="Ad veya görünen ad"
+            accessibilityHint="Profilinde görünecek adını yazabilirsin. Bu alan isteğe bağlıdır."
           />
         </View>
 
         <View style={styles.card}>
           <Text style={styles.step}>2 / 3</Text>
-          <Text style={styles.cardTitle}>Profilini tamamla</Text>
+          <Text style={styles.cardTitle} accessibilityRole="header">Profilini tamamla</Text>
           <Text style={styles.cardDescription}>Kullanıcı adını kontrol et ve istersen kendinden kısaca bahset.</Text>
           <Text style={styles.fieldLabel}>Kullanıcı adı</Text>
           <TextInput
@@ -202,6 +208,8 @@ export default function OnboardingScreen() {
             autoCorrect={false}
             style={styles.input}
             maxLength={30}
+            accessibilityLabel="Kullanıcı adı"
+            accessibilityHint="Üç ile otuz karakter arasında bir kullanıcı adı gir."
           />
           <Text style={styles.fieldLabel}>Hakkında</Text>
           <TextInput
@@ -212,21 +220,26 @@ export default function OnboardingScreen() {
             multiline
             style={[styles.input, styles.bioInput]}
             maxLength={150}
+            accessibilityLabel="Hakkında"
+            accessibilityHint="Profilinde görünecek kısa açıklamayı yazabilirsin."
           />
           <Text style={styles.profileHint}>Profil fotoğrafı ve kapak görselini daha sonra Profil Ayarları'ndan ekleyebilirsin.</Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.step}>3 / 3</Text>
-          <Text style={styles.cardTitle}>Günlük okuma hedefin</Text>
+          <Text style={styles.cardTitle} accessibilityRole="header">Günlük okuma hedefin</Text>
           <Text style={styles.cardDescription}>Bunu daha sonra Oku ekranından değiştirebilirsin.</Text>
-          <View style={styles.goalGrid}>
+          <View style={styles.goalGrid} accessibilityRole="radiogroup">
             {GOALS.map((item) => {
               const active = item === goal;
               return (
                 <Pressable
                   key={item}
                   onPress={() => setGoal(item)}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`${item} sayfa günlük okuma hedefi`}
+                  accessibilityState={{ selected: active }}
                   style={[styles.goalButton, active && styles.goalButtonActive]}
                 >
                   <Text style={[styles.goalValue, active && styles.goalValueActive]}>{item}</Text>
@@ -235,12 +248,16 @@ export default function OnboardingScreen() {
               );
             })}
           </View>
-          <Text style={styles.selectedGoal}>Seçili hedef: {goalText}</Text>
+          <Text style={styles.selectedGoal} accessibilityLiveRegion="polite">Seçili hedef: {goalText}</Text>
         </View>
 
         <Pressable
           disabled={saving}
           onPress={() => void finish(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Profilimi tamamla"
+          accessibilityHint="Profil bilgilerini ve okuma hedefini kaydeder."
+          accessibilityState={{ disabled: saving, busy: saving }}
           style={[styles.primaryButton, saving && styles.disabled]}
         >
           {saving ? (
@@ -253,7 +270,15 @@ export default function OnboardingScreen() {
           )}
         </Pressable>
 
-        <Pressable disabled={saving} onPress={() => void finish(true)} style={styles.skipButton}>
+        <Pressable
+          disabled={saving}
+          onPress={() => void finish(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Şimdilik geç"
+          accessibilityHint="Profil ayrıntılarını tamamlamadan ana sayfaya geçer."
+          accessibilityState={{ disabled: saving }}
+          style={styles.skipButton}
+        >
           <Text style={styles.skipText}>Şimdilik geç</Text>
         </Pressable>
       </ScrollView>
