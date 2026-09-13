@@ -53,6 +53,26 @@ The app reads the annual package through `offerings.current.annual`. Price, curr
 
 If `EXPO_PUBLIC_REVENUECAT_IOS_ANNUAL_PRODUCT_ID` is set, the app validates that RevenueCat returned the expected Apple product. This variable is a public product identifier, not a secret.
 
+## Google Play monthly Premium product
+
+For the Android monthly plan:
+
+1. Create one subscription product in Google Play Console with an auto-renewing monthly base plan.
+2. Import/map that Google Play product/base plan in RevenueCat.
+3. Attach it to the same `premium` entitlement used by Apple.
+4. Put it in the current RevenueCat Offering using the standard monthly package.
+5. Optionally set the expected public product identifier in Expo/EAS:
+
+```text
+EXPO_PUBLIC_REVENUECAT_ANDROID_MONTHLY_PRODUCT_ID=<Google Play subscription product id>
+```
+
+The app reads the Android monthly package through `offerings.current.monthly`. Price, currency, title and subscription period come from the Play Store/RevenueCat response; they are never hard-coded in the app.
+
+If `EXPO_PUBLIC_REVENUECAT_ANDROID_MONTHLY_PRODUCT_ID` is set, the app validates that RevenueCat returned the expected Google Play product identifier. This value is a public product identifier, not a secret.
+
+Google Play base-plan and offer configuration remains managed in Google Play Console and RevenueCat. The mobile client only consumes the package exposed by the current RevenueCat Offering.
+
 ## User identity
 
 The client identifies RevenueCat customers using the authenticated Supabase `user.id`. This keeps the RevenueCat App User ID stable across sessions and allows the later webhook sync to map RevenueCat events back to the correct Supabase user.
