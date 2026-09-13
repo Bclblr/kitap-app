@@ -64,6 +64,17 @@ export default function PremiumScreen() {
     router.push('/premium-reading-stats');
   }
 
+  function openYearReport() {
+    if (!premium.isPremium) {
+      Alert.alert(
+        'Premium özelliği',
+        'Yıllık Okuma Raporu aktif Premium üyelikle kullanılabilir.'
+      );
+      return;
+    }
+    router.push('/premium-year-report');
+  }
+
   const paidLabel = premium.paidSources.includes('apple')
     ? 'Apple üzerinden Premium'
     : premium.paidSources.includes('google')
@@ -141,6 +152,24 @@ export default function PremiumScreen() {
             <Text style={[styles.featureActionTitle, { color: colors.text }]}>Gelişmiş Okuma İstatistikleri</Text>
             <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}> 
               {premium.isPremium ? 'Son 30 günlük ayrıntılı analizini görüntüle.' : 'Premium ile son 30 günlük ayrıntılı analizini aç.'}
+            </Text>
+          </View>
+          <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Yıllık okuma raporunu aç"
+          onPress={openYearReport}
+          style={[styles.featureAction, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+        >
+          <View style={[styles.featureActionIcon, { backgroundColor: colors.primarySoft }]}> 
+            <Feather name="calendar" size={21} color={colors.primary} />
+          </View>
+          <View style={styles.featureActionText}>
+            <Text style={[styles.featureActionTitle, { color: colors.text }]}>Yıllık Okuma Raporu</Text>
+            <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}> 
+              {premium.isPremium ? 'Bu yılın okuma özetini ve aylık dağılımını görüntüle.' : 'Premium ile yıllık okuma raporunu aç.'}
             </Text>
           </View>
           <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
