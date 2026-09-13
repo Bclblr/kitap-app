@@ -120,6 +120,7 @@ function GuardedLayout() {
               'messages',
               'my-works',
               'profile-settings',
+              'premium',
               'quote-create',
               'read',
               'readers',
