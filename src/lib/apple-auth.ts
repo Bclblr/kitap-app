@@ -19,9 +19,23 @@ export async function signInWithApple() {
     throw new Error('Apple kimlik doğrulama bilgisi alınamadı.');
   }
 
+  const credentialState = await AppleAuthentication.getCredentialStateAsync(
+    credential.user
+  );
+
+  if (
+    credentialState !==
+    AppleAuthentication.AppleAuthenticationCredentialState.AUTHORIZED
+  ) {
+    throw new Error('Apple oturumu doğrulanamadı.');
+  }
+
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: 'apple',
     token: credential.identityToken,
+    ...(credential.authorizationCode
+      ? { access_token: credential.authorizationCode }
+      : {}),
   });
 
   if (error) {
