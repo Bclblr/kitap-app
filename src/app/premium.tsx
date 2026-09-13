@@ -1,0 +1,199 @@
+import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import PremiumBadge from '@/components/PremiumBadge';
+import { usePremium } from '@/providers/PremiumProvider';
+import { useAppTheme } from '@/providers/ThemeProvider';
+
+const BENEFITS = [
+  ['slash', 'Reklamsız deneyim', 'Premium aktifken uygulamadaki reklam alanları gösterilmez.'],
+  ['bar-chart-2', 'Gelişmiş okuma istatistikleri', 'Okuma alışkanlıklarını daha ayrıntılı raporlarla incele.'],
+  ['calendar', 'Aylık ve yıllık raporlar', 'Okuma geçmişini dönemsel özetlerle takip et.'],
+  ['target', 'Gelişmiş hedefler', 'Daha ayrıntılı ve kişiselleştirilebilir okuma hedefleri oluştur.'],
+  ['user', 'Profil kişiselleştirme', 'Premium tema ve profil seçeneklerine eriş.'],
+  ['book-open', 'Gelişmiş raflar', 'Raflarını daha ayrıntılı biçimde düzenle ve kişiselleştir.'],
+  ['image', 'Alıntı ve paylaşım kartları', 'Paylaşımlar için ek Premium kart şablonlarını kullan.'],
+] as const;
+
+function formatDate(value: string | null) {
+  if (!value) return 'Süresiz';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('tr-TR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+export default function PremiumScreen() {
+  const router = useRouter();
+  const { colors } = useAppTheme();
+  const premium = usePremium();
+
+  function purchaseNotReady(plan: 'Aylık' | 'Yıllık') {
+    Alert.alert(
+      `${plan} Premium`,
+      'Satın alma altyapısı mağaza ürünleri ve RevenueCat bağlantısı tamamlandığında bu ekrandan etkinleşecek. Fiyatlar mağazadan otomatik alınacak.'
+    );
+  }
+
+  function restoreNotReady() {
+    Alert.alert(
+      'Satın alımları geri yükle',
+      'Geri yükleme işlemi RevenueCat bağlantısı tamamlandığında bu ekrandan kullanılabilecek.'
+    );
+  }
+
+  function manageNotReady() {
+    Alert.alert(
+      'Aboneliği yönet',
+      'Mağaza abonelik yönetimi RevenueCat ve Apple/Google ürünleri bağlandıktan sonra etkinleşecek.'
+    );
+  }
+
+  const paidLabel = premium.paidSources.includes('apple')
+    ? 'Apple üzerinden Premium'
+    : premium.paidSources.includes('google')
+      ? 'Google Play üzerinden Premium'
+      : premium.hasAdminPremium
+        ? 'Admin tarafından verilen Premium'
+        : 'Premium üyelik';
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Geri dön"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile-settings'))}
+            style={[styles.iconButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <Feather name="chevron-left" size={22} color={colors.text} />
+          </Pressable>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Kitap Premium</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <View style={[styles.hero, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+          <View style={styles.heroBadgeRow}>
+            <PremiumBadge size={24} />
+            <Text style={[styles.heroEyebrow, { color: colors.primary }]}>PREMIUM</Text>
+          </View>
+          <Text style={[styles.heroTitle, { color: colors.text }]}>Okuma deneyimini daha kişisel hale getir.</Text>
+          <Text style={[styles.heroBody, { color: colors.muted }]}>Temel sosyal özellikler ücretsiz kalır. Premium; reklamsız kullanım, gelişmiş istatistikler ve kişiselleştirme seçenekleri sunar.</Text>
+
+          <View style={[styles.statusBox, { borderColor: colors.border, backgroundColor: colors.background }]}> 
+            <View style={styles.statusTopRow}>
+              <Text style={[styles.statusTitle, { color: colors.text }]}>
+                {premium.isPremium ? 'Premium aktif' : 'Ücretsiz hesap'}
+              </Text>
+              <View style={[styles.statusPill, { backgroundColor: premium.isPremium ? colors.primary : colors.border }]}> 
+                <Text style={styles.statusPillText}>{premium.isPremium ? 'AKTİF' : 'FREE'}</Text>
+              </View>
+            </View>
+            <Text style={[styles.statusBody, { color: colors.muted }]}>
+              {premium.isPremium
+                ? `${paidLabel} · Bitiş: ${formatDate(premium.nextExpirationAt)}`
+                : 'İstediğin zaman Premium plana geçebilirsin.'}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Premium avantajları</Text>
+        <View style={styles.benefitsList}>
+          {BENEFITS.map(([icon, title, description]) => (
+            <View key={title} style={[styles.benefitCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+              <View style={[styles.benefitIcon, { backgroundColor: colors.background }]}> 
+                <Feather name={icon} size={19} color={colors.primary} />
+              </View>
+              <View style={styles.benefitText}>
+                <Text style={[styles.benefitTitle, { color: colors.text }]}>{title}</Text>
+                <Text style={[styles.benefitBody, { color: colors.muted }]}>{description}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Planını seç</Text>
+        <View style={styles.planGrid}>
+          <View style={[styles.planCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+            <Text style={[styles.planName, { color: colors.text }]}>Aylık</Text>
+            <Text style={[styles.pricePlaceholder, { color: colors.primary }]}>Mağaza fiyatı</Text>
+            <Text style={[styles.planCaption, { color: colors.muted }]}>Her ay yenilenir. Fiyat mağazadan alınacaktır.</Text>
+            <Pressable onPress={() => purchaseNotReady('Aylık')} style={[styles.primaryButton, { backgroundColor: colors.primary }]}> 
+              <Text style={styles.primaryButtonText}>Aylık Premium</Text>
+            </Pressable>
+          </View>
+
+          <View style={[styles.planCard, styles.highlightedPlan, { backgroundColor: colors.card, borderColor: colors.primary }]}> 
+            <View style={[styles.recommendedPill, { backgroundColor: colors.primary }]}> 
+              <Text style={styles.recommendedText}>ÖNERİLEN</Text>
+            </View>
+            <Text style={[styles.planName, { color: colors.text }]}>Yıllık</Text>
+            <Text style={[styles.pricePlaceholder, { color: colors.primary }]}>Mağaza fiyatı</Text>
+            <Text style={[styles.planCaption, { color: colors.muted }]}>Yıllık plan. Gerçek fiyat ve varsa indirim mağazadan alınır.</Text>
+            <Pressable onPress={() => purchaseNotReady('Yıllık')} style={[styles.primaryButton, { backgroundColor: colors.primary }]}> 
+              <Text style={styles.primaryButtonText}>Yıllık Premium</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={[styles.actionsCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+          <Pressable onPress={restoreNotReady} style={[styles.secondaryButton, { borderColor: colors.border }]}> 
+            <Feather name="refresh-cw" size={17} color={colors.text} />
+            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Satın alımları geri yükle</Text>
+          </Pressable>
+          <Pressable onPress={manageNotReady} style={[styles.secondaryButton, { borderColor: colors.border }]}> 
+            <Feather name="settings" size={17} color={colors.text} />
+            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Aboneliği yönet</Text>
+          </Pressable>
+          <Text style={[styles.legalNote, { color: colors.muted }]}>Satın alma, yenileme ve iptal koşulları Apple App Store veya Google Play tarafından yönetilir. Uygulama içinde sabit fiyat gösterilmez.</Text>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { paddingHorizontal: 18, paddingBottom: 56 },
+  header: { height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  iconButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 19, fontWeight: '800' },
+  headerSpacer: { width: 42 },
+  hero: { borderWidth: 1, borderRadius: 24, padding: 20, gap: 12 },
+  heroBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroEyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 1.4 },
+  heroTitle: { fontSize: 27, lineHeight: 33, fontWeight: '900' },
+  heroBody: { fontSize: 14, lineHeight: 21 },
+  statusBox: { marginTop: 4, borderWidth: 1, borderRadius: 16, padding: 14, gap: 6 },
+  statusTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  statusTitle: { flex: 1, fontSize: 15, fontWeight: '800' },
+  statusPill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
+  statusPillText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
+  statusBody: { fontSize: 13, lineHeight: 18 },
+  sectionTitle: { marginTop: 26, marginBottom: 12, fontSize: 18, fontWeight: '900' },
+  benefitsList: { gap: 10 },
+  benefitCard: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  benefitIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  benefitText: { flex: 1, gap: 3 },
+  benefitTitle: { fontSize: 14, fontWeight: '800' },
+  benefitBody: { fontSize: 13, lineHeight: 18 },
+  planGrid: { gap: 12 },
+  planCard: { borderWidth: 1, borderRadius: 20, padding: 17, gap: 9, overflow: 'hidden' },
+  highlightedPlan: { borderWidth: 2 },
+  recommendedPill: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
+  recommendedText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900', letterSpacing: 0.6 },
+  planName: { fontSize: 20, fontWeight: '900' },
+  pricePlaceholder: { fontSize: 17, fontWeight: '800' },
+  planCaption: { fontSize: 13, lineHeight: 18 },
+  primaryButton: { minHeight: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  actionsCard: { marginTop: 18, borderWidth: 1, borderRadius: 20, padding: 14, gap: 10 },
+  secondaryButton: { minHeight: 46, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  secondaryButtonText: { fontSize: 14, fontWeight: '800' },
+  legalNote: { fontSize: 12, lineHeight: 17, textAlign: 'center', paddingHorizontal: 4, marginTop: 2 },
+});
