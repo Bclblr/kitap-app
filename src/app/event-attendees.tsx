@@ -58,12 +58,18 @@ export default function EventAttendeesScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Geri dön"
+          accessibilityHint="Etkinlik ekranına geri döner."
+        >
           <Text style={styles.backText}>‹ Geri</Text>
         </Pressable>
 
-        <Text style={styles.title}>Katılımcılar</Text>
-        <Text style={styles.subtitle}>
+        <Text style={styles.title} accessibilityRole="header">Katılımcılar</Text>
+        <Text style={styles.subtitle} accessibilityLiveRegion="polite">
           {loading ? 'Katılımcılar yükleniyor...' : `${attendees.length} kişi katılıyor`}
         </Text>
 
@@ -76,45 +82,51 @@ export default function EventAttendeesScreen() {
             onAction={() => void refresh()}
           />
         ) : attendees.length === 0 ? (
-          <View style={styles.messageBox}>
+          <View style={styles.messageBox} accessibilityRole="text">
             <Text style={styles.messageText}>Henüz katılımcı yok.</Text>
           </View>
         ) : (
-          <View style={styles.listCard}>
-            {attendees.map((attendee, index) => (
-              <Pressable
-                key={attendee.user_id}
-                onPress={() =>
-                  router.push({
-                    pathname: '/profile',
-                    params: { userId: attendee.user_id },
-                  })
-                }
-                style={[
-                  styles.attendeeRow,
-                  index !== attendees.length - 1 && styles.attendeeRowBorder,
-                ]}
-              >
-                {attendee.profile_image ? (
-                  <Image source={{ uri: attendee.profile_image }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                    <Text style={styles.avatarLetter}>
-                      {(attendee.username || 'K').trim().charAt(0).toLocaleUpperCase('tr-TR')}
+          <View style={styles.listCard} accessibilityLabel={`${attendees.length} katılımcı`}>
+            {attendees.map((attendee, index) => {
+              const username = attendee.username || 'Kitap Okuru';
+              return (
+                <Pressable
+                  key={attendee.user_id}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/profile',
+                      params: { userId: attendee.user_id },
+                    })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={`${username} profilini görüntüle`}
+                  accessibilityHint="Kullanıcının profil sayfasını açar."
+                  style={[
+                    styles.attendeeRow,
+                    index !== attendees.length - 1 && styles.attendeeRowBorder,
+                  ]}
+                >
+                  {attendee.profile_image ? (
+                    <Image source={{ uri: attendee.profile_image }} style={styles.avatar} accessible={false} />
+                  ) : (
+                    <View style={[styles.avatar, styles.avatarPlaceholder]} accessible={false}>
+                      <Text style={styles.avatarLetter}>
+                        {username.trim().charAt(0).toLocaleUpperCase('tr-TR')}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.userInfo} importantForAccessibility="no-hide-descendants">
+                    <Text style={styles.username} numberOfLines={1}>
+                      {username}
                     </Text>
+                    <Text style={styles.profileHint}>Profili görüntüle</Text>
                   </View>
-                )}
 
-                <View style={styles.userInfo}>
-                  <Text style={styles.username} numberOfLines={1}>
-                    {attendee.username || 'Kitap Okuru'}
-                  </Text>
-                  <Text style={styles.profileHint}>Profili görüntüle</Text>
-                </View>
-
-                <Text style={styles.arrow}>›</Text>
-              </Pressable>
-            ))}
+                  <Text style={styles.arrow} accessibilityElementsHidden>›</Text>
+                </Pressable>
+              );
+            })}
           </View>
         )}
       </ScrollView>
