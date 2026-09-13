@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/apply-premium-profile-customization.yml'
+      - 'scripts/patch-premium-profile-customization.py'
 
 permissions:
   contents: write
@@ -15,129 +16,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Wire Premium profile customization
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          # Premium screen link
-          path = Path('src/app/premium.tsx')
-          text = path.read_text(encoding='utf-8')
-          text = text.replace(
-            "function openPremiumFeature(path: '/premium-reading-stats' | '/premium-year-report' | '/premium-reading-goals', message: string)",
-            "function openPremiumFeature(path: '/premium-reading-stats' | '/premium-year-report' | '/premium-reading-goals' | '/premium-profile-customization', message: string)",
-            1,
-          )
-          anchor = '''        <Text style={[styles.sectionTitle, { color: colors.text }]}>Planını seç</Text>'''
-          block = '''        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Premium profil kişiselleştirmeyi aç"
-          onPress={() => openPremiumFeature('/premium-profile-customization', 'Profil temaları ve kişiselleştirme aktif Premium üyelikle kullanılabilir.')}
-          style={[styles.featureAction, { backgroundColor: colors.surface, borderColor: colors.primary }]}
-        >
-          <View style={[styles.featureActionIcon, { backgroundColor: colors.primarySoft }]}>
-            <Feather name="user" size={21} color={colors.primary} />
-          </View>
-          <View style={styles.featureActionText}>
-            <Text style={[styles.featureActionTitle, { color: colors.text }]}>Profil Kişiselleştirme</Text>
-            <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}>
-              {premium.isPremium ? 'Tema, düzen, profil vurgusu ve Premium çerçeveni yönet.' : 'Premium ile özel profil temalarını aç.'}
-            </Text>
-          </View>
-          <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
-        </Pressable>
-
-'''
-          if anchor not in text:
-            raise SystemExit('Premium plan anchor not found')
-          text = text.replace(anchor, block + anchor, 1)
-          path.write_text(text, encoding='utf-8')
-
-          # Route registration
-          path = Path('src/app/_layout.tsx')
-          text = path.read_text(encoding='utf-8')
-          anchor = "              'premium',\n"
-          if "'premium-profile-customization'" not in text:
-            if anchor not in text:
-              raise SystemExit('Premium route anchor not found')
-            text = text.replace(anchor, anchor + "              'premium-profile-customization',\n", 1)
-          path.write_text(text, encoding='utf-8')
-
-          # Public profile rendering
-          path = Path('src/app/profile.tsx')
-          text = path.read_text(encoding='utf-8')
-          import_anchor = "import { isUserPremium } from '@/lib/premium';\n"
-          import_line = "import { loadProfileCustomization, PROFILE_THEME_ACCENTS, PremiumProfileCustomization } from '@/lib/profile-customization';\n"
-          if import_line not in text:
-            if import_anchor not in text:
-              raise SystemExit('Profile import anchor not found')
-            text = text.replace(import_anchor, import_anchor + import_line, 1)
-
-          state_anchor = "  const [isPremium, setIsPremium] = useState(false);\n"
-          state_line = "  const [premiumProfileCustomization, setPremiumProfileCustomization] = useState<PremiumProfileCustomization | null>(null);\n"
-          if state_line not in text:
-            if state_anchor not in text:
-              raise SystemExit('Profile state anchor not found')
-            text = text.replace(state_anchor, state_anchor + state_line, 1)
-
-          empty_anchor = "        setIsPremium(false);\n        return;"
-          if "setPremiumProfileCustomization(null);" not in text.split(empty_anchor)[0][-250:]:
-            if empty_anchor not in text:
-              raise SystemExit('Profile empty-user anchor not found')
-            text = text.replace(empty_anchor, "        setIsPremium(false);\n        setPremiumProfileCustomization(null);\n        return;", 1)
-
-          old = '''      const [verified, premium] = await Promise.all([
-        isUserVerified(targetUserId).catch(() => false),
-        isUserPremium(targetUserId).catch(() => false),
-      ]);
-      setIsVerified(verified);
-      setIsPremium(premium);'''
-          new = '''      const [verified, premium, customization] = await Promise.all([
-        isUserVerified(targetUserId).catch(() => false),
-        isUserPremium(targetUserId).catch(() => false),
-        loadProfileCustomization(targetUserId).catch(() => null),
-      ]);
-      setIsVerified(verified);
-      setIsPremium(premium);
-      setPremiumProfileCustomization(premium ? customization : null);'''
-          if old not in text:
-            raise SystemExit('Profile Premium load block not found')
-          text = text.replace(old, new, 1)
-
-          hero = "        <View style={styles.profileHero}>"
-          hero_new = '''        <View
-          style={[
-            styles.profileHero,
-            premiumProfileCustomization?.show_premium_frame
-              ? {
-                  borderWidth: 2,
-                  borderColor: PROFILE_THEME_ACCENTS[premiumProfileCustomization.theme_key],
-                  borderRadius: premiumProfileCustomization.layout_key === 'spotlight' ? 22 : 14,
-                  overflow: 'hidden',
-                }
-              : null,
-          ]}
-        >
-          {premiumProfileCustomization?.highlight_text ? (
-            <View
-              style={{
-                paddingHorizontal: 14,
-                paddingVertical: 9,
-                backgroundColor: PROFILE_THEME_ACCENTS[premiumProfileCustomization.theme_key],
-              }}
-            >
-              <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800', textAlign: 'center' }}>
-                {premiumProfileCustomization.highlight_text}
-              </Text>
-            </View>
-          ) : null}'''
-          if hero not in text:
-            raise SystemExit('Profile hero anchor not found')
-          text = text.replace(hero, hero_new, 1)
-          path.write_text(text, encoding='utf-8')
-          PY
-
+      - name: Apply patch
+        run: python scripts/patch-premium-profile-customization.py
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
