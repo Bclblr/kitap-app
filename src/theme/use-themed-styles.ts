@@ -64,6 +64,28 @@ export function useThemedStyles<T extends Record<string, object>>(base: T): T {
   return useMemo(() => {
     return Object.fromEntries(
       Object.entries(base).map(([name, style]) => {
+        // Ana sayfadaki hikâye oluşturma halkası ve hızlı oluşturma butonu
+        // her temada uygulamanın semantik mor vurgu rengini kullanır.
+        if (name === 'addStoryCircle') {
+          return [name, { ...style, borderColor: colors.primary }];
+        }
+        if (name === 'addStoryBadge') {
+          return [name, { ...style, borderColor: colors.primary }];
+        }
+        if (name === 'addStoryIcon') {
+          return [name, { ...style, color: colors.primary }];
+        }
+        if (name === 'floatingCreateButton') {
+          return [name, {
+            ...style,
+            backgroundColor: colors.primary,
+            borderColor: colors.primary,
+          }];
+        }
+        if (name === 'floatingCreateIcon') {
+          return [name, { ...style, color: colors.background }];
+        }
+
         // Image/story overlays and controls that require fixed contrast keep their authored colors.
         if (/story|splash|myMessage|readStatus|saveButtonText|primarySmallText|sendButtonText/i.test(name)) {
           return [name, style];
