@@ -7,6 +7,7 @@ import PremiumBadge from '@/components/PremiumBadge';
 import {
   loadCurrentPremiumPlan,
   purchasePremiumPlan,
+  restorePremiumPurchases,
   RevenueCatStorePlan,
 } from '@/lib/revenuecat';
 import { usePremium } from '@/providers/PremiumProvider';
@@ -41,6 +42,7 @@ export default function PremiumScreen() {
   const [annualPlan, setAnnualPlan] = useState<RevenueCatStorePlan | null>(null);
   const [plansLoading, setPlansLoading] = useState(false);
   const [purchasing, setPurchasing] = useState<'monthly' | 'annual' | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,11 +120,43 @@ export default function PremiumScreen() {
     }
   }
 
-  function restoreNotReady() {
-    Alert.alert(
-      'Satın alımları geri yükle',
-      'Geri yükleme işlemi bir sonraki Premium adımında RevenueCat üzerinden etkinleştirilecek.'
-    );
+  async function handleRestorePurchases() {
+    if (restoring || purchasing) return;
+
+    if (!premium.revenueCat.configured) {
+      Alert.alert(
+        'Geri yükleme kullanılamıyor',
+        'RevenueCat bu cihazda henüz hazır değil. Mağaza ve SDK yapılandırmasını kontrol et.'
+      );
+      return;
+    }
+
+    setRestoring(true);
+    try {
+      const restored = await restorePremiumPurchases();
+      await premium.reload();
+
+      if (restored.premiumEntitlementActive) {
+        Alert.alert(
+          'Satın alımlar geri yüklendi',
+          'RevenueCat Premium satın alımını doğruladı. Sunucu senkronizasyonu tamamlandığında Premium erişimin de güncellenecek.'
+        );
+      } else {
+        Alert.alert(
+          'Aktif Premium bulunamadı',
+          'Bu mağaza hesabında geri yüklenecek aktif Premium aboneliği bulunamadı.'
+        );
+      }
+    } catch (error) {
+      const restoreError = error as { message?: string };
+      console.warn('Premium geri yükleme hatası:', error);
+      Alert.alert(
+        'Geri yükleme tamamlanamadı',
+        restoreError.message || 'Satın alımlar geri yüklenirken bir hata oluştu. Lütfen tekrar dene.'
+      );
+    } finally {
+      setRestoring(false);
+    }
   }
 
   function manageNotReady() {
@@ -361,9 +395,19 @@ export default function PremiumScreen() {
         </View>
 
         <View style={[styles.actionsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-          <Pressable onPress={restoreNotReady} style={[styles.secondaryButton, { borderColor: colors.border }]}> 
+          <Pressable
+            disabled={restoring || purchasing !== null}
+            onPress={() => void handleRestorePurchases()}
+            style={[
+              styles.secondaryButton,
+              { borderColor: colors.border },
+              (restoring || purchasing !== null) && styles.disabledButton,
+            ]}
+          > 
             <Feather name="refresh-cw" size={17} color={colors.text} />
-            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Satın alımları geri yükle</Text>
+            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
+              {restoring ? 'Geri yükleniyor…' : 'Satın alımları geri yükle'}
+            </Text>
           </Pressable>
           <Pressable onPress={manageNotReady} style={[styles.secondaryButton, { borderColor: colors.border }]}> 
             <Feather name="settings" size={17} color={colors.text} />
