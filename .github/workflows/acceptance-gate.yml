@@ -23,6 +23,8 @@ jobs:
         run: npm run audit:routes
       - name: Reader security tests
         run: npm run test:security
+      - name: Release security audit
+        run: npm run audit:release-security
       - name: Mobile auth preflight
         run: npm run audit:mobile-auth
       - name: Media upload preflight
