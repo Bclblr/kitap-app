@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import RuntimeGate from '@/components/RuntimeGate';
+import StoryMediaMaintenance from '@/components/StoryMediaMaintenance';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { NetworkProvider, NetworkStatusBanner } from '@/providers/NetworkProvider';
 import { ThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
@@ -53,6 +54,7 @@ function GuardedLayout() {
     >
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <NetworkStatusBanner />
+      <StoryMediaMaintenance />
       <RuntimeGate>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
           <Stack.Protected guard={!session}>
