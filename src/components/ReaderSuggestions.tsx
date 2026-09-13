@@ -8,6 +8,8 @@ import { useReaderSocial, notifySocialChanged } from '@/hooks/use-reader-social'
 import { loadSuggestedReaders, rankReaders, SuggestedReader } from '@/lib/reader-recommendations';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
+import VerifiedBadge from './VerifiedBadge';
+import { loadVerifiedUserIds } from '@/lib/verification';
 
 export default function ReaderSuggestions({ limit = 10 }: { limit?: number }) {
   const social = useReaderSocial();
@@ -19,6 +21,7 @@ export default function ReaderSuggestions({ limit = 10 }: { limit?: number }) {
   const [candidates, setCandidates] = useState<SuggestedReader[]>([]);
   const [hidden, setHidden] = useState<Record<string, number>>({});
   const [requestPending, setRequestPending] = useState<Set<string>>(new Set());
+  const [verifiedUserIds, setVerifiedUserIds] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(Date.now);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -59,6 +62,7 @@ export default function ReaderSuggestions({ limit = 10 }: { limit?: number }) {
           }
 
           const readerIds = readers.map((reader) => reader.id);
+          const nextVerifiedUserIds = await loadVerifiedUserIds(readerIds).catch(() => new Set<string>());
           let nextRequestPending = new Set<string>();
           if (readerIds.length) {
             const requests = await supabase
@@ -78,6 +82,7 @@ export default function ReaderSuggestions({ limit = 10 }: { limit?: number }) {
             setNow(Date.now());
             setCandidates(readers);
             setRequestPending(nextRequestPending);
+            setVerifiedUserIds(nextVerifiedUserIds);
             setHidden((current) =>
               Object.fromEntries(
                 [...new Set([...Object.keys(hiddenRows), ...Object.keys(current)])].map((id) => [
@@ -228,10 +233,13 @@ export default function ReaderSuggestions({ limit = 10 }: { limit?: number }) {
                   />
                 </Pressable>
 
-                <Text numberOfLines={1} style={[ui.text, { fontWeight: '700' }]}>
-                  {reader.full_name || reader.username}
-                  {reader.is_private ? '  🔒' : ''}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%' }}>
+                  <Text numberOfLines={1} style={[ui.text, { fontWeight: '700', flexShrink: 1 }]}>
+                    {reader.full_name || reader.username}
+                    {reader.is_private ? '  🔒' : ''}
+                  </Text>
+                  {verifiedUserIds.has(reader.id) ? <VerifiedBadge size={16} /> : null}
+                </View>
                 <Text numberOfLines={1} style={ui.muted}>@{reader.username}</Text>
                 <Text
                   numberOfLines={2}

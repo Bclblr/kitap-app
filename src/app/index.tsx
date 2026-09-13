@@ -9,6 +9,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
+import VerifiedBadge from '@/components/VerifiedBadge';
 
 import BottomNav from '@/components/BottomNav';
 import StoryPlayback from '@/components/StoryPlayback';
@@ -23,6 +24,7 @@ import AdSlot from '@/components/AdSlot';
 import { Action, useReaderStyles } from '@/components/ReaderUI';
 import { useReaderSocial } from '@/hooks/use-reader-social';
 import { supabase } from '@/lib/supabase';
+import { loadVerifiedUserIds } from '@/lib/verification';
 import { storyAge } from '@/lib/reader-date';
 import { BookCoverData, existingBookCover, loadBookCover, openLibraryWorkUrl } from '@/lib/open-library-cover';
 
@@ -45,6 +47,7 @@ type Review = BookCoverData & {
   username?: string;
   full_name?: string | null;
   profile_image?: string | null;
+  is_verified?: boolean;
   likes?: number;
   liked?: boolean;
   comments?: Comment[];
@@ -66,6 +69,7 @@ type Post = BookCoverData & {
   username: string;
   full_name?: string | null;
   profile_image?: string | null;
+  is_verified?: boolean;
   text: string | null;
   image_url: string | null;
   book_key: string | null;
@@ -106,6 +110,7 @@ type FeedProfile = {
   full_name: string | null;
   username: string | null;
   profile_image: string | null;
+  is_verified: boolean;
 };
 
 type FeedProfileResult = { data: FeedProfile[]; error: any };
@@ -126,7 +131,14 @@ async function loadFeedProfiles(): Promise<FeedProfileResult> {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, username, profile_image');
-      const profiles = (data ?? []) as FeedProfile[];
+      const baseProfiles = (data ?? []) as Omit<FeedProfile, 'is_verified'>[];
+      const verifiedIds = !error
+        ? await loadVerifiedUserIds(baseProfiles.map((profile) => profile.id)).catch(() => new Set<string>())
+        : new Set<string>();
+      const profiles: FeedProfile[] = baseProfiles.map((profile) => ({
+        ...profile,
+        is_verified: verifiedIds.has(profile.id),
+      }));
       if (!error) {
         feedProfilesCache = { data: profiles, expiresAt: Date.now() + 30_000 };
       }
@@ -398,6 +410,7 @@ export default function HomeScreen() {
           username: reviewAuthor?.username || CURRENT_USERNAME,
           full_name: reviewAuthor?.full_name ?? null,
           profile_image: reviewAuthor?.profile_image ?? null,
+          is_verified: reviewAuthor?.is_verified ?? false,
           likes: reviewLikes.length,
           liked: !!userId && reviewLikes.some((item: any) => item.user_id === userId),
           comments: reviewComments.map((comment: any) => ({
@@ -513,6 +526,7 @@ export default function HomeScreen() {
           username: postAuthor?.username || post.username || CURRENT_USERNAME,
           full_name: postAuthor?.full_name ?? null,
           profile_image: postAuthor?.profile_image ?? null,
+          is_verified: postAuthor?.is_verified ?? false,
           liked: !!userId && postLikes.some((item: any) => item.user_id === userId),
           likes: postLikes.length,
           reposted: !!userId && postReposts.some((item: any) => item.user_id === userId),
@@ -1358,7 +1372,7 @@ export default function HomeScreen() {
                   {feedIndex > 0 && feedIndex % 9 === 0 && <AdSlot />}
                   <View style={styles.userRow}>
                     <View style={styles.avatar}>{post.profile_image ? <Image source={{ uri: post.profile_image }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{post.username?.trim().charAt(0).toUpperCase() || 'K'}</Text>}</View>
-                    <View style={styles.userInfo}><Text style={styles.username} numberOfLines={1}>{post.full_name?.trim() || post.username}</Text><Text style={styles.handle} numberOfLines={1}>@{post.username}</Text><Text style={styles.date}>{formatDate(post.created_at)}</Text></View>
+                    <View style={styles.userInfo}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Text style={[styles.username, { flexShrink: 1 }]} numberOfLines={1}>{post.full_name?.trim() || post.username}</Text>{post.is_verified ? <VerifiedBadge size={16} /> : null}</View><Text style={styles.handle} numberOfLines={1}>@{post.username}</Text><Text style={styles.date}>{formatDate(post.created_at)}</Text></View>
                     <Pressable onPress={() => openFeedContentMenu(post)} accessibilityLabel="İçerik seçenekleri"><Text style={styles.moreButton}>•••</Text></Pressable>
                   </View>
 
@@ -1453,7 +1467,7 @@ export default function HomeScreen() {
               <View key={review.id} style={styles.reviewCard}>
                 <View style={styles.userRow}>
                   <View style={styles.avatar}>{review.profile_image ? <Image source={{ uri: review.profile_image }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{(review.full_name || review.username || CURRENT_USERNAME).trim().charAt(0).toUpperCase()}</Text>}</View>
-                  <View style={styles.userInfo}><Text style={styles.username} numberOfLines={1}>{review.full_name?.trim() || review.username || CURRENT_USERNAME}</Text><Text style={styles.handle} numberOfLines={1}>@{review.username || CURRENT_USERNAME}</Text><Text style={styles.date}>{formatDate(review.createdAt)}</Text></View>
+                  <View style={styles.userInfo}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Text style={[styles.username, { flexShrink: 1 }]} numberOfLines={1}>{review.full_name?.trim() || review.username || CURRENT_USERNAME}</Text>{review.is_verified ? <VerifiedBadge size={16} /> : null}</View><Text style={styles.handle} numberOfLines={1}>@{review.username || CURRENT_USERNAME}</Text><Text style={styles.date}>{formatDate(review.createdAt)}</Text></View>
                   <Text style={styles.moreButton}>•••</Text>
                 </View>
                 <Text style={styles.feedTypeLabel}>KİTAP İNCELEMESİ</Text>

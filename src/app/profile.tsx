@@ -6,9 +6,11 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
+import VerifiedBadge from '@/components/VerifiedBadge';
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
+import { isUserVerified } from '@/lib/verification';
 
 type NotificationType = 'like' | 'comment' | 'repost';
 
@@ -100,6 +102,7 @@ export default function ProfileScreen() {
   }>();
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
 
   const [profile, setProfile] =
     useState<ProfileData>(DEFAULT_PROFILE);
@@ -187,8 +190,12 @@ export default function ProfileScreen() {
 
       if (!targetUserId) {
         setProfile(DEFAULT_PROFILE);
+        setIsVerified(false);
         return;
       }
+
+      const verified = await isUserVerified(targetUserId).catch(() => false);
+      setIsVerified(verified);
 
       const { data, error } =
         await supabase
@@ -2200,15 +2207,17 @@ export default function ProfileScreen() {
             {!editing && (
               <View style={styles.identityInfo}>
                 <View style={styles.nameRow}>
-          <Text style={styles.fullName} numberOfLines={1}>
-            {profile.fullName || 'Ad Soyad'}
-          </Text>
-        </View>
-                <Text style={styles.handle}>@{profile.username.toLowerCase().replace(/\s+/g, '')}</Text>
-                <View style={styles.verifiedRow}>
-                  <Text style={styles.verifiedIcon}>✦</Text>
-                  <Text style={styles.verifiedText}>Okur Profili</Text>
+
+                  <Text style={styles.fullName} numberOfLines={1}>
+
+                    {profile.fullName || 'Ad Soyad'}
+
+                  </Text>
+
+                  {isVerified ? <VerifiedBadge size={19} /> : null}
+
                 </View>
+                <Text style={styles.handle}>@{profile.username.toLowerCase().replace(/\s+/g, '')}</Text>
                 <Text style={styles.bio}>{profile.bio}</Text>
               </View>
             )}

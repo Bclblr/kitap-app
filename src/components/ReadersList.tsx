@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { notifySocialChanged, useReaderSocial } from '@/hooks/use-reader-social';
 import { Action, Busy, useReaderStyles } from './ReaderUI';
 import ReaderSuggestions from './ReaderSuggestions';
+import VerifiedBadge from './VerifiedBadge';
+import { loadVerifiedUserIds } from '@/lib/verification';
 
 type Reader = {
   id: string;
@@ -14,6 +16,7 @@ type Reader = {
   profile_image: string | null;
   is_private: boolean;
   request_pending: boolean;
+  is_verified: boolean;
 };
 
 const DIRECTORY_PAGE_SIZE = 30;
@@ -118,7 +121,8 @@ function ReaderDirectory({
           const result = await request;
           if (result.error) throw result.error;
 
-          const baseReaders = (result.data ?? []) as Omit<Reader, 'is_private' | 'request_pending'>[];
+          const baseReaders = (result.data ?? []) as Omit<Reader, 'is_private' | 'request_pending' | 'is_verified'>[];
+          const verifiedIds = await loadVerifiedUserIds(baseReaders.map((reader) => reader.id)).catch(() => new Set<string>());
           const relationshipEntries = await Promise.all(
             baseReaders.map(async (reader) => {
               if (!social.userId || reader.id === social.userId) {
@@ -152,6 +156,7 @@ function ReaderDirectory({
               ...reader,
               is_private: relationship?.is_private ?? false,
               request_pending: relationship?.request_pending ?? false,
+              is_verified: verifiedIds.has(reader.id),
             };
           });
 
@@ -292,10 +297,13 @@ function ReaderDirectory({
                   ) : null}
 
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text numberOfLines={1} style={ui.text}>
-                      {reader.full_name || reader.username}
-                      {reader.is_private ? '  🔒' : ''}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Text numberOfLines={1} style={[ui.text, { flexShrink: 1 }]}>
+                        {reader.full_name || reader.username}
+                        {reader.is_private ? '  🔒' : ''}
+                      </Text>
+                      {reader.is_verified ? <VerifiedBadge size={16} /> : null}
+                    </View>
                     <Text numberOfLines={1} style={ui.muted}>
                       @{reader.username}
                     </Text>
