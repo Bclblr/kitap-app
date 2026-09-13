@@ -1,0 +1,44 @@
+name: Apply read continue button style
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-read-continue-button-style.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Update read button style
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/app/read.tsx')
+          text = path.read_text(encoding='utf-8')
+          old = '''              <Pressable onPress={() => openBook(currentBook)} style={styles.primaryButton}>\n                <Text style={styles.primaryButtonText}>Okumaya Devam Et</Text>\n                <Text style={styles.primaryButtonArrow}>›</Text>\n              </Pressable>'''
+          new = '''              <Pressable onPress={() => openBook(currentBook)} style={styles.continueButton}>\n                <Text style={styles.continueButtonText}>Okumaya Devam Et</Text>\n                <Text style={styles.continueButtonArrow}>›</Text>\n              </Pressable>'''
+          if old not in text:
+              raise SystemExit('Continue reading button block not found')
+          text = text.replace(old, new, 1)
+          style_anchor = "  primaryButtonArrow: { color: '#1B1108', fontSize: 25, lineHeight: 26, marginLeft: 8 },\n"
+          styles = "  continueButton: { minHeight: 46, borderRadius: 14, backgroundColor: '#8058D9', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 15 },\n  continueButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },\n  continueButtonArrow: { color: '#FFFFFF', fontSize: 22, lineHeight: 24, marginLeft: 8 },\n"
+          if style_anchor not in text:
+              raise SystemExit('Style anchor not found')
+          text = text.replace(style_anchor, style_anchor + styles, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/read.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Match continue reading button style"
+          git push origin main
