@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import Purchases, { CustomerInfo, LOG_LEVEL } from 'react-native-purchases';
+import Purchases, { CustomerInfo, LOG_LEVEL, PurchasesPackage } from 'react-native-purchases';
 
 export const REVENUECAT_PREMIUM_ENTITLEMENT_ID = 'premium';
 
@@ -8,6 +8,19 @@ export type RevenueCatSnapshot = {
   appUserId: string | null;
   premiumEntitlementActive: boolean;
   activeEntitlementIds: string[];
+};
+
+export type RevenueCatStorePlan = {
+  platform: 'ios' | 'android';
+  period: 'monthly' | 'annual';
+  packageIdentifier: string;
+  productIdentifier: string;
+  title: string;
+  description: string;
+  price: number;
+  priceString: string;
+  currencyCode: string;
+  subscriptionPeriod: string | null;
 };
 
 const EMPTY_SNAPSHOT: RevenueCatSnapshot = {
@@ -46,6 +59,27 @@ function snapshotFromCustomerInfo(customerInfo: CustomerInfo): RevenueCatSnapsho
       REVENUECAT_PREMIUM_ENTITLEMENT_ID
     ),
     activeEntitlementIds,
+  };
+}
+
+function storePlanFromPackage(
+  purchasesPackage: PurchasesPackage,
+  platform: 'ios' | 'android',
+  period: 'monthly' | 'annual'
+): RevenueCatStorePlan {
+  const product = purchasesPackage.product;
+
+  return {
+    platform,
+    period,
+    packageIdentifier: purchasesPackage.identifier,
+    productIdentifier: product.identifier,
+    title: product.title,
+    description: product.description,
+    price: product.price,
+    priceString: product.priceString,
+    currencyCode: product.currencyCode,
+    subscriptionPeriod: product.subscriptionPeriod ?? null,
   };
 }
 
@@ -88,6 +122,29 @@ export async function refreshRevenueCatSnapshot(): Promise<RevenueCatSnapshot> {
 
   const customerInfo = await Purchases.getCustomerInfo();
   return snapshotFromCustomerInfo(customerInfo);
+}
+
+export async function loadAppleMonthlyPremiumPlan(): Promise<RevenueCatStorePlan | null> {
+  if (!configured || Platform.OS !== 'ios') return null;
+
+  const offerings = await Purchases.getOfferings();
+  const monthlyPackage = offerings.current?.monthly ?? null;
+
+  if (!monthlyPackage) return null;
+
+  const expectedProductId =
+    process.env.EXPO_PUBLIC_REVENUECAT_IOS_MONTHLY_PRODUCT_ID?.trim() || null;
+
+  if (
+    expectedProductId &&
+    monthlyPackage.product.identifier !== expectedProductId
+  ) {
+    throw new Error(
+      `RevenueCat Apple monthly product mismatch. Expected ${expectedProductId}, received ${monthlyPackage.product.identifier}.`
+    );
+  }
+
+  return storePlanFromPackage(monthlyPackage, 'ios', 'monthly');
 }
 
 export async function detachRevenueCatUser() {
