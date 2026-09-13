@@ -28,6 +28,11 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const canSubmit =
+    username.trim().length > 0 &&
+    email.trim().length > 0 &&
+    password.length >= 8;
+
   async function handleRegister() {
     const cleanUsername = username.trim();
     const cleanEmail = email.trim().toLowerCase();
@@ -168,12 +173,6 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Feather name="arrow-left" size={22} color={colors.text} />
-          </Pressable>
-        </View>
-
         <View style={styles.brandWrap}>
           <View style={styles.logoMark}>
             <Feather name="user-plus" size={28} color="#A985FF" />
@@ -248,14 +247,16 @@ export default function RegisterScreen() {
 
           <Pressable
             onPress={handleRegister}
-            disabled={loading}
+            disabled={loading || !canSubmit}
             style={({ pressed }) => [
               styles.button,
-              loading && styles.disabledButton,
-              pressed && !loading && styles.buttonPressed,
+              (loading || !canSubmit) && styles.disabledButton,
+              pressed && !loading && canSubmit && styles.buttonPressed,
             ]}
           >
-            <Text style={styles.buttonText}>{loading ? 'Kayıt yapılıyor...' : 'E-posta ile Kaydol'}</Text>
+            <Text style={[styles.buttonText, !canSubmit && styles.disabledButtonText]}>
+              {loading ? 'Kayıt yapılıyor...' : 'E-posta ile Kaydol'}
+            </Text>
           </Pressable>
 
           <View style={styles.switchRow}>
@@ -272,9 +273,7 @@ export default function RegisterScreen() {
 
 const baseStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#09090D' },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 32 },
-  topBar: { paddingTop: 18, minHeight: 62, justifyContent: 'center' },
-  backButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: '#24242C', backgroundColor: '#111116', alignItems: 'center', justifyContent: 'center' },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 30, paddingBottom: 32 },
   brandWrap: { alignItems: 'center', marginTop: 18, marginBottom: 24 },
   logoMark: { width: 60, height: 60, borderRadius: 19, backgroundColor: '#17121F', borderWidth: 1, borderColor: '#2E2340', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   brandTitle: { fontSize: 29, fontWeight: '800', color: '#F5F5F8', letterSpacing: -0.7 },
@@ -294,7 +293,8 @@ const baseStyles = StyleSheet.create({
   input: { flex: 1, height: '100%', color: '#F2F2F5', fontSize: 15 },
   button: { height: 54, borderRadius: 15, backgroundColor: '#A985FF', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   buttonPressed: { opacity: 0.84 },
-  disabledButton: { opacity: 0.55 },
+  disabledButton: { opacity: 0.38 },
+  disabledButtonText: { color: '#5F5668' },
   buttonText: { color: '#0B0710', fontSize: 15, fontWeight: '800' },
   switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 21 },
   switchText: { color: '#85858F', fontSize: 14 },
