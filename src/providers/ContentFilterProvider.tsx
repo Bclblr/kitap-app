@@ -6,7 +6,7 @@ import {
   isContentFilterLevel,
   shouldFilterContentText,
 } from '@/lib/content-filter';
-import { getRuntimeControls, settingString } from '@/lib/runtime-controls';
+import { getRuntimeControls, settingString, subscribeRuntimeControlChanges } from '@/lib/runtime-controls';
 import { useAuth } from '@/providers/AuthProvider';
 import { useNetworkStatus } from '@/providers/NetworkProvider';
 
@@ -61,6 +61,13 @@ export function ContentFilterProvider({ children }: PropsWithChildren) {
     setReady(false);
     void reload();
   }, [reload, retrySignal, session?.user?.id]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    return subscribeRuntimeControlChanges(session?.user?.id, () => {
+      void reload();
+    });
+  }, [authLoading, reload, session?.user?.id]);
 
   const shouldFilterText = useCallback(
     (text: string | null | undefined) => shouldFilterContentText(text, level),
