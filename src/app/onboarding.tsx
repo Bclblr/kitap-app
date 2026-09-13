@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 
+import { trackProductEvent } from '@/lib/product-analytics';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -144,6 +145,7 @@ export default function OnboardingScreen() {
       });
       if (metadataError) throw metadataError;
 
+      await trackProductEvent('onboarding_completed', { skip_details: skipDetails });
       router.replace(skipDetails ? '/' : '/explore');
     } catch (error) {
       console.error('Onboarding kaydedilemedi:', error);
