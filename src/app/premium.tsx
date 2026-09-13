@@ -69,7 +69,7 @@ export default function PremiumScreen() {
             accessibilityRole="button"
             accessibilityLabel="Geri dön"
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile-settings'))}
-            style={[styles.iconButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <Feather name="chevron-left" size={22} color={colors.text} />
           </Pressable>
@@ -77,13 +77,13 @@ export default function PremiumScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
-        <View style={[styles.hero, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+        <View style={[styles.hero, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <View style={styles.heroBadgeRow}>
             <PremiumBadge size={24} />
             <Text style={[styles.heroEyebrow, { color: colors.primary }]}>PREMIUM</Text>
           </View>
           <Text style={[styles.heroTitle, { color: colors.text }]}>Okuma deneyimini daha kişisel hale getir.</Text>
-          <Text style={[styles.heroBody, { color: colors.muted }]}>Temel sosyal özellikler ücretsiz kalır. Premium; reklamsız kullanım, gelişmiş istatistikler ve kişiselleştirme seçenekleri sunar.</Text>
+          <Text style={[styles.heroBody, { color: colors.textSecondary }]}>Temel sosyal özellikler ücretsiz kalır. Premium; reklamsız kullanım, gelişmiş istatistikler ve kişiselleştirme seçenekleri sunar.</Text>
 
           <View style={[styles.statusBox, { borderColor: colors.border, backgroundColor: colors.background }]}> 
             <View style={styles.statusTopRow}>
@@ -94,7 +94,7 @@ export default function PremiumScreen() {
                 <Text style={styles.statusPillText}>{premium.isPremium ? 'AKTİF' : 'FREE'}</Text>
               </View>
             </View>
-            <Text style={[styles.statusBody, { color: colors.muted }]}>
+            <Text style={[styles.statusBody, { color: colors.textSecondary }]}> 
               {premium.isPremium
                 ? `${paidLabel} · Bitiş: ${formatDate(premium.nextExpirationAt)}`
                 : 'İstediğin zaman Premium plana geçebilirsin.'}
@@ -105,13 +105,13 @@ export default function PremiumScreen() {
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Premium avantajları</Text>
         <View style={styles.benefitsList}>
           {BENEFITS.map(([icon, title, description]) => (
-            <View key={title} style={[styles.benefitCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+            <View key={title} style={[styles.benefitCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
               <View style={[styles.benefitIcon, { backgroundColor: colors.background }]}> 
                 <Feather name={icon} size={19} color={colors.primary} />
               </View>
               <View style={styles.benefitText}>
                 <Text style={[styles.benefitTitle, { color: colors.text }]}>{title}</Text>
-                <Text style={[styles.benefitBody, { color: colors.muted }]}>{description}</Text>
+                <Text style={[styles.benefitBody, { color: colors.textSecondary }]}>{description}</Text>
               </View>
             </View>
           ))}
@@ -119,29 +119,29 @@ export default function PremiumScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Planını seç</Text>
         <View style={styles.planGrid}>
-          <View style={[styles.planCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+          <View style={[styles.planCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
             <Text style={[styles.planName, { color: colors.text }]}>Aylık</Text>
             <Text style={[styles.pricePlaceholder, { color: colors.primary }]}>Mağaza fiyatı</Text>
-            <Text style={[styles.planCaption, { color: colors.muted }]}>Her ay yenilenir. Fiyat mağazadan alınacaktır.</Text>
+            <Text style={[styles.planCaption, { color: colors.textSecondary }]}>Her ay yenilenir. Fiyat mağazadan alınacaktır.</Text>
             <Pressable onPress={() => purchaseNotReady('Aylık')} style={[styles.primaryButton, { backgroundColor: colors.primary }]}> 
               <Text style={styles.primaryButtonText}>Aylık Premium</Text>
             </Pressable>
           </View>
 
-          <View style={[styles.planCard, styles.highlightedPlan, { backgroundColor: colors.card, borderColor: colors.primary }]}> 
+          <View style={[styles.planCard, styles.highlightedPlan, { backgroundColor: colors.surface, borderColor: colors.primary }]}> 
             <View style={[styles.recommendedPill, { backgroundColor: colors.primary }]}> 
               <Text style={styles.recommendedText}>ÖNERİLEN</Text>
             </View>
             <Text style={[styles.planName, { color: colors.text }]}>Yıllık</Text>
             <Text style={[styles.pricePlaceholder, { color: colors.primary }]}>Mağaza fiyatı</Text>
-            <Text style={[styles.planCaption, { color: colors.muted }]}>Yıllık plan. Gerçek fiyat ve varsa indirim mağazadan alınır.</Text>
+            <Text style={[styles.planCaption, { color: colors.textSecondary }]}>Yıllık plan. Gerçek fiyat ve varsa indirim mağazadan alınır.</Text>
             <Pressable onPress={() => purchaseNotReady('Yıllık')} style={[styles.primaryButton, { backgroundColor: colors.primary }]}> 
               <Text style={styles.primaryButtonText}>Yıllık Premium</Text>
             </Pressable>
           </View>
         </View>
 
-        <View style={[styles.actionsCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+        <View style={[styles.actionsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <Pressable onPress={restoreNotReady} style={[styles.secondaryButton, { borderColor: colors.border }]}> 
             <Feather name="refresh-cw" size={17} color={colors.text} />
             <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Satın alımları geri yükle</Text>
@@ -150,7 +150,7 @@ export default function PremiumScreen() {
             <Feather name="settings" size={17} color={colors.text} />
             <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Aboneliği yönet</Text>
           </Pressable>
-          <Text style={[styles.legalNote, { color: colors.muted }]}>Satın alma, yenileme ve iptal koşulları Apple App Store veya Google Play tarafından yönetilir. Uygulama içinde sabit fiyat gösterilmez.</Text>
+          <Text style={[styles.legalNote, { color: colors.textSecondary }]}>Satın alma, yenileme ve iptal koşulları Apple App Store veya Google Play tarafından yönetilir. Uygulama içinde sabit fiyat gösterilmez.</Text>
         </View>
       </ScrollView>
     </View>
