@@ -7,6 +7,7 @@ import AppErrorBoundary from '@/components/AppErrorBoundary';
 import RuntimeGate from '@/components/RuntimeGate';
 import StoryMediaMaintenance from '@/components/StoryMediaMaintenance';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import { ContentFilterProvider } from '@/providers/ContentFilterProvider';
 import { NetworkProvider, NetworkStatusBanner } from '@/providers/NetworkProvider';
 import { ThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
 
@@ -17,7 +18,9 @@ export default function RootLayout() {
         <ThemeProvider>
           <NetworkProvider>
             <AuthProvider>
-              <GuardedLayout />
+              <ContentFilterProvider>
+                <GuardedLayout />
+              </ContentFilterProvider>
             </AuthProvider>
           </NetworkProvider>
         </ThemeProvider>
