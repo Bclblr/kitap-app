@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import RuntimeGate from '@/components/RuntimeGate';
 import StoryMediaMaintenance from '@/components/StoryMediaMaintenance';
+import { installGlobalErrorMonitoring } from '@/lib/error-monitoring';
 import { configureProductionLogging } from '@/lib/production-logging';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { ContentFilterProvider } from '@/providers/ContentFilterProvider';
@@ -13,6 +14,7 @@ import { NetworkProvider, NetworkStatusBanner } from '@/providers/NetworkProvide
 import { ThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
 
 configureProductionLogging();
+installGlobalErrorMonitoring();
 
 export default function RootLayout() {
   return (
