@@ -41,10 +41,35 @@ function mapSource(store: string | null | undefined): 'apple' | 'google' | null 
   return null;
 }
 
-function mapStatus(type: string, periodType?: string | null) {
+function mapStatus(
+  type: string,
+  periodType: string | null | undefined,
+  expiresAt: string | null,
+  providerEventAt: string
+) {
+  const eventTime = Date.parse(providerEventAt);
+  const expirationTime = expiresAt ? Date.parse(expiresAt) : Number.NaN;
+  const hasFutureExpiration =
+    Number.isFinite(expirationTime) && Number.isFinite(eventTime) && expirationTime > eventTime;
+
   if (type === 'EXPIRATION') return 'expired';
   if (type === 'SUBSCRIPTION_PAUSED') return 'inactive';
-  if (type === 'BILLING_ISSUE') return 'grace_period';
+
+  if (type === 'BILLING_ISSUE') {
+    return hasFutureExpiration ? 'grace_period' : 'inactive';
+  }
+
+  // Cancellation disables auto-renewal, but access remains valid through the paid term.
+  if (type === 'CANCELLATION') {
+    if (!expiresAt) return 'inactive';
+    return hasFutureExpiration
+      ? periodType === 'TRIAL'
+        ? 'trialing'
+        : 'active'
+      : 'expired';
+  }
+
+  // Uncancellation, renewals, extensions and product changes reactivate access.
   if (periodType === 'TRIAL') return 'trialing';
   return 'active';
 }
@@ -125,7 +150,7 @@ Deno.serve(async (request) => {
 
   const startedAt = toIso(event.purchased_at_ms) ?? providerEventAt;
   const expiresAt = toIso(event.expiration_at_ms);
-  const status = mapStatus(event.type, event.period_type);
+  const status = mapStatus(event.type, event.period_type, expiresAt, providerEventAt);
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
