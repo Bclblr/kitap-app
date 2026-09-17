@@ -35,6 +35,16 @@ export type PremiumAccess = {
   nextExpirationAt: string | null;
 };
 
+type PremiumAccessRpcRow = {
+  is_premium?: boolean | null;
+  has_paid_premium?: boolean | null;
+  has_admin_premium?: boolean | null;
+  paid_sources?: string[] | null;
+  active_entitlements?: PremiumEntitlement[] | null;
+  all_entitlements?: PremiumEntitlement[] | null;
+  next_expiration_at?: string | null;
+};
+
 const ACTIVE_PREMIUM_STATUSES = new Set<PremiumStatus>([
   'active',
   'trialing',
@@ -97,6 +107,30 @@ export function resolvePremiumAccess(
   };
 }
 
+function premiumAccessFromRpcRow(row: PremiumAccessRpcRow | undefined): PremiumAccess {
+  if (!row) return resolvePremiumAccess([]);
+
+  const activeEntitlements = Array.isArray(row.active_entitlements)
+    ? row.active_entitlements
+    : [];
+  const allEntitlements = Array.isArray(row.all_entitlements)
+    ? row.all_entitlements
+    : [];
+  const paidSources = (row.paid_sources ?? []).filter(
+    (source): source is 'apple' | 'google' => source === 'apple' || source === 'google'
+  );
+
+  return {
+    isPremium: row.is_premium === true,
+    hasPaidPremium: row.has_paid_premium === true,
+    hasAdminPremium: row.has_admin_premium === true,
+    paidSources,
+    activeEntitlements,
+    allEntitlements,
+    nextExpirationAt: row.next_expiration_at ?? null,
+  };
+}
+
 export async function loadCurrentUserPremiumAccess(): Promise<PremiumAccess> {
   const {
     data: { user },
@@ -106,19 +140,15 @@ export async function loadCurrentUserPremiumAccess(): Promise<PremiumAccess> {
   if (userError) throw userError;
   if (!user) return resolvePremiumAccess([]);
 
-  const { data, error } = await supabase
-    .from('premium_entitlements')
-    .select(
-      'id, user_id, source, status, product_id, entitlement_id, source_reference, starts_at, expires_at, revoked_at, created_at, updated_at'
-    )
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-
+  const { data, error } = await supabase.rpc('get_my_premium_access');
   if (error) throw error;
 
-  return resolvePremiumAccess((data ?? []) as PremiumEntitlement[]);
-}
+  const row = Array.isArray(data)
+    ? (data[0] as PremiumAccessRpcRow | undefined)
+    : (data as PremiumAccessRpcRow | null | undefined) ?? undefined;
 
+  return premiumAccessFromRpcRow(row);
+}
 
 export async function loadPremiumUserIds(userIds: string[]): Promise<Set<string>> {
   const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
