@@ -4,9 +4,6 @@ on:
   push:
   pull_request:
 
-permissions:
-  contents: write
-
 jobs:
   typecheck:
     runs-on: ubuntu-latest
@@ -18,59 +15,3 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-
-  move-premium-entry:
-    if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Move Premium entry to home drawer
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          home = Path('src/app/index.tsx')
-          settings = Path('src/app/profile-settings.tsx')
-          home_text = home.read_text(encoding='utf-8')
-          settings_text = settings.read_text(encoding='utf-8')
-
-          profile_item = '''              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/profile-settings'); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="settings" size={22} color={colors.text} /></View>
-                <Text style={styles.drawerItemText}>Profil ayarları</Text>
-              </Pressable>
-'''
-          premium_item = '''              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/premium'); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="star" size={22} color={colors.primary} /></View>
-                <Text style={styles.drawerItemText}>Kitap Premium</Text>
-              </Pressable>
-'''
-
-          if "router.push('/premium')" not in home_text:
-              if profile_item not in home_text:
-                  raise SystemExit('Home drawer profile item not found')
-              home_text = home_text.replace(profile_item, premium_item + profile_item, 1)
-
-          settings_premium = '''        <Pressable onPress={() => router.push('/premium')} style={styles.adminButton} disabled={saving}>
-          <Text style={styles.adminButtonText}>✦ Kitap Premium</Text>
-          <Text style={styles.adminButtonArrow}>›</Text>
-        </Pressable>
-
-'''
-          settings_text = settings_text.replace(settings_premium, '', 1)
-
-          home.write_text(home_text, encoding='utf-8')
-          settings.write_text(settings_text, encoding='utf-8')
-          PY
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/app/index.tsx src/app/profile-settings.tsx
-          if git diff --cached --quiet; then
-            echo "No changes needed"
-            exit 0
-          fi
-          git commit -m "feat: move Premium entry to home drawer"
-          git push
