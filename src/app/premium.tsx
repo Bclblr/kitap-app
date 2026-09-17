@@ -174,13 +174,17 @@ export default function PremiumScreen() {
     router.push(path);
   }
 
-  const paidLabel = premium.paidSources.includes('apple')
-    ? 'Apple üzerinden Premium'
-    : premium.paidSources.includes('google')
-      ? 'Google Play üzerinden Premium'
-      : premium.hasAdminPremium
-        ? 'Admin tarafından verilen Premium'
-        : 'Premium üyelik';
+  const paidLabel = premium.hasPaidPremium && premium.hasAdminPremium
+    ? 'Ücretli + admin Premium'
+    : premium.paidSources.includes('apple') && premium.paidSources.includes('google')
+      ? 'Apple + Google Play üzerinden Premium'
+      : premium.paidSources.includes('apple')
+        ? 'Apple üzerinden Premium'
+        : premium.paidSources.includes('google')
+          ? 'Google Play üzerinden Premium'
+          : premium.hasAdminPremium
+            ? 'Admin tarafından verilen Premium'
+            : 'Premium üyelik';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -217,7 +221,7 @@ export default function PremiumScreen() {
             </View>
             <Text style={[styles.statusBody, { color: colors.textSecondary }]}> 
               {premium.isPremium
-                ? `${paidLabel} · Bitiş: ${formatDate(premium.nextExpirationAt)}`
+                ? `${paidLabel} · Erişim bitişi: ${formatDate(premium.nextExpirationAt)}`
                 : 'İstediğin zaman Premium plana geçebilirsin.'}
             </Text>
           </View>
