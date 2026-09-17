@@ -1,6 +1,5 @@
 name: Move Premium menu entry
 
-# Trigger once after workflow creation.
 on:
   push:
     paths:
@@ -10,60 +9,20 @@ permissions:
   contents: write
 
 jobs:
-  update-premium-menu:
+  move:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Update menu placement
-        shell: python
+      - name: Apply change
         run: |
-          from pathlib import Path
-
-          home = Path('src/app/index.tsx')
-          settings = Path('src/app/profile-settings.tsx')
-
-          home_text = home.read_text(encoding='utf-8')
-          settings_text = settings.read_text(encoding='utf-8')
-
-          profile_item = '''              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/profile-settings'); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="settings" size={22} color={colors.text} /></View>
-                <Text style={styles.drawerItemText}>Profil ayarları</Text>
-              </Pressable>
-'''
-
-          premium_item = '''              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/premium'); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="star" size={22} color={colors.primary} /></View>
-                <Text style={styles.drawerItemText}>Kitap Premium</Text>
-              </Pressable>
-'''
-
-          if "router.push('/premium')" not in home_text:
-              if profile_item not in home_text:
-                  raise SystemExit('Home drawer profile item not found')
-              home_text = home_text.replace(profile_item, premium_item + profile_item, 1)
-
-          settings_premium = '''        <Pressable onPress={() => router.push('/premium')} style={styles.adminButton} disabled={saving}>
-          <Text style={styles.adminButtonText}>✦ Kitap Premium</Text>
-          <Text style={styles.adminButtonArrow}>›</Text>
-        </Pressable>
-
-'''
-
-          if settings_premium in settings_text:
-              settings_text = settings_text.replace(settings_premium, '', 1)
-
-          home.write_text(home_text, encoding='utf-8')
-          settings.write_text(settings_text, encoding='utf-8')
-
-      - name: Commit changes
-        run: |
+          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpob21lID0gUGF0aCgic3JjL2FwcC9pbmRleC50c3giKQpzZXR0aW5ncyA9IFBhdGgoInNyYy9hcHAvcHJvZmlsZS1zZXR0aW5ncy50c3giKQoKaG9tZV90ZXh0ID0gaG9tZS5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKc2V0dGluZ3NfdGV4dCA9IHNldHRpbmdzLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQoKcHJvZmlsZV9pdGVtID0gIiIiICAgICAgICAgICAgICA8UHJlc3NhYmxlIG9uUHJlc3M9eygpID0+IHsgc2V0U2hvd0F1dGhNZW51KGZhbHNlKTsgcm91dGVyLnB1c2goJy9wcm9maWxlLXNldHRpbmdzJyk7IH19IHN0eWxlPXtzdHlsZXMuZHJhd2VySXRlbX0+CiAgICAgICAgICAgICAgICA8VmlldyBzdHlsZT17c3R5bGVzLmRyYXdlckljb25XcmFwfT48RmVhdGhlciBuYW1lPSJzZXR0aW5ncyIgc2l6ZT17MjJ9IGNvbG9yPXtjb2xvcnMudGV4dH0gLz48L1ZpZXc+CiAgICAgICAgICAgICAgICA8VGV4dCBzdHlsZT17c3R5bGVzLmRyYXdlckl0ZW1UZXh0fT5Qcm9maWwgYXlhcmxhcsSxPC9UZXh0PgogICAgICAgICAgICAgIDwvUHJlc3NhYmxlPgoiIiIKCnByZW1pdW1faXRlbSA9ICIiIiAgICAgICAgICAgICAgPFByZXNzYWJsZSBvblByZXNzPXsoKSA9PiB7IHNldFNob3dBdXRoTWVudShmYWxzZSk7IHJvdXRlci5wdXNoKCcvcHJlbWl1bScpOyB9fSBzdHlsZT17c3R5bGVzLmRyYXdlckl0ZW19PgogICAgICAgICAgICAgICAgPFZpZXcgc3R5bGU9e3N0eWxlcy5kcmF3ZXJJY29uV3JhcH0+PEZlYXRoZXIgbmFtZT0ic3RhciIgc2l6ZT17MjJ9IGNvbG9yPXtjb2xvcnMucHJpbWFyeX0gLz48L1ZpZXc+CiAgICAgICAgICAgICAgICA8VGV4dCBzdHlsZT17c3R5bGVzLmRyYXdlckl0ZW1UZXh0fT5LaXRhcCBQcmVtaXVtPC9UZXh0PgogICAgICAgICAgICAgIDwvUHJlc3NhYmxlPgoiIiIKCmlmICJyb3V0ZXIucHVzaCgnL3ByZW1pdW0nKSIgbm90IGluIGhvbWVfdGV4dDoKICAgIGlmIHByb2ZpbGVfaXRlbSBub3QgaW4gaG9tZV90ZXh0OgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoIkhvbWUgZHJhd2VyIHByb2ZpbGUgaXRlbSBub3QgZm91bmQiKQogICAgaG9tZV90ZXh0ID0gaG9tZV90ZXh0LnJlcGxhY2UocHJvZmlsZV9pdGVtLCBwcmVtaXVtX2l0ZW0gKyBwcm9maWxlX2l0ZW0sIDEpCgpzZXR0aW5nc19wcmVtaXVtID0gIiIiICAgICAgICA8UHJlc3NhYmxlIG9uUHJlc3M9eygpID0+IHJvdXRlci5wdXNoKCcvcHJlbWl1bScpfSBzdHlsZT17c3R5bGVzLmFkbWluQnV0dG9ufSBkaXNhYmxlZD17c2F2aW5nfT4KICAgICAgICAgIDxUZXh0IHN0eWxlPXtzdHlsZXMuYWRtaW5CdXR0b25UZXh0fT7inKYgS2l0YXAgUHJlbWl1bTwvVGV4dD4KICAgICAgICAgIDxUZXh0IHN0eWxlPXtzdHlsZXMuYWRtaW5CdXR0b25BcnJvd30+4oC6PC9UZXh0PgogICAgICAgIDwvUHJlc3NhYmxlPgoKIiIiCmlmIHNldHRpbmdzX3ByZW1pdW0gaW4gc2V0dGluZ3NfdGV4dDoKICAgIHNldHRpbmdzX3RleHQgPSBzZXR0aW5nc190ZXh0LnJlcGxhY2Uoc2V0dGluZ3NfcHJlbWl1bSwgIiIsIDEpCgpob21lLndyaXRlX3RleHQoaG9tZV90ZXh0LCBlbmNvZGluZz0idXRmLTgiKQpzZXR0aW5ncy53cml0ZV90ZXh0KHNldHRpbmdzX3RleHQsIGVuY29kaW5nPSJ1dGYtOCIpCg==' | base64 -d > /tmp/move_premium.py
+          python /tmp/move_premium.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/app/index.tsx src/app/profile-settings.tsx
           if git diff --cached --quiet; then
-            echo "No changes needed"
             exit 0
           fi
           git commit -m "feat: move Premium entry to home drawer"
