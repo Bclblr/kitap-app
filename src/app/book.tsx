@@ -282,6 +282,11 @@ export default function BookScreen() {
       params: {
         key,
         title: book?.title ?? 'Bilinmeyen kitap',
+        author: book?.authors
+          ?.map((item) => typeof item === 'string' ? item : item.name)
+          .filter(Boolean)
+          .join(', ') || author || 'Bilinmeyen yazar',
+        coverUrl: existingBookCover(book ?? {}) ?? undefined,
       },
     });
   }
