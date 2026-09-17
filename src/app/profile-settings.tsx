@@ -275,7 +275,7 @@ export default function ProfileSettingsScreen() {
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Pressable onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/'); }} style={styles.backButton}>
             <Text style={styles.backText}>‹</Text>
           </Pressable>
           <Text style={styles.title}>Profil Ayarları</Text>
