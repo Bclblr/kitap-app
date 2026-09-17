@@ -60,6 +60,9 @@ jobs:
           if old not in s:
               raise SystemExit('review modal anchor not found')
           s = s.replace(old, new, 1)
+
+          # RN typings in this project expose absoluteFill, not absoluteFillObject.
+          s = s.replace("sheetBackdrop: { ...StyleSheet.absoluteFillObject },", "sheetBackdrop: StyleSheet.absoluteFill,")
           p.write_text(s, encoding='utf-8')
 
           # Home composer menu: open review composer directly.
