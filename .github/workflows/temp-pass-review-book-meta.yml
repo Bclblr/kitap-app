@@ -1,0 +1,35 @@
+name: Pass review book metadata
+
+on:
+  push:
+    paths:
+      - '.github/workflows/temp-pass-review-book-meta.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch book review route
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/app/book.tsx')
+          s = p.read_text(encoding='utf-8')
+          old = """      params: {\n        key,\n        title: book?.title ?? 'Bilinmeyen kitap',\n      },"""
+          new = """      params: {\n        key,\n        title: book?.title ?? 'Bilinmeyen kitap',\n        author: book?.authors\n          ?.map((item) => typeof item === 'string' ? item : item.name)\n          .filter(Boolean)\n          .join(', ') || author || 'Bilinmeyen yazar',\n        coverUrl: existingBookCover(book ?? {}) ?? undefined,\n      },"""
+          if old not in s:
+              raise SystemExit('review params block not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/book.tsx
+          git commit -m "feat: pass book metadata to review composer"
+          git push
