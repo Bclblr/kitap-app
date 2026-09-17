@@ -1,3 +1,10 @@
+import BookCover from '@/components/BookCover';
+import BookPickerModal, { ComposerBook } from '@/components/BookPickerModal';
+import { QUOTE_CARD_LABELS, QuoteCardTemplate } from '@/lib/quote-card';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/providers/AuthProvider';
+import { usePremium } from '@/providers/PremiumProvider';
+import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
@@ -15,13 +22,6 @@ import {
   View,
 } from 'react-native';
 
-import BookCover from '@/components/BookCover';
-import { QUOTE_CARD_LABELS, QuoteCardTemplate } from '@/lib/quote-card';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/providers/AuthProvider';
-import { usePremium } from '@/providers/PremiumProvider';
-import { useAppTheme } from '@/providers/ThemeProvider';
-
 const TOPICS = ['Edebiyat', 'Karakterler', 'Yazar ve Üslup', 'Fikirler', 'Tarih ve Toplum', 'Kişisel Okuma'];
 const TEMPLATES: QuoteCardTemplate[] = ['classic', 'editorial', 'noir', 'minimal'];
 
@@ -33,9 +33,11 @@ export default function QuoteCreate() {
   const params = useLocalSearchParams<{ book?: string; key?: string; author?: string; coverUrl?: string; text?: string }>();
   const lock = useRef(false);
 
+  const [bookKey, setBookKey] = useState(params.key ?? '');
   const [book, setBook] = useState(params.book ?? '');
-  const [author] = useState(params.author ?? '');
-  const [coverUrl] = useState(params.coverUrl ?? '');
+  const [author, setAuthor] = useState(params.author ?? '');
+  const [coverUrl, setCoverUrl] = useState(params.coverUrl ?? '');
+  const [bookPickerOpen, setBookPickerOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [text, setText] = useState(params.text ?? '');
   const [topic, setTopic] = useState('');
@@ -53,8 +55,15 @@ export default function QuoteCreate() {
   );
   const avatarUrl = metadata.avatar_url || metadata.picture || '';
 
+  function selectBook(selected: ComposerBook) {
+    setBookKey(selected.key);
+    setBook(selected.title);
+    setAuthor(selected.author);
+    setCoverUrl(selected.coverUrl ?? '');
+  }
+
   async function save() {
-    if (lock.current || !text.trim() || !book.trim()) return;
+    if (lock.current || !text.trim() || !book.trim() || !bookKey.trim()) return;
     lock.current = true;
     setBusy(true);
     try {
@@ -67,7 +76,7 @@ export default function QuoteCreate() {
       const result = await supabase.from('quotes').insert({
         user_id: data.user.id,
         book_title: book.trim(),
-        book_key: params.key ?? '',
+        book_key: bookKey,
         text: text.trim(),
         title: title.trim() || null,
         topic: topic || null,
@@ -90,10 +99,17 @@ export default function QuoteCreate() {
     router.push({ pathname: '/premium-quote-cards', params: { text, book, template } });
   }
 
+  function closeComposer() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  }
+
+  const canPublish = !!text.trim() && !!book.trim() && !!bookKey.trim();
+
   return (
     <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
-        <Pressable onPress={() => router.back()} style={styles.headerButton} accessibilityLabel="Kapat">
+        <Pressable onPress={closeComposer} style={styles.headerButton} accessibilityLabel="Kapat">
           <Feather name="x" size={28} color={colors.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Alıntı Ekle</Text>
@@ -141,25 +157,25 @@ export default function QuoteCreate() {
           <Feather name="chevron-down" size={18} color={colors.textMuted} />
         </Pressable>
 
-        <View style={[styles.bookRow, { borderBottomColor: colors.border }]}>
+        <Pressable onPress={() => setBookPickerOpen(true)} style={[styles.bookRow, { borderBottomColor: colors.border }]}>
           {coverUrl ? (
             <BookCover uri={coverUrl} style={styles.cover}><View /></BookCover>
           ) : (
             <View style={[styles.coverFallback, { backgroundColor: colors.surface }]}><Feather name="book-open" size={20} color={colors.textMuted} /></View>
           )}
           <View style={styles.bookCopy}>
-            <TextInput
-              value={book}
-              onChangeText={setBook}
-              placeholder="Kitap adı"
-              placeholderTextColor={colors.textMuted}
-              maxLength={200}
-              style={[styles.bookTitle, { color: colors.text }]}
-            />
-            {!!author && <Text style={[styles.author, { color: colors.textMuted }]}>{author}</Text>}
+            <Text style={[styles.bookTitle, { color: book ? colors.text : colors.textMuted }]} numberOfLines={2}>
+              {book || 'Kitap seç'}
+            </Text>
+            <Text style={[styles.author, { color: colors.textMuted }]} numberOfLines={1}>
+              {author || 'Kitap veya yazar adıyla ara'}
+            </Text>
           </View>
-          <Pressable onPress={() => router.push('/explore')}><Text style={[styles.changeText, { color: colors.primary }]}>Değiştir</Text></Pressable>
-        </View>
+          <View style={styles.changeWrap}>
+            <Text style={[styles.changeText, { color: colors.primary }]}>{book ? 'Değiştir' : 'Seç'}</Text>
+            <Feather name="chevron-right" size={18} color={colors.primary} />
+          </View>
+        </Pressable>
 
         <TextInput
           value={page}
@@ -185,17 +201,24 @@ export default function QuoteCreate() {
           <Feather name="sliders" size={21} color={colors.textMuted} />
           <Text style={[styles.footerOptionText, { color: colors.textMuted }]}>Gönderi seçenekleri</Text>
         </Pressable>
-        <Pressable onPress={preview} disabled={!text.trim() || !book.trim()} style={styles.previewButton} accessibilityLabel="Önizleme">
+        <Pressable onPress={preview} disabled={!canPublish} style={styles.previewButton} accessibilityLabel="Önizleme">
           <Feather name="eye" size={24} color={colors.textMuted} />
         </Pressable>
         <Pressable
           onPress={() => void save()}
-          disabled={busy || !text.trim() || !book.trim()}
-          style={[styles.publishButton, { backgroundColor: colors.primary }, (busy || !text.trim() || !book.trim()) && styles.disabled]}
+          disabled={busy || !canPublish}
+          style={[styles.publishButton, { backgroundColor: colors.primary }, (busy || !canPublish) && styles.disabled]}
         >
           <Text style={styles.publishText}>{busy ? 'Yayınlanıyor…' : 'Yayınla'}</Text>
         </Pressable>
       </View>
+
+      <BookPickerModal
+        visible={bookPickerOpen}
+        onClose={() => setBookPickerOpen(false)}
+        onSelect={selectBook}
+        title="Alıntı için kitap seç"
+      />
 
       <Modal visible={topicOpen} transparent animationType="slide" onRequestClose={() => setTopicOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setTopicOpen(false)}>
@@ -255,6 +278,7 @@ const styles = StyleSheet.create({
   bookCopy: { flex: 1, marginHorizontal: 14 },
   bookTitle: { fontSize: 17, fontWeight: '800', padding: 0 },
   author: { fontSize: 15, marginTop: 5 },
+  changeWrap: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   changeText: { fontSize: 15, fontWeight: '800' },
   metaInput: { minHeight: 66, borderBottomWidth: StyleSheet.hairlineWidth, fontSize: 16, paddingHorizontal: 0 },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, minHeight: 82, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 18, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 },
