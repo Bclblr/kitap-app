@@ -1,0 +1,37 @@
+name: Fix profile settings back
+
+on:
+  push:
+    paths:
+      - '.github/workflows/temp-fix-profile-back.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix-profile-back:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Replace unsafe back action
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/app/profile-settings.tsx')
+          text = path.read_text(encoding='utf-8')
+          old = "<Pressable onPress={() => router.back()} style={styles.backButton}>"
+          new = "<Pressable onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/'); }} style={styles.backButton}>"
+          if old not in text:
+              raise SystemExit('Target back button not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/profile-settings.tsx
+          git commit -m "fix: guard profile settings back navigation"
+          git push
