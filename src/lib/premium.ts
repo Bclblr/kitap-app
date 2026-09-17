@@ -88,12 +88,16 @@ export function resolvePremiumAccess(
     )
   );
 
+  const hasIndefiniteAccess = activeEntitlements.some(
+    (item) => !item.expires_at
+  );
+
   const expirations = activeEntitlements
     .map((item) => item.expires_at)
     .filter((value): value is string => Boolean(value))
     .map((value) => Date.parse(value))
     .filter((value) => Number.isFinite(value) && value > nowMs)
-    .sort((a, b) => a - b);
+    .sort((a, b) => b - a);
 
   return {
     isPremium: activeEntitlements.length > 0,
@@ -103,7 +107,9 @@ export function resolvePremiumAccess(
     activeEntitlements,
     allEntitlements: entitlements,
     nextExpirationAt:
-      expirations.length > 0 ? new Date(expirations[0]).toISOString() : null,
+      hasIndefiniteAccess || expirations.length === 0
+        ? null
+        : new Date(expirations[0]).toISOString(),
   };
 }
 
