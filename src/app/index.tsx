@@ -1277,21 +1277,9 @@ export default function HomeScreen() {
         <View style={styles.storySection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Hikâyeler</Text>
-            <Pressable onPress={() => setShowStoryBox(!showStoryBox)}><Text style={styles.addStoryText}>+ Hikâye</Text></Pressable>
           </View>
-          {showStoryBox && (
-            <View style={styles.storyCreateBox}>
-              <Text style={styles.createTitle}>Hikâyen</Text>
-              {storyImage && <Image localPreview source={{ uri: storyImage }} style={styles.storyPreview} />}
-              <TextInput value={storyText} onChangeText={setStoryText} placeholder="Hikâyene bir şeyler yaz..." placeholderTextColor="#999" multiline style={styles.postInput} />
-              <View style={styles.createActions}>
-                <Pressable onPress={pickStoryImage} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>📷 Fotoğraf</Text></Pressable>
-                <Pressable onPress={createStory} disabled={postingStory} style={styles.primarySmallButton}><Text style={styles.primarySmallText}>{postingStory ? 'Paylaşılıyor...' : 'Paylaş'}</Text></Pressable>
-              </View>
-            </View>
-          )}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyList}>
-            <Pressable onPress={() => setShowStoryBox(true)} style={styles.storyItem}>
+            <Pressable onPress={() => router.push('/story-create')} style={styles.storyItem}>
               <View style={styles.addStoryCircle}>
                 {storyProfileImage ? <Image source={{ uri: storyProfileImage }} style={styles.addStoryAvatar} resizeMode="cover" /> : <Feather name="user" size={28} color={colors.textSecondary} />}
                 <View style={styles.addStoryBadge}><Text style={styles.addStoryIcon}>+</Text></View>
