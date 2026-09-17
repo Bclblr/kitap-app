@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -25,6 +25,16 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    // Expo Go can restore this route as the first screen after a previous
+    // development session. If there is no navigation history on native,
+    // return to the actual unauthenticated entry screen instead of trapping
+    // the user on password recovery. Keep direct web links working.
+    if (Platform.OS !== 'web' && !router.canGoBack()) {
+      router.replace('/login');
+    }
+  }, [router]);
 
   async function sendResetLink() {
     const cleanEmail = email.trim().toLowerCase();
@@ -55,6 +65,11 @@ export default function ForgotPasswordScreen() {
     }
   }
 
+  function goBackSafely() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/login');
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -65,7 +80,7 @@ export default function ForgotPasswordScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={goBackSafely} style={styles.backButton}>
           <Feather name="arrow-left" size={21} color={colors.text} />
         </Pressable>
 
