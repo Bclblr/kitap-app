@@ -350,11 +350,6 @@ export default function ProfileSettingsScreen() {
           </Pressable>
         </View>
 
-        <Pressable onPress={() => router.push('/premium')} style={styles.adminButton} disabled={saving}>
-          <Text style={styles.adminButtonText}>✦ Kitap Premium</Text>
-          <Text style={styles.adminButtonArrow}>›</Text>
-        </Pressable>
-
         <Pressable onPress={() => router.push('/blocked-users')} style={styles.adminButton} disabled={saving}>
           <Text style={styles.adminButtonText}>🚫 Engellenen Kullanıcılar</Text>
           <Text style={styles.adminButtonArrow}>›</Text>

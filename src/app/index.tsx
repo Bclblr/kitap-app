@@ -1233,6 +1233,10 @@ export default function HomeScreen() {
                 <View style={styles.drawerIconWrap}><Feather name="bookmark" size={22} color={colors.text} /></View>
                 <Text style={styles.drawerItemText}>Kaydedilenler</Text>
               </Pressable>
+              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/premium'); }} style={styles.drawerItem}>
+                <View style={styles.drawerIconWrap}><Feather name="star" size={22} color={colors.primary} /></View>
+                <Text style={styles.drawerItemText}>Kitap Premium</Text>
+              </Pressable>
               <Pressable onPress={() => { setShowAuthMenu(false); router.push('/profile-settings'); }} style={styles.drawerItem}>
                 <View style={styles.drawerIconWrap}><Feather name="settings" size={22} color={colors.text} /></View>
                 <Text style={styles.drawerItemText}>Profil ayarları</Text>
