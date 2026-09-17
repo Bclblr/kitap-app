@@ -1,5 +1,6 @@
 name: Move Premium menu entry
 
+# Trigger once after workflow creation.
 on:
   push:
     paths:
