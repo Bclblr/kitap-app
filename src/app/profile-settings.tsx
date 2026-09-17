@@ -350,6 +350,11 @@ export default function ProfileSettingsScreen() {
           </Pressable>
         </View>
 
+        <Pressable onPress={() => router.push('/appearance-settings')} style={styles.adminButton} disabled={saving}>
+          <Text style={styles.adminButtonText}>◐ Ekran Görünümü</Text>
+          <Text style={styles.adminButtonArrow}>›</Text>
+        </Pressable>
+
         <Pressable onPress={() => router.push('/blocked-users')} style={styles.adminButton} disabled={saving}>
           <Text style={styles.adminButtonText}>🚫 Engellenen Kullanıcılar</Text>
           <Text style={styles.adminButtonArrow}>›</Text>
