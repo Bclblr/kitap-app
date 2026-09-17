@@ -1555,7 +1555,7 @@ export default function HomeScreen() {
           <Pressable style={{ flex: 1 }} accessibilityLabel="Kapat" onPress={() => setCreateMenu(false)} />
           <View style={[ui.card, { padding: 24, paddingBottom: 40, maxHeight: '85%' }]}>
             <Action label="Gönderi Oluştur" onPress={() => { setCreateMenu(false); setShowPostBox(true); requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: composerY.current, animated: true })); }} />
-            <Action label="Kitap İncelemesi Yaz" onPress={() => { setCreateMenu(false); router.push('/explore'); }} />
+            <Action label="Kitap İncelemesi Yaz" onPress={() => { setCreateMenu(false); router.push('/review'); }} />
             <Action label="Alıntı Paylaş" onPress={() => { setCreateMenu(false); router.push('/quote-create'); }} />
             <Action label="Kitap Yaz / Yayınla" onPress={() => { setCreateMenu(false); router.push('/my-works'); }} />
             <Action label="Kapat" onPress={() => setCreateMenu(false)} />

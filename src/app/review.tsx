@@ -1,4 +1,5 @@
 import BookCover from '@/components/BookCover';
+import BookPickerModal, { ComposerBook } from '@/components/BookPickerModal';
 import Image from '@/components/SafeImage';
 import { supabase } from '@/lib/supabase';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -52,6 +53,12 @@ export default function ReviewScreen() {
     author?: string;
     coverUrl?: string;
   }>();
+
+  const [selectedBookKey, setSelectedBookKey] = useState(key ?? '');
+  const [selectedBookTitle, setSelectedBookTitle] = useState(title ?? '');
+  const [selectedBookAuthor, setSelectedBookAuthor] = useState(author ?? '');
+  const [selectedBookCover, setSelectedBookCover] = useState(coverUrl ?? '');
+  const [bookPickerOpen, setBookPickerOpen] = useState(false);
 
   const [rating, setRating] = useState(0);
   const [reviewTitle, setReviewTitle] = useState('');
@@ -134,8 +141,9 @@ export default function ReviewScreen() {
     const cleanText = reviewText.trim();
     const cleanTitle = reviewTitle.trim();
 
-    if (!key) {
-      Alert.alert('Hata', 'Kitap bilgisi bulunamadı.');
+    if (!selectedBookKey) {
+      Alert.alert('Kitap gerekli', 'İnceleme için önce bir kitap seçmelisin.');
+      setBookPickerOpen(true);
       return;
     }
     if (rating === 0) {
@@ -159,8 +167,8 @@ export default function ReviewScreen() {
 
       const { error } = await supabase.from('reviews').insert({
         user_id: user.id,
-        book_key: key,
-        book_title: title || 'Bilinmeyen kitap',
+        book_key: selectedBookKey,
+        book_title: selectedBookTitle || 'Bilinmeyen kitap',
         rating,
         text: cleanText,
         title: cleanTitle || null,
@@ -290,17 +298,17 @@ export default function ReviewScreen() {
           <Feather name="chevron-right" size={20} color="#717784" />
         </Pressable>
 
-        <View style={styles.bookCard}>
-          <BookCover uri={coverUrl || null} style={styles.bookCover}>
+        <Pressable onPress={() => setBookPickerOpen(true)} style={styles.bookCard}>
+          <BookCover uri={selectedBookCover || null} style={styles.bookCover}>
             <View style={styles.bookCoverFallback}><Feather name="book-open" size={22} color="#797F8B" /></View>
           </BookCover>
           <View style={styles.bookCopy}>
             <Text style={styles.bookEyebrow}>İNCELEME YAPILAN KİTAP</Text>
-            <Text style={styles.bookTitle} numberOfLines={2}>{title || 'Bilinmeyen kitap'}</Text>
-            <Text style={styles.bookAuthor} numberOfLines={1}>{author || 'Kitap detayı'}</Text>
+            <Text style={styles.bookTitle} numberOfLines={2}>{selectedBookTitle || 'Kitap seç'}</Text>
+            <Text style={styles.bookAuthor} numberOfLines={1}>{selectedBookAuthor || 'Kitap veya yazar adıyla ara'}</Text>
           </View>
-          <Feather name="check-circle" size={20} color="#8C70E8" />
-        </View>
+          <Feather name={selectedBookKey ? "check-circle" : "plus-circle"} size={20} color="#8C70E8" />
+        </Pressable>
 
         {containsSpoiler ? (
           <View style={styles.spoilerNotice}>
@@ -323,6 +331,18 @@ export default function ReviewScreen() {
           {!saving ? <Feather name="arrow-up-right" size={17} color="#0A0910" /> : null}
         </Pressable>
       </View>
+
+      <BookPickerModal
+        visible={bookPickerOpen}
+        onClose={() => setBookPickerOpen(false)}
+        title="İnceleme için kitap seç"
+        onSelect={(selected: ComposerBook) => {
+          setSelectedBookKey(selected.key);
+          setSelectedBookTitle(selected.title);
+          setSelectedBookAuthor(selected.author);
+          setSelectedBookCover(selected.coverUrl ?? '');
+        }}
+      />
 
       <Modal visible={topicSheet} transparent animationType="slide" onRequestClose={() => setTopicSheet(false)}>
         <View style={styles.sheetOverlay}>
@@ -498,7 +518,7 @@ const baseStyles = StyleSheet.create({
   publishText: { color: '#0A0910', fontSize: 14, fontWeight: '900' },
   disabledButton: { opacity: 0.55 },
   sheetOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.46)' },
-  sheetBackdrop: { ...StyleSheet.absoluteFillObject },
+  sheetBackdrop: StyleSheet.absoluteFill,
   sheet: { maxHeight: '80%', backgroundColor: '#101115', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 16, paddingTop: 10, borderWidth: 1, borderColor: '#252832' },
   smallSheet: { maxHeight: '55%' },
   sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#555B65', marginBottom: 18 },

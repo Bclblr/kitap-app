@@ -420,15 +420,26 @@ export default function BookScreen() {
               <Feather name="chevron-right" size={20} color="#707784" />
             </Pressable>
 
-            <Pressable onPress={() => setShowQuoteBox((current) => !current)} style={styles.actionCard}>
+            <Pressable
+              onPress={() => router.push({
+                pathname: '/quote-create',
+                params: {
+                  key,
+                  book: book.title ?? 'Bilinmeyen kitap',
+                  author: authorNames,
+                  coverUrl: coverUrl ?? undefined,
+                },
+              })}
+              style={styles.actionCard}
+            >
               <View style={styles.actionIcon}>
                 <Feather name="type" size={20} color="#C8B6FF" />
               </View>
               <View style={styles.actionCopy}>
                 <Text style={styles.actionTitle}>Alıntı Ekle</Text>
-                <Text style={styles.actionSubtitle}>Altını çizdiğin bir bölümü kaydet</Text>
+                <Text style={styles.actionSubtitle}>Altını çizdiğin bir bölümü paylaş</Text>
               </View>
-              <Feather name={showQuoteBox ? 'chevron-up' : 'chevron-right'} size={20} color="#707784" />
+              <Feather name="chevron-right" size={20} color="#707784" />
             </Pressable>
           </View>
 
