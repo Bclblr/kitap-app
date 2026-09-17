@@ -1,0 +1,39 @@
+name: Appearance settings patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/temp-appearance-settings.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: npm ci
+      - name: Add appearance row to profile settings
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/app/profile-settings.tsx')
+          s = p.read_text(encoding='utf-8')
+          anchor = '''        <Pressable onPress={() => router.push('/blocked-users')} style={styles.adminButton} disabled={saving}>\n          <Text style={styles.adminButtonText}>🚫 Engellenen Kullanıcılar</Text>\n          <Text style={styles.adminButtonArrow}>›</Text>\n        </Pressable>\n'''
+          row = '''        <Pressable onPress={() => router.push('/appearance-settings')} style={styles.adminButton} disabled={saving}>\n          <Text style={styles.adminButtonText}>◐ Ekran Görünümü</Text>\n          <Text style={styles.adminButtonArrow}>›</Text>\n        </Pressable>\n\n'''
+          if row.strip() not in s:
+              if anchor not in s:
+                  raise SystemExit('Appearance insertion anchor not found')
+              s = s.replace(anchor, row + anchor, 1)
+          p.write_text(s, encoding='utf-8')
+      - run: npm run typecheck
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/profile-settings.tsx
+          git commit -m "feat: move appearance controls to dedicated screen"
+          git push
