@@ -117,13 +117,6 @@ begin
     else 'active'
   end;
 
-  v_will_renew := case
-    when p_event_type in ('CANCELLATION','EXPIRATION','SUBSCRIPTION_PAUSED') then false
-    when p_event_type in ('INITIAL_PURCHASE','RENEWAL','UNCANCELLATION') then true
-    when found then v_existing.will_renew
-    else null
-  end;
-
   if p_expires_at is not null and p_expires_at <= v_started_at then
     v_started_at := p_expires_at - interval '1 second';
   end if;
@@ -176,7 +169,7 @@ begin
         provider_event_at = p_provider_event_at,
         provider_event_id = trim(p_event_id),
         provider_event_type = trim(p_event_type),
-        provider_environment = p_environment,
+        provider_environment = coalesce(p_environment, pe.provider_environment),
         will_renew = v_will_renew,
         updated_at = now()
       where id = v_existing.id;
@@ -226,7 +219,7 @@ begin
   if p_provider_event_at is null then
     raise exception 'RevenueCat provider event time is required' using errcode = '22023';
   end if;
-  if p_environment not in ('SANDBOX','PRODUCTION') then
+  if p_environment is not null and p_environment not in ('SANDBOX','PRODUCTION') then
     raise exception 'Invalid RevenueCat environment' using errcode = '22023';
   end if;
   if coalesce(array_length(p_transferred_from,1),0) = 0
@@ -256,7 +249,7 @@ begin
       and pe.status in ('active','trialing','grace_period')
       and pe.revoked_at is null
       and (pe.expires_at is null or pe.expires_at > p_provider_event_at)
-      and (pe.provider_environment is null or pe.provider_environment = p_environment)
+      and (p_environment is null or pe.provider_environment is null or pe.provider_environment = p_environment)
   loop
     foreach v_destination in array p_transferred_to
     loop
@@ -273,7 +266,7 @@ begin
       ) values (
         v_destination,v_row.source,v_row.status,v_row.product_id,'premium',
         v_row.source_reference,v_row.starts_at,v_row.expires_at,null,
-        p_provider_event_at,trim(p_event_id),'TRANSFER',p_environment,
+        p_provider_event_at,trim(p_event_id),'TRANSFER',coalesce(p_environment,v_row.provider_environment),
         v_row.will_renew
       )
       on conflict (user_id, source, (coalesce(source_reference,'')))
@@ -303,7 +296,7 @@ begin
   where pe.user_id = any(p_transferred_from)
     and pe.source in ('apple','google')
     and pe.status in ('active','trialing','grace_period')
-    and (pe.provider_environment is null or pe.provider_environment = p_environment)
+    and (p_environment is null or pe.provider_environment is null or pe.provider_environment = p_environment)
     and (pe.provider_event_at is null or p_provider_event_at >= pe.provider_event_at);
 
   update public.revenuecat_webhook_events
