@@ -741,14 +741,13 @@ export default function HomeScreen() {
       async function loadAll() {
         setLoading(true);
         const userId = await getCurrentUserId();
-        const user = await getCurrentUser();
         if (active) setCurrentUserId(userId);
         await Promise.all([loadPosts(true), loadStories()]);
         if (active) setLoading(false);
       }
       loadAll();
       return () => { active = false; };
-    }, [getCurrentUser, getCurrentUserId, loadPosts, loadStories])
+    }, [getCurrentUserId, loadPosts, loadStories])
   );
 
   async function pickPostImage() {
