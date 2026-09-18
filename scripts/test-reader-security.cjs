@@ -44,7 +44,10 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
  function pgliteCompatibleMigration(sql) {
   return sql
    .replace(/create extension if not exists pgcrypto with schema extensions;?/gi, '')
-   .replace(/create schema if not exists extensions;?/gi, '');
+   .replace(/create extension if not exists pg_cron;?/gi, '')
+   .replace(/create extension if not exists pg_net with schema extensions;?/gi, '')
+   .replace(/create schema if not exists extensions;?/gi, '')
+   .replace(/select cron\.schedule\([\s\S]*?\n\);\s*\n\s*commit;/i, 'commit;');
  }
  for(let run=0;run<2;run++) {
   for(const file of files) {
