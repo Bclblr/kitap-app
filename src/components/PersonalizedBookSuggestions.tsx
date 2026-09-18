@@ -61,11 +61,11 @@ export default function PersonalizedBookSuggestions({ limit = 8 }: { limit?: num
 
           if (myReviewsResult.error) throw myReviewsResult.error;
 
-          const myReviews = (myReviewsResult.data ?? []) as Array<{
+          const myReviews = (myReviewsResult.data ?? []) as {
             book_key: string;
             book_title: string | null;
             rating: number | null;
-          }>;
+          }[];
           const reviewedKeys = [...new Set(myReviews.map((row) => row.book_key).filter(Boolean))];
           const ownedKeys = new Set([
             ...reviewedKeys,
