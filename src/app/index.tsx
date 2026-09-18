@@ -812,7 +812,7 @@ export default function HomeScreen() {
           return;
         }
         const { data: publicUrlData } = supabase.storage.from('post-images').getPublicUrl(filePath);
-        imageUrl = publicUrlData.publicUrl;
+        imageUrl = publicUrlData.publicUrl.replace('/object/public/', '/object/authenticated/');
       }
 
       const { data: authorProfile } = await supabase.from('profiles').select('full_name, username, profile_image').eq('id', user.id).maybeSingle();
@@ -890,7 +890,7 @@ export default function HomeScreen() {
           return;
         }
         const { data: publicUrlData } = supabase.storage.from('story-images').getPublicUrl(filePath);
-        imageUrl = publicUrlData.publicUrl;
+        imageUrl = publicUrlData.publicUrl.replace('/object/public/', '/object/authenticated/');
       }
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase.from('stories').insert({
