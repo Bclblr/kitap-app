@@ -18,6 +18,7 @@ import StoryActions from '@/components/StoryActions';
 import StoryTransition from '@/components/StoryTransition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReadersList from '@/components/ReadersList';
+import ReviewSpoilerText from '@/components/ReviewSpoilerText';
 import RetryNotice from '@/components/RetryNotice';
 import ThemePicker from '@/components/ThemePicker';
 import { requirePermanentImage } from '@/lib/image-policy';
@@ -35,6 +36,10 @@ type Comment = {
   id: string;
   username: string;
   text: string;
+  title?: string | null;
+  topic?: string | null;
+  tags?: string[];
+  containsSpoiler?: boolean;
   createdAt: string;
   user_id?: string;
 };
@@ -93,6 +98,10 @@ type Post = BookCoverData & {
   isReview?: boolean;
   isQuote?: boolean;
   card_template_key?: QuoteCardTemplate;
+  reviewTitle?: string | null;
+  reviewTopic?: string | null;
+  reviewTags?: string[];
+  containsSpoiler?: boolean;
 };
 
 type Story = {
@@ -418,6 +427,10 @@ export default function HomeScreen() {
           bookTitle: review.book_title,
           rating: Number(review.rating) || 0,
           text: review.text || '',
+          title: review.title ?? null,
+          topic: review.topic ?? null,
+          tags: Array.isArray(review.tags) ? review.tags : [],
+          containsSpoiler: review.contains_spoiler === true,
           createdAt: review.created_at,
           username: reviewAuthor?.username || CURRENT_USERNAME,
           full_name: reviewAuthor?.full_name ?? null,
@@ -582,6 +595,10 @@ export default function HomeScreen() {
           profile_image: profilesByUserId.get(review.user_id)?.profile_image ?? null,
           text: review.text,
           image_url: null,
+          reviewTitle: review.title ?? null,
+          reviewTopic: review.topic ?? null,
+          reviewTags: Array.isArray(review.tags) ? review.tags : [],
+          containsSpoiler: review.contains_spoiler === true,
           coverUrl: review.coverUrl,
           cover_url: review.cover_url,
           cover_i: review.cover_i,
@@ -1387,7 +1404,20 @@ export default function HomeScreen() {
 
                   {(post.isQuote || post.rating > 0) && <Text style={styles.feedTypeLabel}>{post.isQuote ? 'ALINTI' : 'KİTAP İNCELEMESİ'}</Text>}
                   {post.image_url && <Image source={{ uri: post.image_url }} style={styles.postImage} />}
-                  {post.text && <HashtagText text={post.isQuote ? `“${post.text}”` : post.text} style={[styles.postText, post.isQuote && styles.quotePostText, quoteCard ? { color: quoteCard.text } : null]} />}
+                  {post.text ? (
+                    post.isReview ? (
+                      <ReviewSpoilerText
+                        text={post.text}
+                        containsSpoiler={post.containsSpoiler}
+                        title={post.reviewTitle}
+                        topic={post.reviewTopic}
+                        tags={post.reviewTags}
+                        textStyle={styles.postText}
+                      />
+                    ) : (
+                      <HashtagText text={post.isQuote ? `“${post.text}”` : post.text} style={[styles.postText, post.isQuote && styles.quotePostText, quoteCard ? { color: quoteCard.text } : null]} />
+                    )
+                  ) : null}
                   {post.book_title && (
                     <Pressable onPress={() => { if (post.book_key) openBook(post.book_key); }} style={styles.bookAttachment}>
                       <View style={styles.bookAttachmentIcon}><BookCover uri={existingBookCover(post) ?? bookCoverUrls[post.book_key || post.key || post.workKey || ''] ?? null} style={styles.bookAttachmentCover}><Text style={styles.bookAttachmentEmoji}>▥</Text></BookCover></View>
@@ -1486,7 +1516,14 @@ export default function HomeScreen() {
                   <Text style={styles.bookAttachmentArrow}>›</Text>
                 </Pressable>
                 <View style={styles.rating}><Text style={styles.stars}>{'★'.repeat(review.rating)}{'☆'.repeat(Math.max(0, 5 - review.rating))}</Text><Text style={styles.ratingNumber}>{review.rating}/5</Text></View>
-                <Text style={styles.reviewText}>{review.text}</Text>
+                <ReviewSpoilerText
+                  text={review.text}
+                  containsSpoiler={review.containsSpoiler}
+                  title={review.title}
+                  topic={review.topic}
+                  tags={review.tags}
+                  textStyle={styles.reviewText}
+                />
 
                 <View style={styles.actions}>
                   <Pressable onPress={() => toggleLike(review.id)} style={[styles.actionButton, review.liked && styles.postActionActive]} accessibilityLabel={review.liked ? 'Beğeniyi kaldır' : 'Beğen'}>
