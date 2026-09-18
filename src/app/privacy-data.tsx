@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -183,7 +184,7 @@ export default function PrivacyDataScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => safeBack(router, '/privacy-settings')}
             style={styles.backButton}
             accessibilityRole="button"
             accessibilityLabel="Geri dön"
