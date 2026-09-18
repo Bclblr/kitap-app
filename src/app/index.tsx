@@ -35,6 +35,14 @@ import type { BookCoverData } from '@/lib/open-library-cover';
 import { normalizeQuoteCardTemplate, quoteCardPalette } from '@/lib/quote-card';
 import type { FeedComment as Comment, FeedPost as Post, FeedReview as Review } from '@/features/feed/model';
 import { loadFeedProfiles } from '@/features/feed/profiles';
+import {
+  emptyFeedCursors,
+  emptyFeedExhausted,
+  feedCursorFilter,
+  nextFeedCursor,
+  type FeedCursorState,
+  type FeedExhaustedState,
+} from '@/features/feed/pagination';
 
 type Story = HomeStory;
 
@@ -84,7 +92,8 @@ export default function HomeScreen() {
   const [loadingStories, setLoadingStories] = useState(false);
   const [loadingMoreFeed, setLoadingMoreFeed] = useState(false);
   const [hasMoreFeed, setHasMoreFeed] = useState(true);
-  const feedCursorRef = useRef<string | null>(null);
+  const feedCursorRef = useRef<FeedCursorState>(emptyFeedCursors());
+  const feedExhaustedRef = useRef<FeedExhaustedState>(emptyFeedExhausted());
   const loadingFeedRef = useRef(false);
 
   const [commentingReviewId, setCommentingReviewId] =
@@ -205,7 +214,8 @@ export default function HomeScreen() {
       setLoadingPosts(true);
       setFeedError(null);
       setHasMoreFeed(true);
-      feedCursorRef.current = null;
+      feedCursorRef.current = emptyFeedCursors();
+      feedExhaustedRef.current = emptyFeedExhausted();
     } else {
       setLoadingMoreFeed(true);
     }
@@ -214,15 +224,17 @@ export default function HomeScreen() {
       const userId = await getCurrentUserId();
       setCurrentUserId(userId);
       const blockedUserIds = await getBlockedUserIds(userId);
-      const cursor = reset ? null : feedCursorRef.current;
+      const cursors = reset ? emptyFeedCursors() : feedCursorRef.current;
+      const exhausted = reset ? emptyFeedExhausted() : feedExhaustedRef.current;
 
       const buildPostQuery = () => {
         let query = supabase
           .from('posts')
           .select('*')
           .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .limit(FEED_PAGE_SIZE);
-        if (cursor) query = query.lt('created_at', cursor);
+        if (cursors.posts) query = query.or(feedCursorFilter(cursors.posts));
         return query;
       };
 
@@ -231,8 +243,9 @@ export default function HomeScreen() {
           .from('reviews')
           .select('*')
           .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .limit(FEED_PAGE_SIZE);
-        if (cursor) query = query.lt('created_at', cursor);
+        if (cursors.reviews) query = query.or(feedCursorFilter(cursors.reviews));
         return query;
       };
 
@@ -241,15 +254,22 @@ export default function HomeScreen() {
           .from('quotes')
           .select('id,user_id,book_key,book_title,text,title,topic,page_number,note,card_template_key,created_at')
           .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .limit(FEED_PAGE_SIZE);
-        if (cursor) query = query.lt('created_at', cursor);
+        if (cursors.quotes) query = query.or(feedCursorFilter(cursors.quotes));
         return query;
       };
 
       const [postResult, reviewResult, quoteResult] = await Promise.all([
-        buildPostQuery(),
-        buildReviewQuery(),
-        buildQuoteQuery(),
+        exhausted.posts
+          ? Promise.resolve({ data: [], error: null } as any)
+          : buildPostQuery(),
+        exhausted.reviews
+          ? Promise.resolve({ data: [], error: null } as any)
+          : buildReviewQuery(),
+        exhausted.quotes
+          ? Promise.resolve({ data: [], error: null } as any)
+          : buildQuoteQuery(),
       ]);
 
       if (postResult.error) throw postResult.error;
@@ -479,23 +499,27 @@ export default function HomeScreen() {
       const pageItems = [...preparedPosts, ...reviewPosts, ...quotePosts]
         .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
-      const sourceRows = [
-        ...(postResult.data ?? []),
-        ...(reviewResult.data ?? []),
-        ...(quoteResult.data ?? []),
-      ];
-      const oldest = sourceRows
-        .map((row: any) => row.created_at)
-        .filter(Boolean)
-        .sort((a: string, b: string) => Date.parse(a) - Date.parse(b))[0] ?? null;
+      const postRows = (postResult.data ?? []) as any[];
+      const reviewRows = (reviewResult.data ?? []) as any[];
+      const quoteRows = (quoteResult.data ?? []) as any[];
 
-      const anyFullPage =
-        (postResult.data?.length ?? 0) === FEED_PAGE_SIZE ||
-        (reviewResult.data?.length ?? 0) === FEED_PAGE_SIZE ||
-        (quoteResult.data?.length ?? 0) === FEED_PAGE_SIZE;
+      feedCursorRef.current = {
+        posts: postRows.length ? nextFeedCursor(postRows) : cursors.posts,
+        reviews: reviewRows.length ? nextFeedCursor(reviewRows) : cursors.reviews,
+        quotes: quoteRows.length ? nextFeedCursor(quoteRows) : cursors.quotes,
+      };
 
-      feedCursorRef.current = oldest;
-      setHasMoreFeed(Boolean(oldest && anyFullPage));
+      feedExhaustedRef.current = {
+        posts: exhausted.posts || postRows.length < FEED_PAGE_SIZE,
+        reviews: exhausted.reviews || reviewRows.length < FEED_PAGE_SIZE,
+        quotes: exhausted.quotes || quoteRows.length < FEED_PAGE_SIZE,
+      };
+
+      setHasMoreFeed(
+        !feedExhaustedRef.current.posts ||
+          !feedExhaustedRef.current.reviews ||
+          !feedExhaustedRef.current.quotes
+      );
 
       setReviews((current) => {
         if (reset) return preparedReviews;
