@@ -111,15 +111,17 @@ export default function AdminEventsScreen() {
     }, [loadItems])
   );
 
+  const [summaryNow] = useState(() => Date.now());
+
   const summary = useMemo(() => {
-    const now = Date.now();
+    const now = summaryNow;
     return {
       total: items.length,
       upcoming: items.filter((item) => new Date(item.event_date).getTime() >= now).length,
       featured: items.filter((item) => item.featured).length,
       flagged: items.filter((item) => item.hidden || item.cancelled).length,
     };
-  }, [items]);
+  }, [items, summaryNow]);
 
   async function updateControl(
     item: EventRow,
@@ -301,7 +303,7 @@ export default function AdminEventsScreen() {
           {items.map((item) => {
             const busy = updatingId === item.id;
             const open = expandedId === item.id;
-            const isPast = new Date(item.event_date).getTime() < Date.now();
+            const isPast = new Date(item.event_date).getTime() < summaryNow;
 
             return (
               <View key={item.id} style={styles.card}>
