@@ -37,6 +37,30 @@ module.exports = ({ config }) => {
     if (!process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_ANNUAL_PRODUCT_ID?.trim()) {
       missing.push('EXPO_PUBLIC_REVENUECAT_ANDROID_ANNUAL_PRODUCT_ID');
     }
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+    const supabasePublishableKey =
+      process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+
+    if (!supabaseUrl) {
+      missing.push('EXPO_PUBLIC_SUPABASE_URL');
+    } else {
+      try {
+        const parsedSupabaseUrl = new URL(supabaseUrl);
+        if (
+          parsedSupabaseUrl.protocol !== 'https:' ||
+          !parsedSupabaseUrl.hostname.endsWith('.supabase.co')
+        ) {
+          missing.push('EXPO_PUBLIC_SUPABASE_URL(valid https://*.supabase.co)');
+        }
+      } catch {
+        missing.push('EXPO_PUBLIC_SUPABASE_URL(valid URL)');
+      }
+    }
+
+    if (!supabasePublishableKey) {
+      missing.push('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+    }
+
     if (!process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL?.trim()) {
       missing.push('EXPO_PUBLIC_PRIVACY_POLICY_URL');
     }
