@@ -1,10 +1,17 @@
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Image from '@/components/SafeImage';
 import BottomNav from '@/components/BottomNav';
+import {
+  flushNotificationReadQueue,
+  loadNotificationCache,
+  queueNotificationRead,
+  saveNotificationCache,
+} from '@/lib/notification-offline';
 import { supabase } from '@/lib/supabase';
+import { useNetworkStatus } from '@/providers/NetworkProvider';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 
@@ -36,15 +43,27 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
+  const { backendReachable, retrySignal } = useNetworkStatus();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const loadNotifications = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
+    let userId: string | null = null;
+
     try {
-      const { data: authData } = await supabase.auth.getUser();
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+
       const user = authData.user;
-      if (!user) { setNotifications([]); return; }
+      if (!user) {
+        setNotifications([]);
+        return;
+      }
+
+      userId = user.id;
 
       const preferenceResult = await supabase.from('notification_preferences')
         .select('likes_enabled, comments_enabled, reposts_enabled, follows_enabled, system_enabled')
@@ -65,9 +84,23 @@ export default function NotificationsScreen() {
         supabase.rpc('get_my_admin_notifications', { p_limit: 100 }),
       ]);
 
+      const requestErrors = [
+        interactionResult.error,
+        socialResult.error,
+        adminResult.error,
+      ].filter(Boolean);
+
       if (interactionResult.error) console.error('Etkileşim bildirimleri:', interactionResult.error);
       if (socialResult.error) console.error('Sosyal bildirimler:', socialResult.error);
       if (adminResult.error) console.error('Yönetim bildirimleri:', adminResult.error);
+
+      if (requestErrors.length === 3) {
+        throw requestErrors[0];
+      }
+
+      if (requestErrors.length > 0 || preferenceResult.error) {
+        setLoadError('Bazı bildirimler şu anda yenilenemedi. Gösterilen liste kısmi olabilir.');
+      }
 
       const socialRows = socialResult.data ?? [];
       const socialActorIds = Array.from(new Set(
@@ -117,15 +150,49 @@ export default function NotificationsScreen() {
         created_at: String(n.created_at ?? ''), read: n.read === true,
       })) : [];
 
-      setNotifications([...interactions, ...socials, ...admins].sort((a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      const nextNotifications = [...interactions, ...socials, ...admins].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      setNotifications(nextNotifications);
+      await saveNotificationCache(user.id, nextNotifications);
     } catch (error) {
       console.error('Bildirimler yüklenemedi:', error);
-      setNotifications([]);
-    } finally { setLoading(false); }
+
+      const cached = userId
+        ? await loadNotificationCache<NotificationItem>(userId)
+        : [];
+
+      setNotifications(cached);
+      setLoadError(
+        cached.length
+          ? 'Yeni bildirimler alınamadı. Son kaydedilen bildirimler gösteriliyor.'
+          : 'Bildirimler yüklenemedi. Bağlantını kontrol edip tekrar deneyebilirsin.'
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useFocusEffect(useCallback(() => { void loadNotifications(); }, [loadNotifications]));
+  useFocusEffect(
+    useCallback(() => {
+      void loadNotifications();
+    }, [loadNotifications])
+  );
+
+  useEffect(() => {
+    if (!backendReachable || retrySignal === 0) return;
+
+    void (async () => {
+      const { data } = await supabase.auth.getUser();
+      const userId = data.user?.id;
+      if (!userId) return;
+
+      await flushNotificationReadQueue(userId);
+      await loadNotifications();
+    })();
+  }, [backendReachable, retrySignal, loadNotifications]);
 
   function openTarget(item: NotificationItem) {
     if (item.source === 'admin') { if (item.action_route) router.push(item.action_route as never); return; }
@@ -139,38 +206,139 @@ export default function NotificationsScreen() {
   }
 
   async function markAsRead(item: NotificationItem) {
-    try {
-      if (!item.read) {
-        if (item.source === 'admin') {
-          const { error } = await supabase.rpc('mark_admin_notification_read', { p_notification_id: item.id });
-          if (error) throw error;
-        } else {
-          const table = item.source === 'social' ? 'social_notifications' : 'notifications';
-          const { error } = await supabase.from(table).update({ read: true }).eq('id', item.id);
-          if (error) throw error;
-        }
-        setNotifications((current) => current.map((n) => n.source === item.source && n.id === item.id ? { ...n, read: true } : n));
-      }
+    if (item.read) {
       openTarget(item);
-    } catch (error) { console.error(error); Alert.alert('Hata', 'Bildirim güncellenemedi.'); }
+      return;
+    }
+
+    const { data } = await supabase.auth.getUser();
+    const userId = data.user?.id;
+    if (!userId) return;
+
+    const markLocally = () =>
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.source === item.source && notification.id === item.id
+            ? { ...notification, read: true }
+            : notification
+        )
+      );
+
+    if (!backendReachable) {
+      await queueNotificationRead(userId, {
+        source: item.source,
+        id: item.id,
+      });
+      markLocally();
+      openTarget(item);
+      return;
+    }
+
+    try {
+      if (item.source === 'admin') {
+        const { error } = await supabase.rpc('mark_admin_notification_read', {
+          p_notification_id: item.id,
+        });
+        if (error) throw error;
+      } else {
+        const table =
+          item.source === 'social'
+            ? 'social_notifications'
+            : 'notifications';
+        const { error } = await supabase
+          .from(table)
+          .update({ read: true })
+          .eq('id', item.id);
+        if (error) throw error;
+      }
+
+      markLocally();
+      openTarget(item);
+    } catch (error) {
+      console.error(error);
+      await queueNotificationRead(userId, {
+        source: item.source,
+        id: item.id,
+      });
+      markLocally();
+      setLoadError('Okundu bilgisi sunucuya gönderilemedi; bağlantı gelince tekrar denenecek.');
+      openTarget(item);
+    }
   }
 
   async function markAllAsRead() {
     const { data } = await supabase.auth.getUser();
-    if (!data.user) return;
+    const userId = data.user?.id;
+    if (!userId) return;
+
+    const unread = notifications.filter((notification) => !notification.read);
+
+    if (!backendReachable) {
+      await Promise.all(
+        unread.map((notification) =>
+          queueNotificationRead(userId, {
+            source: notification.source,
+            id: notification.id,
+          })
+        )
+      );
+      setNotifications((current) =>
+        current.map((notification) => ({ ...notification, read: true }))
+      );
+      return;
+    }
+
     try {
       const [interaction, social] = await Promise.all([
-        supabase.from('notifications').update({ read: true }).eq('user_id', data.user.id).eq('read', false),
-        supabase.from('social_notifications').update({ read: true }).eq('user_id', data.user.id).eq('read', false),
+        supabase
+          .from('notifications')
+          .update({ read: true })
+          .eq('user_id', userId)
+          .eq('read', false),
+        supabase
+          .from('social_notifications')
+          .update({ read: true })
+          .eq('user_id', userId)
+          .eq('read', false),
       ]);
+
       if (interaction.error) throw interaction.error;
       if (social.error) throw social.error;
-      const adminResults = await Promise.all(notifications.filter((n): n is AdminNotification => n.source === 'admin' && !n.read)
-        .map((n) => supabase.rpc('mark_admin_notification_read', { p_notification_id: n.id })));
-      const adminError = adminResults.find((r: any) => r.error)?.error;
+
+      const adminResults = await Promise.all(
+        unread
+          .filter(
+            (notification): notification is AdminNotification =>
+              notification.source === 'admin'
+          )
+          .map((notification) =>
+            supabase.rpc('mark_admin_notification_read', {
+              p_notification_id: notification.id,
+            })
+          )
+      );
+
+      const adminError = adminResults.find((result: any) => result.error)?.error;
       if (adminError) throw adminError;
-      setNotifications((current) => current.map((n) => ({ ...n, read: true })));
-    } catch (error) { console.error(error); Alert.alert('Hata', 'Bildirimler güncellenemedi.'); }
+
+      setNotifications((current) =>
+        current.map((notification) => ({ ...notification, read: true }))
+      );
+    } catch (error) {
+      console.error(error);
+      await Promise.all(
+        unread.map((notification) =>
+          queueNotificationRead(userId, {
+            source: notification.source,
+            id: notification.id,
+          })
+        )
+      );
+      setNotifications((current) =>
+        current.map((notification) => ({ ...notification, read: true }))
+      );
+      setLoadError('Okundu bilgileri kuyruğa alındı; bağlantı gelince tekrar gönderilecek.');
+    }
   }
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
@@ -184,6 +352,14 @@ export default function NotificationsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}><View><Text style={styles.pageTitle}>Bildirimler</Text><Text style={styles.muted}>{unreadCount ? `${unreadCount} okunmamış bildirim` : 'Tüm bildirimleri okudun'}</Text></View>
           {notifications.length > 0 ? <Pressable onPress={() => void markAllAsRead()} style={styles.readAll}><Text style={styles.readAllText}>Tümünü oku</Text></Pressable> : null}</View>
+        {loadError ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{loadError}</Text>
+            <Pressable onPress={() => void loadNotifications()} style={styles.retryButton}>
+              <Text style={styles.retryText}>Tekrar dene</Text>
+            </Pressable>
+          </View>
+        ) : null}
         {notifications.length === 0 ? <View style={styles.empty}><Feather name="bell" size={30} color={colors.primary} /><Text style={styles.emptyTitle}>Henüz bildirim yok</Text><Text style={styles.muted}>Etkileşimlerin, takip isteklerin ve duyurular burada görünecek.</Text></View> :
           notifications.map((item) => <Pressable key={`${item.source}:${item.id}`} onPress={() => void markAsRead(item)} style={[styles.card, !item.read && styles.unreadCard]}>
             {item.source !== 'admin' && item.profile_image ? <Image source={{ uri: item.profile_image }} style={styles.avatar} /> : <View style={styles.iconCircle}><Feather name={icon(item) as any} size={19} color={colors.primary} /></View>}
@@ -204,6 +380,10 @@ const baseStyles = StyleSheet.create({
   muted: { color: '#8E8E9D', fontSize: 12, marginTop: 5, textAlign: 'center' },
   readAll: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 11, backgroundColor: '#21182F' },
   readAllText: { color: '#C8B5FF', fontSize: 12, fontWeight: '800' },
+  errorCard: { backgroundColor: '#1A1519', borderWidth: 1, borderColor: '#49313A', borderRadius: 14, padding: 14, marginBottom: 14 },
+  errorText: { color: '#F0C7D1', fontSize: 13, lineHeight: 19 },
+  retryButton: { alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center', marginTop: 6 },
+  retryText: { color: '#A985FF', fontSize: 13, fontWeight: '800' },
   empty: { alignItems: 'center', padding: 28, borderRadius: 18, backgroundColor: '#15151D', borderWidth: 1, borderColor: '#282833' },
   emptyTitle: { color: '#F5F5F8', fontSize: 16, fontWeight: '800', marginTop: 10 },
   card: { flexDirection: 'row', padding: 14, marginBottom: 10, borderRadius: 16, backgroundColor: '#15151D', borderWidth: 1, borderColor: '#282833' },
