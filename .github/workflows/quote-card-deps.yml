@@ -19,8 +19,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npx expo install react-native-view-shot expo-sharing || true
+      - run: npm install --package-lock-only --ignore-scripts expo-sharing@~57.0.20 react-native-view-shot@5.1.0
       - name: Commit dependency updates
         run: |
           git config user.name "github-actions[bot]"
