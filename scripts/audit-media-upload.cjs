@@ -7,7 +7,7 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 const workCover = fs.readFileSync(path.join(root, 'src/lib/upload-cover.ts'), 'utf8');
 const eventEditor = fs.readFileSync(path.join(root, 'src/app/event-editor.tsx'), 'utf8');
 const home = fs.readFileSync(path.join(root, 'src/app/index.tsx'), 'utf8');
-const profile = fs.readFileSync(path.join(root, 'src/app/profile.tsx'), 'utf8');
+const profile = fs.readFileSync(path.join(root, 'src/app/profile-settings.tsx'), 'utf8');
 
 const errors = [];
 
