@@ -46,6 +46,16 @@ module.exports = () => {
     return plugin;
   });
 
+  plugins.push([
+    'expo-build-properties',
+    {
+      android: {
+        extraProguardRules:
+          '-keep class com.google.android.gms.internal.consent_sdk.** { *; }',
+      },
+    },
+  ]);
+
   return {
     ...base.expo,
     plugins,
