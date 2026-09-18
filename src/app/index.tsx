@@ -36,10 +36,6 @@ type Comment = {
   id: string;
   username: string;
   text: string;
-  title?: string | null;
-  topic?: string | null;
-  tags?: string[];
-  containsSpoiler?: boolean;
   createdAt: string;
   user_id?: string;
 };
@@ -51,6 +47,10 @@ type Review = BookCoverData & {
   bookTitle: string;
   rating: number;
   text: string;
+  title?: string | null;
+  topic?: string | null;
+  tags?: string[];
+  containsSpoiler?: boolean;
   createdAt: string;
   username?: string;
   full_name?: string | null;
