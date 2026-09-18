@@ -1,3 +1,8 @@
+const BOOK_COVER_CACHE_MS = 10 * 60 * 1000;
+
+const bookCoverCache = new Map<string, { value: string | null; expiresAt: number }>();
+const bookCoverRequests = new Map<string, Promise<string | null>>();
+
 export type BookCoverData = {
   title?: string | null;
   book_title?: string | null;
@@ -46,30 +51,59 @@ function resolveBookCover(data: BookCoverData): string | null {
 
 export async function loadBookCover(bookKey: string, fallback: string | null): Promise<string | null> {
   if (fallback) return fallback;
-  const url = openLibraryWorkUrl(bookKey);
+
+  const normalizedKey = bookKey.trim();
+  if (!normalizedKey) return null;
+
+  const cached = bookCoverCache.get(normalizedKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  if (cached) bookCoverCache.delete(normalizedKey);
+
+  const existingRequest = bookCoverRequests.get(normalizedKey);
+  if (existingRequest) return existingRequest;
+
+  const url = openLibraryWorkUrl(normalizedKey);
   if (!url) return null;
 
-  let response: Response;
-  try {
-    response = await fetch(url);
-  } catch (error) {
-    if (!(error instanceof TypeError)) throw error;
-    console.warn('Kitap kapağı isteği tamamlanamadı:', url, error);
-    return fallback;
-  }
-  if (!response.ok) {
-    console.warn('Kitap kapağı alınamadı:', url, `HTTP ${response.status}`);
-    return fallback;
-  }
-  let data: BookCoverData | null;
-  try {
-    data = await response.json();
-  } catch (error) {
-    if (!(error instanceof SyntaxError || error instanceof TypeError)) throw error;
-    console.warn('Kitap kapağı yanıtı okunamadı:', url, error);
-    return fallback;
-  }
-  return data ? existingBookCover(data) ?? fallback : fallback;
+  const request = (async () => {
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+      console.warn('Kitap kapağı isteği tamamlanamadı:', url, error);
+      return null;
+    }
+
+    if (!response.ok) {
+      console.warn('Kitap kapağı alınamadı:', url, `HTTP ${response.status}`);
+      return null;
+    }
+
+    let data: BookCoverData | null;
+    try {
+      data = await response.json();
+    } catch (error) {
+      if (!(error instanceof SyntaxError || error instanceof TypeError)) throw error;
+      console.warn('Kitap kapağı yanıtı okunamadı:', url, error);
+      return null;
+    }
+
+    return data ? existingBookCover(data) : null;
+  })()
+    .then((value) => {
+      bookCoverCache.set(normalizedKey, {
+        value,
+        expiresAt: Date.now() + BOOK_COVER_CACHE_MS,
+      });
+      return value;
+    })
+    .finally(() => {
+      bookCoverRequests.delete(normalizedKey);
+    });
+
+  bookCoverRequests.set(normalizedKey, request);
+  return request;
 }
 
 export function existingBookCover(data: BookCoverData): string | null {
