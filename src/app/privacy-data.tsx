@@ -45,9 +45,11 @@ const EMPTY_SUMMARY: DataSummary = {
   readingBooks: 0,
 };
 
-async function countRows(table: string, column: string, userId: string) {
-  const { count, error } = await supabase
-    .from(table)
+type CountTable = 'posts' | 'reviews' | 'quotes' | 'comments' | 'saved_posts' | 'saved_works' | 'user_blocks' | 'user_book_status';
+
+async function countRows(table: CountTable, column: string, userId: string) {
+  const { count, error } = await (supabase
+    .from(table) as any)
     .select('id', { count: 'exact', head: true })
     .eq(column, userId);
 
