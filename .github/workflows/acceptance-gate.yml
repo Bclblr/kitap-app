@@ -32,6 +32,8 @@ jobs:
         run: npm run test:feed-pagination
       - name: Offline queue concurrency regression
         run: npm run test:async-key-lock
+      - name: Notification offline cache-first audit
+        run: npm run audit:notification-offline
       - name: Account cleanup race audit
         run: npm run audit:account-cleanup
       - name: Reader request race audit
