@@ -266,6 +266,9 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
  console.log('PASS: RevenueCat transfer is single-destination at RPC level');
 
  await db.exec("reset role; set role anon; select set_config('request.jwt.claim.sub','',false)");
+ await denied("select * from get_hashtag_content('auditprivate',20,null)");
+ await denied("select * from get_trending_hashtags()");
+ await denied("select * from get_same_book_readers('audit-book')");
  assert.equal(await count('works'),1); assert.equal(await count('work_chapters'),1);
  assert.equal(await count('communities'),1);
  await denied('select * from messages');
