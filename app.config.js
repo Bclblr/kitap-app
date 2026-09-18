@@ -37,6 +37,12 @@ module.exports = ({ config }) => {
     if (!process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_ANNUAL_PRODUCT_ID?.trim()) {
       missing.push('EXPO_PUBLIC_REVENUECAT_ANDROID_ANNUAL_PRODUCT_ID');
     }
+    if (!process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL?.trim()) {
+      missing.push('EXPO_PUBLIC_PRIVACY_POLICY_URL');
+    }
+    if (!process.env.EXPO_PUBLIC_SUPPORT_URL?.trim()) {
+      missing.push('EXPO_PUBLIC_SUPPORT_URL');
+    }
 
     if (missing.length) {
       throw new Error(
