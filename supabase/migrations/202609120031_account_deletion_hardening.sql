@@ -15,7 +15,7 @@ as $$
   from storage.objects so
   where auth.uid() is not null
     and (
-      so.owner_id = auth.uid()
+      so.owner_id = auth.uid()::text
       or so.name = auth.uid()::text
       or so.name like auth.uid()::text || '/%'
     )
