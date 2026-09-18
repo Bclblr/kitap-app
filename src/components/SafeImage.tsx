@@ -2,32 +2,144 @@ import { useEffect, useState } from 'react';
 import { Image as NativeImage, ImageProps, ImageSourcePropType, View } from 'react-native';
 import { permanentImageUrl } from '@/lib/image-policy';
 import { supabase } from '@/lib/supabase';
-function normalize(source: ImageSourcePropType | undefined, preview: boolean): ImageSourcePropType | undefined {
+
+const PRIVATE_STORAGE_BUCKETS = new Set([
+  'work-covers',
+  'post-images',
+  'story-images',
+  'avatars',
+  'event-images',
+]);
+
+type PrivateStorageRef = {
+  bucket: string;
+  path: string;
+};
+
+function normalize(
+  source: ImageSourcePropType | undefined,
+  preview: boolean
+): ImageSourcePropType | undefined {
   if (!source || typeof source === 'number') return source;
-  if (Array.isArray(source)) return source.map(item => normalize(item, preview)).filter(Boolean) as ImageSourcePropType;
-  const uri = permanentImageUrl(source.uri) ?? (preview && /^(blob:|file:|content:|data:image\/)/.test(source.uri ?? '') ? source.uri : null);
+  if (Array.isArray(source)) {
+    return source
+      .map((item) => normalize(item, preview))
+      .filter(Boolean) as ImageSourcePropType;
+  }
+
+  const uri =
+    permanentImageUrl(source.uri) ??
+    (preview && /^(blob:|file:|content:|data:image\/)/.test(source.uri ?? '')
+      ? source.uri
+      : null);
+
   return uri ? { ...source, uri } : undefined;
 }
-function SafeImage({ source, localPreview = false, ...props }: ImageProps & { localPreview?: boolean }) {
-  const normalized = normalize(source, localPreview);
-  const uri = normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized.uri : undefined;
-  const [signed, setSigned] = useState<{ original: string; url: string } | null>(null);
-  const [failed, setFailed] = useState<string | undefined>();
-  const privateCover = uri?.includes('/storage/v1/object/authenticated/work-covers/');
-  useEffect(() => {
-    if (!privateCover || !uri) return;
-    let alive = true;
-    let path: string;
-    try { path = decodeURIComponent(uri.split('/work-covers/')[1].split('?')[0]); }
-    catch { return; }
-    void supabase.storage.from('work-covers').createSignedUrl(path, 3600).then(({ data, error }) => {
-      if (alive) { if (!error && data) setSigned({ original: uri, url: data.signedUrl }); else setFailed(uri); }
-    }).catch(() => { if (alive) setFailed(uri); });
-    return () => { alive = false; };
-  }, [privateCover, uri]);
-  if (!normalized || (uri && failed === uri) || (privateCover && signed?.original !== uri)) return <View accessibilityLabel={props.accessibilityLabel ?? 'Görsel kullanılamıyor'} style={props.style} />;
-  return <NativeImage {...props} source={privateCover ? { uri: signed!.url } : normalized} onError={event => { setFailed(uri); props.onError?.(event); }} />;
+
+function parsePrivateStorageUrl(uri: string | undefined): PrivateStorageRef | null {
+  if (!uri || uri.includes('/storage/v1/object/sign/')) return null;
+
+  try {
+    const url = new URL(uri);
+    const marker = '/storage/v1/object/';
+    const markerIndex = url.pathname.indexOf(marker);
+    if (markerIndex < 0) return null;
+
+    const remainder = url.pathname.slice(markerIndex + marker.length);
+    const match = remainder.match(/^(?:public|authenticated)\/([^/]+)\/(.+)$/);
+    if (!match) return null;
+
+    const bucket = decodeURIComponent(match[1]);
+    if (!PRIVATE_STORAGE_BUCKETS.has(bucket)) return null;
+
+    return {
+      bucket,
+      path: decodeURIComponent(match[2]),
+    };
+  } catch {
+    return null;
+  }
 }
+
+function SafeImage({
+  source,
+  localPreview = false,
+  ...props
+}: ImageProps & { localPreview?: boolean }) {
+  const normalized = normalize(source, localPreview);
+  const uri =
+    normalized && typeof normalized === 'object' && !Array.isArray(normalized)
+      ? normalized.uri
+      : undefined;
+
+  const privateRef = parsePrivateStorageUrl(uri);
+  const privateKey = privateRef ? `${privateRef.bucket}/${privateRef.path}` : null;
+
+  const [signed, setSigned] = useState<{
+    original: string;
+    key: string;
+    url: string;
+  } | null>(null);
+  const [failed, setFailed] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (!privateRef || !uri || !privateKey) return;
+
+    let alive = true;
+
+    void supabase.storage
+      .from(privateRef.bucket)
+      .createSignedUrl(privateRef.path, 3600)
+      .then(({ data, error }) => {
+        if (!alive) return;
+
+        if (!error && data?.signedUrl) {
+          setSigned({
+            original: uri,
+            key: privateKey,
+            url: data.signedUrl,
+          });
+          setFailed(undefined);
+        } else {
+          setFailed(uri);
+        }
+      })
+      .catch(() => {
+        if (alive) setFailed(uri);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [uri, privateKey]);
+
+  const waitingForSigned =
+    !!privateRef && (!signed || signed.original !== uri || signed.key !== privateKey);
+
+  if (!normalized || (uri && failed === uri) || waitingForSigned) {
+    return (
+      <View
+        accessibilityLabel={props.accessibilityLabel ?? 'Görsel kullanılamıyor'}
+        style={props.style}
+      />
+    );
+  }
+
+  return (
+    <NativeImage
+      {...props}
+      source={privateRef ? { uri: signed!.url } : normalized}
+      onError={(event) => {
+        setFailed(uri);
+        props.onError?.(event);
+      }}
+    />
+  );
+}
+
 export default Object.assign(SafeImage, {
-  prefetch: (uri: string) => permanentImageUrl(uri) ? NativeImage.prefetch(uri) : Promise.resolve(false),
+  prefetch: (uri: string) =>
+    permanentImageUrl(uri) && !parsePrivateStorageUrl(uri)
+      ? NativeImage.prefetch(uri)
+      : Promise.resolve(false),
 });
