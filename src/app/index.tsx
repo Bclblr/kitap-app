@@ -66,14 +66,6 @@ type Review = BookCoverData & {
   reposted?: boolean;
 };
 
-type Quote = BookCoverData & {
-  id: string;
-  bookKey: string;
-  bookTitle: string;
-  text: string;
-  createdAt: string;
-};
-
 type Post = BookCoverData & {
   id: string;
   user_id: string | null;
@@ -112,7 +104,6 @@ type Post = BookCoverData & {
 
 type Story = HomeStory;
 
-const REVIEWS_KEY = 'reviews';
 const STORY_SEEN_KEY = 'story-seen-ids';
 
 const CURRENT_USERNAME = 'Kitap Okuru';
@@ -202,15 +193,12 @@ export default function HomeScreen() {
   const [currentUserId, setCurrentUserId] =
     useState<string | null>(null);
 
-    const [currentUser, setCurrentUser] =
-  useState<any>(null);
-
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [bookCoverUrls, setBookCoverUrls] =
     useState<Record<string, string | null>>({});
 
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [loadingStories, setLoadingStories] = useState(false);
@@ -232,11 +220,6 @@ export default function HomeScreen() {
   const [postText, setPostText] = useState('');
   const [postImage, setPostImage] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
-
-  const [showStoryBox, setShowStoryBox] = useState(false);
-  const [storyText, setStoryText] = useState('');
-  const [storyImage, setStoryImage] = useState<string | null>(null);
-  const [postingStory, setPostingStory] = useState(false);
 
 
   async function reportFeedContent(post: Post) {
@@ -333,126 +316,6 @@ export default function HomeScreen() {
 
     return blocked;
   }, []);
-
-  const loadReviews = useCallback(async () => {
-    try {
-      const userId = await getCurrentUserId();
-      const blockedUserIds = await getBlockedUserIds(userId);
-
-      const { data, error } = await supabase
-        .from('reviews')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(FEED_PAGE_SIZE);
-
-      if (error) {
-        console.error('Supabase incelemeleri yüklenemedi:', error);
-        setReviews([]);
-        return;
-      }
-
-      const visibleReviews = (data ?? []).filter(
-        (review: any) => !review.user_id || !blockedUserIds.has(review.user_id)
-      );
-      const reviewIds = visibleReviews.map((review: any) => review.id);
-
-      const [profileResult, likesResult, repostsResult, commentsResult] = await Promise.all([
-        loadFeedProfiles(),
-        reviewIds.length
-          ? supabase.from('likes').select('review_id, user_id').in('review_id', reviewIds)
-          : Promise.resolve({ data: [], error: null } as any),
-        reviewIds.length
-          ? supabase.from('reposts').select('review_id, user_id').in('review_id', reviewIds)
-          : Promise.resolve({ data: [], error: null } as any),
-        reviewIds.length
-          ? supabase
-              .from('comments')
-              .select('id, text, created_at, user_id, review_id')
-              .in('review_id', reviewIds)
-              .order('created_at', { ascending: true })
-          : Promise.resolve({ data: [], error: null } as any),
-      ]);
-
-      if (profileResult.error) console.error('İnceleme profilleri alınamadı:', profileResult.error);
-      if (likesResult.error) console.error('İnceleme beğenileri alınamadı:', likesResult.error);
-      if (repostsResult.error) console.error('İnceleme repostları alınamadı:', repostsResult.error);
-      if (commentsResult.error) console.error('İnceleme yorumları alınamadı:', commentsResult.error);
-
-      const reviewProfiles = new Map(
-        (profileResult.data ?? []).map((profile: any) => [profile.id, profile])
-      );
-      const likesByReview = new Map<string, any[]>();
-      const repostsByReview = new Map<string, any[]>();
-      const commentsByReview = new Map<string, any[]>();
-
-      for (const like of likesResult.data ?? []) {
-        const items = likesByReview.get(like.review_id) ?? [];
-        items.push(like);
-        likesByReview.set(like.review_id, items);
-      }
-      for (const repost of repostsResult.data ?? []) {
-        const items = repostsByReview.get(repost.review_id) ?? [];
-        items.push(repost);
-        repostsByReview.set(repost.review_id, items);
-      }
-      for (const comment of commentsResult.data ?? []) {
-        if (comment.user_id && blockedUserIds.has(comment.user_id)) continue;
-        const items = commentsByReview.get(comment.review_id) ?? [];
-        items.push(comment);
-        commentsByReview.set(comment.review_id, items);
-      }
-
-      const preparedReviews: Review[] = visibleReviews.map((review: any) => {
-        const reviewAuthor = reviewProfiles.get(review.user_id);
-        const reviewLikes = likesByReview.get(review.id) ?? [];
-        const reviewReposts = repostsByReview.get(review.id) ?? [];
-        const reviewComments = commentsByReview.get(review.id) ?? [];
-
-        return {
-          id: review.id,
-          user_id: review.user_id,
-          bookKey: review.book_key,
-          coverUrl: review.coverUrl,
-          cover_url: review.cover_url,
-          isbn: review.isbn,
-          key: review.key,
-          workKey: review.workKey,
-          cover_i: review.cover_i,
-          covers: review.covers,
-          edition_key: review.edition_key,
-          bookTitle: review.book_title,
-          rating: Number(review.rating) || 0,
-          text: review.text || '',
-          title: review.title ?? null,
-          topic: review.topic ?? null,
-          tags: Array.isArray(review.tags) ? review.tags : [],
-          containsSpoiler: review.contains_spoiler === true,
-          createdAt: review.created_at,
-          username: reviewAuthor?.username || CURRENT_USERNAME,
-          full_name: reviewAuthor?.full_name ?? null,
-          profile_image: reviewAuthor?.profile_image ?? null,
-          is_verified: reviewAuthor?.is_verified ?? false,
-          is_premium: reviewAuthor?.is_premium ?? false,
-          likes: reviewLikes.length,
-          liked: !!userId && reviewLikes.some((item: any) => item.user_id === userId),
-          comments: reviewComments.map((comment: any) => ({
-            id: comment.id,
-            user_id: comment.user_id,
-            username: reviewProfiles.get(comment.user_id)?.username || CURRENT_USERNAME,
-            text: comment.text,
-            createdAt: comment.created_at,
-          })),
-          reposts: reviewReposts.length,
-          reposted: !!userId && reviewReposts.some((item: any) => item.user_id === userId),
-        };
-      });
-
-      setReviews(preparedReviews);
-    } catch (error) {
-      console.error('İncelemeler yüklenemedi:', error);
-      setReviews([]);
-    }
-  }, [getBlockedUserIds, getCurrentUserId]);
 
   const loadPosts = useCallback(async (reset = false) => {
     if (loadingFeedRef.current) return;
@@ -879,7 +742,6 @@ export default function HomeScreen() {
         setLoading(true);
         const userId = await getCurrentUserId();
         const user = await getCurrentUser();
-        setCurrentUser(user);
         if (active) setCurrentUserId(userId);
         await Promise.all([loadPosts(true), loadStories()]);
         if (active) setLoading(false);
@@ -897,16 +759,6 @@ export default function HomeScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 });
     if (!result.canceled && result.assets.length > 0) setPostImage(result.assets[0].uri);
-  }
-
-  async function pickStoryImage() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('İzin gerekli', 'Fotoğraf seçebilmek için galeri izni vermelisin.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 });
-    if (!result.canceled && result.assets.length > 0) setStoryImage(result.assets[0].uri);
   }
 
   async function createPost() {
@@ -984,66 +836,6 @@ export default function HomeScreen() {
       Alert.alert('Hata', error instanceof Error ? error.message : 'Gönderi paylaşılırken hata oluştu.');
     } finally {
       setPosting(false);
-    }
-  }
-
-  async function createStory() {
-    const cleanText = storyText.trim();
-    if (!cleanText && !storyImage) {
-      Alert.alert('Hikâye boş', 'Bir yazı veya fotoğraf eklemelisin.');
-      return;
-    }
-    const user = await getCurrentUser();
-    if (!user) {
-      Alert.alert('Giriş gerekli', 'Hikâye paylaşmak için önce giriş yapmalısın.');
-      return;
-    }
-    setPostingStory(true);
-    try {
-      let imageUrl: string | null = null;
-      if (storyImage) {
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.jpg`;
-        const filePath = `${user.id}/${fileName}`;
-        const response = await fetch(storyImage);
-        if (!response.ok) throw new Error('Hikâye fotoğrafı dosyası okunamadı.');
-        const arrayBuffer = await response.arrayBuffer();
-        if (!arrayBuffer || arrayBuffer.byteLength === 0) throw new Error('Hikâye fotoğrafı dosyası boş.');
-        const { error: uploadError } = await supabase.storage.from('story-images').upload(filePath, arrayBuffer, { contentType: 'image/jpeg', upsert: false });
-        if (uploadError) {
-          console.error('Story fotoğrafı yüklenemedi:', uploadError);
-          Alert.alert('Fotoğraf yüklenemedi', uploadError.message);
-          return;
-        }
-        const { data: publicUrlData } = supabase.storage.from('story-images').getPublicUrl(filePath);
-        imageUrl = publicUrlData.publicUrl.replace('/object/public/', '/object/authenticated/');
-      }
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      const { data, error } = await supabase.from('stories').insert({
-        user_id: user.id,
-        username: CURRENT_USERNAME,
-        text: cleanText || null,
-        image_url: requirePermanentImage(imageUrl),
-        expires_at: expiresAt,
-      }).select().single();
-      if (error) {
-        console.error('Hikâye oluşturulamadı:', error);
-        if (imageUrl) {
-          const fileName = imageUrl.split('/').pop();
-          if (fileName) await supabase.storage.from('story-images').remove([`${user.id}/${fileName}`]);
-        }
-        Alert.alert('Hata', error.message);
-        return;
-      }
-      if (data) setStories((current) => [data as Story, ...current]);
-      setStoryText('');
-      setStoryImage(null);
-      setShowStoryBox(false);
-      Alert.alert('Başarılı', 'Hikâyen paylaşıldı.');
-    } catch (error) {
-      console.error('Story hatası:', error);
-      Alert.alert('Hata', error instanceof Error ? error.message : 'Hikâye paylaşılırken hata oluştu.');
-    } finally {
-      setPostingStory(false);
     }
   }
 
