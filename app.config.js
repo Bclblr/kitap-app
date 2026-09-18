@@ -19,10 +19,19 @@ module.exports = ({ config }) => {
     if (process.env.EXPO_PUBLIC_ADS_ENABLED !== 'true') {
       missing.push('EXPO_PUBLIC_ADS_ENABLED=true');
     }
+    if (!process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim()) {
+      missing.push('EXPO_PUBLIC_REVENUECAT_IOS_API_KEY');
+    }
+    if (!process.env.EXPO_PUBLIC_REVENUECAT_IOS_MONTHLY_PRODUCT_ID?.trim()) {
+      missing.push('EXPO_PUBLIC_REVENUECAT_IOS_MONTHLY_PRODUCT_ID');
+    }
+    if (!process.env.EXPO_PUBLIC_REVENUECAT_IOS_ANNUAL_PRODUCT_ID?.trim()) {
+      missing.push('EXPO_PUBLIC_REVENUECAT_IOS_ANNUAL_PRODUCT_ID');
+    }
 
     if (missing.length) {
       throw new Error(
-        `Production AdMob configuration is incomplete: ${missing.join(', ')}`
+        `Production store configuration is incomplete: ${missing.join(', ')}`
       );
     }
   }
