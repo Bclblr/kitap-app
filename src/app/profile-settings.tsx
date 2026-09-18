@@ -205,7 +205,10 @@ export default function ProfileSettingsScreen() {
       return;
     }
 
-    await clearAccountLocalState(userId);
+    await clearAccountLocalState(userId, {
+      includeLegacyKeys: true,
+      includeAuthSessionKeys: false,
+    });
     router.replace('/login');
   }
 
@@ -267,7 +270,10 @@ export default function ProfileSettingsScreen() {
         // Auth user has already been deleted server-side; local cleanup below is authoritative.
       }
 
-      await clearAccountLocalState(authData.user.id);
+      await clearAccountLocalState(authData.user.id, {
+        includeLegacyKeys: true,
+        includeAuthSessionKeys: true,
+      });
       router.replace('/login');
       Alert.alert('Hesap silindi', 'Hesabın ve hesabına bağlı veriler kalıcı olarak silindi.');
     } catch (error) {
