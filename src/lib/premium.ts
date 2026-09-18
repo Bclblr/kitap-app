@@ -21,6 +21,7 @@ export type PremiumEntitlement = {
   starts_at: string;
   expires_at: string | null;
   revoked_at: string | null;
+  provider_environment: 'SANDBOX' | 'PRODUCTION' | null;
   created_at: string;
   updated_at: string;
 };
@@ -57,6 +58,13 @@ function isEntitlementCurrentlyActive(
 ) {
   if (!ACTIVE_PREMIUM_STATUSES.has(entitlement.status)) return false;
   if (entitlement.revoked_at) return false;
+
+  if (
+    (entitlement.source === 'apple' || entitlement.source === 'google') &&
+    entitlement.provider_environment !== 'PRODUCTION'
+  ) {
+    return false;
+  }
 
   const startsAt = Date.parse(entitlement.starts_at);
   if (Number.isFinite(startsAt) && startsAt > nowMs) return false;
