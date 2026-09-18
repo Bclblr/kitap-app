@@ -47,7 +47,7 @@ export default function AdminControlCenter() {
   async function addSanction(){
     if(!userId.trim()){Alert.alert('Eksik','Kullanıcı UUID gerekli.');return;}
     const parsed=Number(hours); const endsAt=hours.trim() && Number.isFinite(parsed) && parsed>0 ? new Date(Date.now()+parsed*3600000).toISOString() : null;
-    const {error}=await supabase.rpc('admin_add_sanction',{p_user_id:userId.trim(),p_type:sanctionType,p_reason:reason.trim(),p_ends_at:endsAt});
+    const {error}=await supabase.rpc('admin_add_sanction',{p_user_id:userId.trim(),p_type:sanctionType,p_reason:reason.trim(),...(endsAt ? {p_ends_at:endsAt} : {})});
     if(error){Alert.alert('Hata',error.message);return;} setReason('');setHours('');await load();
   }
   async function revokeSanction(id:string){const {error}=await supabase.rpc('admin_revoke_sanction',{p_sanction_id:id,p_reason:'Admin kontrol merkezinden kaldırıldı'});if(error)Alert.alert('Hata',error.message);else await load();}
