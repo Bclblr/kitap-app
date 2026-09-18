@@ -36,7 +36,12 @@ function NavItem({ href, pathname, icon, onPress }: NavItemProps) {
       accessibilityHint={active ? `${label} sekmesindesin` : `${label} sekmesine geç`}
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={({ pressed }) => [styles.tab, pressed && styles.pressedTab]}
+      focusable
+      style={({ pressed }) => [
+        styles.tab,
+        active && { backgroundColor: colors.primarySoft },
+        pressed && styles.pressedTab,
+      ]}
       hitSlop={6}
     >
       <View
@@ -44,7 +49,7 @@ function NavItem({ href, pathname, icon, onPress }: NavItemProps) {
         style={[
           styles.iconWrap,
           active && styles.activeIconWrap,
-          active && { borderColor: colors.primary },
+          active && { borderColor: colors.focusRing },
         ]}
       >
         <Feather
@@ -77,11 +82,11 @@ export default function BottomNav() {
         },
       ]}
     >
-      <NavItem href="/" pathname={pathname} icon="home" onPress={() => router.push('/')} />
-      <NavItem href="/read" pathname={pathname} icon="book-open" onPress={() => router.push('/read')} />
-      <NavItem href="/messages" pathname={pathname} icon="message-circle" onPress={() => router.push('/messages')} />
-      <NavItem href="/explore" pathname={pathname} icon="search" onPress={() => router.push('/explore')} />
-      <NavItem href="/profile" pathname={pathname} icon="user" onPress={() => router.push('/profile')} />
+      <NavItem href="/" pathname={pathname} icon="home" onPress={() => { if (pathname !== '/') router.replace('/'); }} />
+      <NavItem href="/read" pathname={pathname} icon="book-open" onPress={() => { if (!pathname.startsWith('/read')) router.replace('/read'); }} />
+      <NavItem href="/messages" pathname={pathname} icon="message-circle" onPress={() => { if (!pathname.startsWith('/messages')) router.replace('/messages'); }} />
+      <NavItem href="/explore" pathname={pathname} icon="search" onPress={() => { if (!pathname.startsWith('/explore')) router.replace('/explore'); }} />
+      <NavItem href="/profile" pathname={pathname} icon="user" onPress={() => { if (!pathname.startsWith('/profile')) router.replace('/profile'); }} />
     </View>
   );
 }
@@ -113,7 +118,6 @@ const baseStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   activeIconWrap: {
-    backgroundColor: '#1D1728',
-    borderWidth: 1,
+    borderWidth: 2,
   },
 });
