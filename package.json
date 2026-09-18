@@ -59,7 +59,8 @@
     "audit:media-upload": "node scripts/audit-media-upload.cjs",
     "audit:release-security": "node scripts/audit-release-security.cjs",
     "audit:premium-free-core": "node scripts/audit-premium-free-core.cjs",
-    "audit:premium-lifecycle": "node scripts/audit-premium-lifecycle.cjs"
+    "audit:premium-lifecycle": "node scripts/audit-premium-lifecycle.cjs",
+    "audit:ads": "node scripts/audit-ads-config.cjs"
   },
   "private": true
 }
