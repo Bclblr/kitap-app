@@ -1,5 +1,6 @@
 import { BookCoverData, existingBookCover } from '@/lib/open-library-cover';
 import BookCover from '@/components/BookCover';
+import RetryNotice from '@/components/RetryNotice';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -38,6 +39,7 @@ export default function ShelvesScreen() {
 
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
@@ -46,6 +48,7 @@ export default function ShelvesScreen() {
   const loadBooks = useCallback(async (reset = true, offset = 0) => {
     if (reset) {
       setLoading(true);
+      setLoadError(null);
       setHasMore(true);
     } else {
       setLoadingMore(true);
@@ -116,7 +119,7 @@ export default function ShelvesScreen() {
       setHasMore(serverBooks.length === SHELF_PAGE_SIZE);
     } catch (error) {
       console.error('Raflar yüklenemedi:', error);
-      if (reset) setBooks([]);
+      setLoadError('Raflar şu anda yenilenemedi. Mevcut kitapların korunuyor.');
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -346,7 +349,15 @@ export default function ShelvesScreen() {
           </Pressable>
         </ScrollView>
 
-        {loading ? (
+        {loadError ? (
+          <RetryNotice
+            message={loadError}
+            busy={loading || loadingMore}
+            onRetry={() => loadBooks(true)}
+          />
+        ) : null}
+
+        {loading && books.length === 0 ? (
           <Text style={styles.info}>
             Kitaplar yükleniyor...
           </Text>
