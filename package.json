@@ -57,7 +57,8 @@
     "audit:mobile-auth": "node scripts/audit-mobile-auth.cjs",
     "audit:media-upload": "node scripts/audit-media-upload.cjs",
     "audit:release-security": "node scripts/audit-release-security.cjs",
-    "audit:premium-free-core": "node scripts/audit-premium-free-core.cjs"
+    "audit:premium-free-core": "node scripts/audit-premium-free-core.cjs",
+    "audit:premium-lifecycle": "node scripts/audit-premium-lifecycle.cjs"
   },
   "private": true
 }
