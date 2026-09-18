@@ -26,6 +26,7 @@ export default function RegisterScreen() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const canSubmit =
@@ -185,22 +186,6 @@ export default function RegisterScreen() {
           <Text style={styles.title}>Hesap Oluştur</Text>
           <Text style={styles.subtitle}>Sana en uygun kayıt yöntemini seç.</Text>
 
-          <Pressable onPress={handleGoogleRegister} style={styles.providerButton}>
-            <Text style={styles.providerLetter}>G</Text>
-            <Text style={styles.providerText}>Google ile kaydol</Text>
-          </Pressable>
-
-          <Pressable onPress={handleAppleRegister} style={styles.providerButton}>
-            <Feather name="smartphone" size={19} color={colors.text} />
-            <Text style={styles.providerText}>Apple ile kaydol</Text>
-          </Pressable>
-
-          <View style={styles.orRow}>
-            <View style={styles.orLine} />
-            <Text style={styles.orText}>veya</Text>
-            <View style={styles.orLine} />
-          </View>
-
           <Text style={styles.label}>Kullanıcı adı</Text>
           <View style={styles.inputWrap}>
             <Feather name="user" size={18} color="#777783" />
@@ -240,9 +225,21 @@ export default function RegisterScreen() {
               onChangeText={setPassword}
               placeholder="En az 8 karakter"
               placeholderTextColor="#686873"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               style={styles.input}
             />
+            <Pressable
+              onPress={() => setShowPassword((current) => !current)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+            >
+              <Feather
+                name={showPassword ? 'eye-off' : 'eye'}
+                size={20}
+                color="#777783"
+              />
+            </Pressable>
           </View>
 
           <Pressable
@@ -254,9 +251,25 @@ export default function RegisterScreen() {
               pressed && !loading && canSubmit && styles.buttonPressed,
             ]}
           >
-            <Text style={[styles.buttonText, !canSubmit && styles.disabledButtonText]}>
+            <Text style={[styles.buttonText, (loading || !canSubmit) && styles.disabledButtonText]}>
               {loading ? 'Kayıt yapılıyor...' : 'E-posta ile Kaydol'}
             </Text>
+          </Pressable>
+
+          <View style={styles.orRow}>
+            <View style={styles.orLine} />
+            <Text style={styles.orText}>veya</Text>
+            <View style={styles.orLine} />
+          </View>
+
+          <Pressable onPress={handleGoogleRegister} disabled={loading} style={styles.providerButton}>
+            <Text style={styles.providerLetter}>G</Text>
+            <Text style={styles.providerText}>Google ile kaydol</Text>
+          </Pressable>
+
+          <Pressable onPress={handleAppleRegister} disabled={loading} style={styles.providerButton}>
+            <Feather name="smartphone" size={19} color={colors.text} />
+            <Text style={styles.providerText}>Apple ile kaydol</Text>
           </Pressable>
 
           <View style={styles.switchRow}>
