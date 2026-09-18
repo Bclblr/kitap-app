@@ -1,11 +1,12 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import RuntimeGate from '@/components/RuntimeGate';
 import StoryMediaMaintenance from '@/components/StoryMediaMaintenance';
+import { getCurrentAdminAccess } from '@/lib/admin';
 import { installGlobalErrorMonitoring } from '@/lib/error-monitoring';
 import { configureProductionLogging } from '@/lib/production-logging';
 import { trackProductEvent } from '@/lib/product-analytics';
@@ -17,6 +18,75 @@ import { ThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
 
 configureProductionLogging();
 installGlobalErrorMonitoring();
+
+const AUTHENTICATED_ROUTES = [
+  'index',
+  'onboarding',
+  'explore',
+  'shelves',
+  'profile',
+  'notifications',
+  'review',
+  'appearance-settings',
+  'blocked-users',
+  'book',
+  'chat',
+  'community',
+  'community-editor',
+  'community-invites',
+  'community-members',
+  'content',
+  'event',
+  'event-editor',
+  'event-attendees',
+  'follow-requests',
+  'hashtag',
+  'messages',
+  'my-works',
+  'notification-settings',
+  'premium',
+  'premium-profile-customization',
+  'premium-quote-cards',
+  'premium-shelf-customization',
+  'premium-reading-goals',
+  'premium-reading-stats',
+  'premium-year-report',
+  'privacy-data',
+  'privacy-settings',
+  'profile-settings',
+  'quote-create',
+  'read',
+  'readers',
+  'saved',
+  'story-create',
+  'work',
+  'work-editor',
+] as const;
+
+const ADMIN_ROUTES = [
+  'admin',
+  'admin-admins',
+  'admin-analytics',
+  'admin-announcements',
+  'admin-audit',
+  'admin-authors',
+  'admin-books',
+  'admin-communities',
+  'admin-content',
+  'admin-control-center',
+  'admin-events',
+  'admin-explore',
+  'admin-hashtags',
+  'admin-moderation',
+  'admin-notifications',
+  'admin-premium-history',
+  'admin-premium',
+  'admin-storage',
+  'admin-system',
+  'admin-trash',
+  'admin-users',
+  'admin-verification-history',
+] as const;
 
 export default function RootLayout() {
   return (
@@ -45,6 +115,8 @@ function GuardedLayout() {
   const segments = useSegments();
   const trackedUserRef = useRef<string | null>(null);
   const bookRouteActiveRef = useRef(false);
+  const [adminReady, setAdminReady] = useState(false);
+  const [canOpenAdmin, setCanOpenAdmin] = useState(false);
   const onboardingPending = session?.user?.user_metadata?.onboarding_pending === true;
 
   useEffect(() => {
@@ -66,12 +138,42 @@ function GuardedLayout() {
   }, [segments, session]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    if (!session) {
+      setCanOpenAdmin(false);
+      setAdminReady(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setAdminReady(false);
+    void getCurrentAdminAccess()
+      .then((access) => {
+        if (!cancelled) setCanOpenAdmin(access.canOpenAdmin);
+      })
+      .catch((error) => {
+        console.warn('Admin route guard yüklenemedi:', error);
+        if (!cancelled) setCanOpenAdmin(false);
+      })
+      .finally(() => {
+        if (!cancelled) setAdminReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
+
+  useEffect(() => {
     if (loading || !ready || !session || !onboardingPending) return;
     if (segments[0] === 'onboarding' || segments[0] === 'account-deletion') return;
     router.replace('/onboarding');
   }, [loading, onboardingPending, ready, router, segments, session]);
 
-  if (loading || !ready) {
+  if (loading || !ready || (!!session && !adminReady)) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center' }}>
         <ActivityIndicator accessibilityLabel="Oturum yükleniyor" color={colors.primary} />
@@ -101,41 +203,17 @@ function GuardedLayout() {
           <Stack.Screen name="account-deletion" />
 
           <Stack.Protected guard={!!session}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="onboarding" />
-            <Stack.Screen name="explore" />
-            <Stack.Screen name="shelves" />
-            <Stack.Screen name="profile" />
-            <Stack.Screen name="notifications" />
-            <Stack.Screen name="review" />
-            {[
-              'book',
-              'chat',
-              'community',
-              'community-editor',
-              'event',
-              'event-editor',
-              'event-attendees',
-              'hashtag',
-              'messages',
-              'my-works',
-              'profile-settings',
-              'premium',
-              'premium-profile-customization',
-              'premium-quote-cards',
-              'premium-shelf-customization',
-              'premium-reading-goals',
-              'premium-reading-stats',
-              'premium-year-report',
-              'quote-create',
-              'read',
-              'readers',
-              'work',
-              'work-editor',
-            ].map((name) => (
+            {AUTHENTICATED_ROUTES.map((name) => (
               <Stack.Screen key={name} name={name} />
             ))}
+
+            <Stack.Protected guard={canOpenAdmin}>
+              {ADMIN_ROUTES.map((name) => (
+                <Stack.Screen key={name} name={name} />
+              ))}
+            </Stack.Protected>
           </Stack.Protected>
+
           <Stack.Screen name="auth/callback" />
         </Stack>
       </RuntimeGate>
