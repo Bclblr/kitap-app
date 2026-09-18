@@ -1,0 +1,50 @@
+const base = require('./app.json');
+
+const TEST_ANDROID_APP_ID = 'ca-app-pub-3940256099942544~3347511713';
+const TEST_IOS_APP_ID = 'ca-app-pub-3940256099942544~1458002511';
+
+module.exports = () => {
+  const requireProductionAds = process.env.ADMOB_REQUIRE_PRODUCTION === 'true';
+  const androidAppId = process.env.ADMOB_ANDROID_APP_ID?.trim() || TEST_ANDROID_APP_ID;
+  const iosAppId = process.env.ADMOB_IOS_APP_ID?.trim() || TEST_IOS_APP_ID;
+
+  if (requireProductionAds) {
+    const missing = [];
+    if (!process.env.ADMOB_ANDROID_APP_ID?.trim()) missing.push('ADMOB_ANDROID_APP_ID');
+    if (!process.env.ADMOB_IOS_APP_ID?.trim()) missing.push('ADMOB_IOS_APP_ID');
+    if (!process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID?.trim()) {
+      missing.push('EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID');
+    }
+    if (!process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID?.trim()) {
+      missing.push('EXPO_PUBLIC_ADMOB_IOS_BANNER_ID');
+    }
+
+    if (missing.length) {
+      throw new Error(
+        `Production AdMob configuration is incomplete: ${missing.join(', ')}`
+      );
+    }
+  }
+
+  const plugins = base.expo.plugins.map((plugin) => {
+    if (Array.isArray(plugin) && plugin[0] === 'react-native-google-mobile-ads') {
+      return [
+        'react-native-google-mobile-ads',
+        {
+          ...plugin[1],
+          androidAppId,
+          iosAppId,
+          delayAppMeasurementInit: true,
+          userTrackingUsageDescription:
+            'Bu tanımlayıcı, izin vermen durumunda sana daha ilgili reklamlar göstermek için kullanılabilir.',
+        },
+      ];
+    }
+    return plugin;
+  });
+
+  return {
+    ...base.expo,
+    plugins,
+  };
+};
