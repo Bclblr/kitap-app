@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -102,7 +103,7 @@ export default function PrivacySettingsScreen() {
 
   function goBackSafely() {
     if (router.canGoBack()) {
-      router.back();
+      safeBack(router, '/profile-settings');
       return;
     }
 
