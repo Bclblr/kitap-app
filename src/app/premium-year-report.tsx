@@ -86,7 +86,7 @@ export default function PremiumYearReportScreen() {
       setError(null);
 
       const { data, error: rpcError } = await supabase
-        .rpc('get_premium_year_report', { p_year: null })
+        .rpc('get_premium_year_report')
         .single();
 
       if (rpcError) throw rpcError;
