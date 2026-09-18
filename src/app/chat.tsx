@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -607,7 +608,7 @@ export default function ChatScreen() {
 
  function goBack() {
   if (router.canGoBack()) {
-    router.back();
+    safeBack(router, '/messages');
   } else {
     router.replace('/messages');
   }
