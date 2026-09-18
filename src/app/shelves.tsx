@@ -361,7 +361,7 @@ export default function ShelvesScreen() {
           <Text style={styles.info}>
             Kitaplar yükleniyor...
           </Text>
-        ) : books.length === 0 ? (
+        ) : loadError && books.length === 0 ? null : books.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>
               📚
