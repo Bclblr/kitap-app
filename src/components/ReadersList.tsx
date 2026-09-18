@@ -66,6 +66,7 @@ function ReaderDirectory({
   const pageOffsetRef = useRef(0);
   const hasMoreRef = useRef(true);
   const pageLoadingRef = useRef(false);
+  const requestSequenceRef = useRef(0);
   const scopeKey = `${targetId ?? ''}|${mode ?? ''}|${query?.trim() ?? ''}`;
   const scopeKeyRef = useRef(scopeKey);
 
@@ -77,11 +78,12 @@ function ReaderDirectory({
   const blockedSet = useMemo(() => new Set(social.blocked), [social.blocked]);
 
   const loadPage = useCallback(async (reset: boolean) => {
-    if (pageLoadingRef.current) return;
+    if (!reset && pageLoadingRef.current) return;
     if (!reset && !hasMoreRef.current) return;
 
     const requestScope = scopeKey;
     const offset = reset ? 0 : pageOffsetRef.current;
+    const requestSequence = ++requestSequenceRef.current;
 
     pageLoadingRef.current = true;
 
@@ -113,7 +115,10 @@ function ReaderDirectory({
         loadPremiumUserIds(readerIds).catch(() => new Set<string>()),
       ]);
 
-      if (scopeKeyRef.current !== requestScope) return;
+      if (
+        scopeKeyRef.current !== requestScope ||
+        requestSequence !== requestSequenceRef.current
+      ) return;
 
       const loadedReaders: Reader[] = baseReaders.map((reader) => ({
         ...reader,
@@ -138,15 +143,21 @@ function ReaderDirectory({
       });
       setHasMore(nextHasMore);
     } catch (loadError) {
-      if (scopeKeyRef.current !== requestScope) return;
+      if (
+        scopeKeyRef.current !== requestScope ||
+        requestSequence !== requestSequenceRef.current
+      ) return;
       console.error('Reader directory load error:', loadError);
       setError('Okurlar yüklenemedi.');
     } finally {
-      if (scopeKeyRef.current === requestScope) {
+      if (
+        scopeKeyRef.current === requestScope &&
+        requestSequence === requestSequenceRef.current
+      ) {
+        pageLoadingRef.current = false;
         setLoading(false);
         setLoadingMore(false);
       }
-      pageLoadingRef.current = false;
     }
   }, [mode, query, scopeKey, targetId]);
 
