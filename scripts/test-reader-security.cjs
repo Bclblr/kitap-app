@@ -211,9 +211,11 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
    now(),
    'PRODUCTION'
  )`);
+ await db.exec('reset role');
  assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${B}' and source_reference='rc-transfer-test' and status='active'`)).rows[0].n),0);
  assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${C}' and source_reference='rc-transfer-test' and status='active'`)).rows[0].n),0);
  assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${A}' and source_reference='rc-transfer-test' and status='active'`)).rows[0].n),1);
+ await db.exec('set role service_role');
  const transferResult=(await db.query(`select process_revenuecat_transfer_event(
    'rc-transfer-single',
    array['${A}'::uuid],
@@ -222,6 +224,7 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
    'PRODUCTION'
  ) as processed`)).rows[0].processed;
  assert.equal(transferResult,true);
+ await db.exec('reset role');
  assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${A}' and source_reference='rc-transfer-test' and status='inactive'`)).rows[0].n),1);
  assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${B}' and source_reference='rc-transfer-test' and status='active'`)).rows[0].n),1);
  assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${C}' and source_reference='rc-transfer-test'`)).rows[0].n),0);
