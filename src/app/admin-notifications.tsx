@@ -42,8 +42,8 @@ export default function AdminNotificationsScreen() {
       p_title: title.trim(),
       p_message: message.trim(),
       p_target_type: targetType,
-      p_target_value: targetType === 'all' ? null : targetValue.trim(),
-      p_action_route: route.trim() || null,
+      ...(targetType === 'all' ? {} : { p_target_value: targetValue.trim() }),
+      ...(route.trim() ? { p_action_route: route.trim() } : {}),
     });
     setSending(false);
     if (error) {
