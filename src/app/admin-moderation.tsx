@@ -133,7 +133,7 @@ export default function AdminModerationScreen() {
       const { error } = await supabase.rpc('admin_update_report_status', {
         p_report_id: report.id,
         p_status: status,
-        p_resolution: resolution || null,
+        ...(resolution ? { p_resolution: resolution } : {}),
       });
 
       if (error) {
