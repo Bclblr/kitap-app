@@ -1,6 +1,8 @@
-import type { Href, Router } from 'expo-router';
+import type { Href, useRouter } from 'expo-router';
 
-export function safeBack(router: Router, fallback: Href) {
+type AppRouter = ReturnType<typeof useRouter>;
+
+export function safeBack(router: AppRouter, fallback: Href) {
   if (router.canGoBack()) {
     router.back();
     return;
