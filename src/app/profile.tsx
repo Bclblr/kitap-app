@@ -8,8 +8,6 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
-import VerifiedBadge from '@/components/VerifiedBadge';
-import PremiumBadge from '@/components/PremiumBadge';
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import RetryNotice from '@/components/RetryNotice';
 
@@ -17,7 +15,7 @@ import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
 import { isUserVerified } from '@/lib/verification';
 import { isUserPremium } from '@/lib/premium';
-import { loadProfileCustomization, PROFILE_THEME_ACCENTS, PremiumProfileCustomization } from '@/lib/profile-customization';
+import { loadProfileCustomization, PremiumProfileCustomization } from '@/lib/profile-customization';
 
 type NotificationType = 'like' | 'comment' | 'repost';
 
