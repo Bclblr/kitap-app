@@ -60,6 +60,26 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
  async function as(id) { await db.exec(`reset role; set role authenticated; select set_config('request.jwt.claim.sub','${id}',false);`); }
  async function denied(sql) { await assert.rejects(db.query(sql)); }
  async function count(table) { return Number((await db.query(`select count(*) as n from ${table}`)).rows[0].n); }
+
+ await as(A);
+ const baselinePost=(await db.query(`insert into posts(user_id,username,text) values(auth.uid(),'reader_a','baseline post') returning id`)).rows[0].id;
+ const baselineReview=(await db.query(`insert into reviews(user_id,book_key,book_title,rating,text) values(auth.uid(),'baseline-book','Baseline Book',5,'baseline review') returning id`)).rows[0].id;
+ await db.query(`insert into post_likes(post_id,user_id) values('${baselinePost}',auth.uid())`);
+ await db.query(`insert into post_comments(post_id,user_id,text) values('${baselinePost}',auth.uid(),'comment')`);
+ await db.query(`insert into post_reposts(post_id,user_id) values('${baselinePost}',auth.uid())`);
+ await db.query(`insert into saved_posts(post_id,username,user_id) values('${baselinePost}','reader_a',auth.uid())`);
+ await db.query(`insert into likes(review_id,user_id) values('${baselineReview}',auth.uid())`);
+ await db.query(`insert into comments(review_id,user_id,text) values('${baselineReview}',auth.uid(),'review comment')`);
+ await db.query(`insert into reposts(review_id,user_id) values('${baselineReview}',auth.uid())`);
+ await db.query(`insert into follows(follower_id,following_id) values(auth.uid(),'${B}')`);
+ await db.query(`insert into notifications(user_id,actor_id,type,message) values('${B}',auth.uid(),'follow','followed')`);
+ await denied(`insert into posts(user_id,username,text) values('${B}','spoof','bad')`);
+ await denied(`insert into saved_posts(post_id,username,user_id) values('${baselinePost}','spoof','${B}')`);
+ await denied(`insert into follows(follower_id,following_id) values('${B}','${C}')`);
+ await as(B);
+ assert.equal(Number((await db.query(`select count(*) as n from notifications where user_id=auth.uid()`)).rows[0].n),1);
+ assert.equal(Number((await db.query(`select count(*) as n from saved_posts`)).rows[0].n),0);
+ console.log('PASS: clean-install core social CRUD policies');
  await as(A);
  const work=(await db.query("insert into works(author_id,title) values(auth.uid(),'Private draft') returning id")).rows[0].id;
  await db.query(`insert into work_chapters(work_id,title,content) values('${work}','Draft chapter','Private text')`);
