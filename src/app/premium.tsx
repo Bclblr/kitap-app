@@ -103,8 +103,28 @@ export default function PremiumScreen() {
     }
 
     setPurchasing(period);
+
+    let result: Awaited<ReturnType<typeof purchasePremiumPlan>>;
+
     try {
-      const result = await purchasePremiumPlan(period);
+      result = await purchasePremiumPlan(period);
+    } catch (error) {
+      const purchaseError = error as { userCancelled?: boolean };
+      if (purchaseError.userCancelled) {
+        setPurchasing(null);
+        return;
+      }
+
+      console.warn('Premium satın alma hatası:', error);
+      Alert.alert(
+        'Satın alma tamamlanamadı',
+        'Mağaza işlemi tamamlanamadı. Bağlantını ve mağaza hesabını kontrol edip tekrar deneyebilirsin.'
+      );
+      setPurchasing(null);
+      return;
+    }
+
+    try {
       const synced = await premium.reload();
 
       Alert.alert(
@@ -113,14 +133,11 @@ export default function PremiumScreen() {
           ? `${result.plan.priceString} tutarındaki ${period === 'monthly' ? 'aylık' : 'yıllık'} Premium planın etkinleştirildi.`
           : 'Satın alma mağaza tarafından tamamlandı. Premium erişimin sunucuyla eşitleniyor; kısa süre içinde otomatik olarak güncellenecek.'
       );
-    } catch (error) {
-      const purchaseError = error as { userCancelled?: boolean };
-      if (purchaseError.userCancelled) return;
-
-      console.warn('Premium satın alma hatası:', error);
+    } catch (syncError) {
+      console.warn('Premium satın alma sonrası senkronizasyon hatası:', syncError);
       Alert.alert(
-        'Satın alma tamamlanamadı',
-        'Mağaza işlemi tamamlanamadı. Bağlantını ve mağaza hesabını kontrol edip tekrar deneyebilirsin.'
+        'Satın alma tamamlandı',
+        'Mağaza işlemi başarıyla tamamlandı ancak Premium durumu şu anda sunucuyla yenilenemedi. Satın alımın kaybolmadı; bağlantı yeniden sağlandığında Premium durumu tekrar senkronize edilecek.'
       );
     } finally {
       setPurchasing(null);
@@ -139,30 +156,44 @@ export default function PremiumScreen() {
     }
 
     setRestoring(true);
-    try {
-      const restored = await restorePremiumPurchases();
-      await premium.reload();
 
-      if (restored.premiumEntitlementActive) {
-        Alert.alert(
-          'Satın alımlar geri yüklendi',
-          'RevenueCat Premium satın alımını doğruladı. Sunucu senkronizasyonu tamamlandığında Premium erişimin de güncellenecek.'
-        );
-      } else {
-        Alert.alert(
-          'Aktif Premium bulunamadı',
-          'Bu mağaza hesabında geri yüklenecek aktif Premium aboneliği bulunamadı.'
-        );
-      }
+    let restored: Awaited<ReturnType<typeof restorePremiumPurchases>>;
+
+    try {
+      restored = await restorePremiumPurchases();
     } catch (error) {
       console.warn('Premium geri yükleme hatası:', error);
       Alert.alert(
         'Geri yükleme tamamlanamadı',
         'Satın alımlar şu anda geri yüklenemedi. Bağlantını ve mağaza hesabını kontrol edip tekrar dene.'
       );
-    } finally {
       setRestoring(false);
+      return;
     }
+
+    let syncFailed = false;
+    try {
+      await premium.reload();
+    } catch (syncError) {
+      syncFailed = true;
+      console.warn('Premium geri yükleme sonrası senkronizasyon hatası:', syncError);
+    }
+
+    if (restored.premiumEntitlementActive) {
+      Alert.alert(
+        'Satın alımlar geri yüklendi',
+        syncFailed
+          ? 'Mağaza Premium satın alımını doğruladı ancak sunucu durumu şu anda yenilenemedi. Satın alımın kaybolmadı; bağlantı yeniden sağlandığında tekrar senkronize edilecek.'
+          : 'RevenueCat Premium satın alımını doğruladı ve Premium durumu yenilendi.'
+      );
+    } else {
+      Alert.alert(
+        'Aktif Premium bulunamadı',
+        'Bu mağaza hesabında geri yüklenecek aktif Premium aboneliği bulunamadı.'
+      );
+    }
+
+    setRestoring(false);
   }
 
   async function handleManageSubscription() {
