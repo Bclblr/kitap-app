@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   Share,
@@ -30,6 +31,9 @@ type DataSummary = {
   blockedUsers: number;
   readingBooks: number;
 };
+
+const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL?.trim() || null;
+const SUPPORT_URL = process.env.EXPO_PUBLIC_SUPPORT_URL?.trim() || null;
 
 const EMPTY_SUMMARY: DataSummary = {
   email: '',
@@ -231,6 +235,48 @@ export default function PrivacyDataScreen() {
             </View>
           </>
         )}
+
+        <Text style={styles.sectionTitle}>Gizlilik ve destek</Text>
+
+        {PRIVACY_POLICY_URL ? (
+          <Pressable
+            onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)}
+            style={styles.actionCard}
+            accessibilityRole="link"
+            accessibilityLabel="Gizlilik Politikasını aç"
+          >
+            <View style={styles.actionIcon}>
+              <Feather name="shield" size={20} color={colors.primary} />
+            </View>
+            <View style={styles.actionTextWrap}>
+              <Text style={styles.actionTitle}>Gizlilik Politikası</Text>
+              <Text style={styles.actionDescription}>
+                Verilerin nasıl işlendiğini ve gizlilik haklarını görüntüle.
+              </Text>
+            </View>
+            <Feather name="external-link" size={18} color={colors.textSecondary} />
+          </Pressable>
+        ) : null}
+
+        {SUPPORT_URL ? (
+          <Pressable
+            onPress={() => void Linking.openURL(SUPPORT_URL)}
+            style={styles.actionCard}
+            accessibilityRole="link"
+            accessibilityLabel="Destek sayfasını aç"
+          >
+            <View style={styles.actionIcon}>
+              <Feather name="help-circle" size={20} color={colors.primary} />
+            </View>
+            <View style={styles.actionTextWrap}>
+              <Text style={styles.actionTitle}>Destek</Text>
+              <Text style={styles.actionDescription}>
+                Yardım, iletişim ve hesap desteği sayfasını aç.
+              </Text>
+            </View>
+            <Feather name="external-link" size={18} color={colors.textSecondary} />
+          </Pressable>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Kontroller</Text>
 
