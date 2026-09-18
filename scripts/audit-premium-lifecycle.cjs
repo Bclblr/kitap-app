@@ -24,6 +24,9 @@ const webhookChecks = [
   ['TRANSFER olayı işlenmeli', webhook.includes("event.type === 'TRANSFER'")],
   ['SANDBOX / PRODUCTION environment işlenmeli', webhook.includes('validEnvironment')],
   ['Transfer kaynak/hedef kullanıcıları işlenmeli', webhook.includes('transferred_from') && webhook.includes('transferred_to')],
+  ['Subscriber alias alanları işlenmeli', webhook.includes('aliases') && webhook.includes('original_app_user_id')],
+  ['Alias çözümlemesi profil eşleşmesiyle sınırlandırılmalı', webhook.includes("from('profiles')") && webhook.includes('matchedUserIds')],
+  ['Birden fazla hesap eşleşmesi açıkça reddedilmeli', webhook.includes('ambiguous_subscriber_identity')],
 ];
 
 const providerChecks = [
