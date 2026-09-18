@@ -10,22 +10,39 @@ const LEGACY_ACCOUNT_KEYS = new Set([
   'notifications',
 ]);
 
+const GLOBAL_ACCOUNT_PREFIXES = [
+  'account:',
+  'offline:v1:',
+  'user:',
+  'work-editor:',
+];
+
+function isSupabaseAuthKey(key: string) {
+  return /^sb-[a-z0-9]+-auth-token(?:-code-verifier)?$/i.test(key);
+}
+
 export async function clearAccountLocalState(userId?: string | null) {
   const keys = await AsyncStorage.getAllKeys();
 
-  const accountPrefixes = userId
+  const scopedPrefixes = userId
     ? [
         `account:${userId}:`,
         `offline:v1:${userId}:`,
         `user:${userId}:`,
+        `work-editor:${userId}:`,
       ]
     : [];
 
-  const keysToRemove = keys.filter(
-    (key) =>
-      LEGACY_ACCOUNT_KEYS.has(key) ||
-      accountPrefixes.some((prefix) => key.startsWith(prefix))
-  );
+  const keysToRemove = keys.filter((key) => {
+    if (LEGACY_ACCOUNT_KEYS.has(key)) return true;
+    if (isSupabaseAuthKey(key)) return true;
+
+    if (userId) {
+      return scopedPrefixes.some((prefix) => key.startsWith(prefix));
+    }
+
+    return GLOBAL_ACCOUNT_PREFIXES.some((prefix) => key.startsWith(prefix));
+  });
 
   if (keysToRemove.length > 0) {
     await AsyncStorage.multiRemove(keysToRemove);
