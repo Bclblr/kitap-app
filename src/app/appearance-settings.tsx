@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { safeBack } from '@/lib/navigation';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { ThemeMode } from '@/theme/palette';
 
@@ -41,7 +42,7 @@ export default function AppearanceSettingsScreen() {
       <View style={[styles.header, { borderBottomColor: colors.border }]}> 
         <Pressable
           onPress={() => {
-            if (router.canGoBack()) router.back();
+            if (router.canGoBack()) safeBack(router, '/profile-settings');
             else router.replace('/profile-settings');
           }}
           style={[styles.backButton, { backgroundColor: colors.surface }]}
