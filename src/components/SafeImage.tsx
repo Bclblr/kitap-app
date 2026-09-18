@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Image as NativeImage, ImageProps, ImageSourcePropType, View } from 'react-native';
 import { permanentImageUrl } from '@/lib/image-policy';
-import { supabase } from '@/lib/supabase';
+import { getSignedImageUrl } from '@/lib/image-cache';
 
 const PRIVATE_STORAGE_BUCKETS = new Set([
   'work-covers',
@@ -89,26 +89,20 @@ function SafeImage({
 
     let alive = true;
 
-    void supabase.storage
-      .from(privateBucket)
-      .createSignedUrl(privatePath, 3600)
-      .then(({ data, error }) => {
-        if (!alive) return;
+    void getSignedImageUrl(privateBucket, privatePath).then((signedUrl) => {
+      if (!alive) return;
 
-        if (!error && data?.signedUrl) {
-          setSigned({
-            original: uri,
-            key: privateKey,
-            url: data.signedUrl,
-          });
-          setFailed(undefined);
-        } else {
-          setFailed(uri);
-        }
-      })
-      .catch(() => {
-        if (alive) setFailed(uri);
-      });
+      if (signedUrl) {
+        setSigned({
+          original: uri,
+          key: privateKey,
+          url: signedUrl,
+        });
+        setFailed(undefined);
+      } else {
+        setFailed(uri);
+      }
+    });
 
     return () => {
       alive = false;
@@ -140,8 +134,14 @@ function SafeImage({
 }
 
 export default Object.assign(SafeImage, {
-  prefetch: (uri: string) =>
-    permanentImageUrl(uri) && !parsePrivateStorageUrl(uri)
-      ? NativeImage.prefetch(uri)
-      : Promise.resolve(false),
+  prefetch: async (uri: string) => {
+    const safeUri = permanentImageUrl(uri);
+    if (!safeUri) return false;
+
+    const privateRef = parsePrivateStorageUrl(safeUri);
+    if (!privateRef) return NativeImage.prefetch(safeUri);
+
+    const signedUrl = await getSignedImageUrl(privateRef.bucket, privateRef.path);
+    return signedUrl ? NativeImage.prefetch(signedUrl) : false;
+  },
 });
