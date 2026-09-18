@@ -189,7 +189,7 @@ export default function BookScreen() {
       active = false;
       controller.abort();
     };
-  }, [key, author, title, routeDescription, routeCoverUrl, routeCover, routeCoverId, isbn, editionKey]);
+  }, [added, author, editionKey, isbn, key, routeCover, routeCoverId, routeCoverUrl, routeDescription, status, title]);
 
   async function addToShelf() {
     if (!book || !key) return;
