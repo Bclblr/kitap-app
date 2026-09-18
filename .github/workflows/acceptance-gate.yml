@@ -30,6 +30,8 @@ jobs:
         run: npm run test:security
       - name: Feed pagination regression
         run: npm run test:feed-pagination
+      - name: Offline queue concurrency regression
+        run: npm run test:async-key-lock
       - name: Admin analytics scope audit
         run: npm run audit:admin-analytics
       - name: Premium free-core audit
@@ -48,6 +50,8 @@ jobs:
         run: npm run audit:mobile-auth
       - name: Media upload preflight
         run: npm run audit:media-upload
+      - name: Signed image cache audit
+        run: npm run audit:signed-image-cache
       - name: Web bundle smoke build
         env:
           EXPO_PUBLIC_ADS_ENABLED: 'false'
