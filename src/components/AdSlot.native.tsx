@@ -16,8 +16,11 @@ export default function AdSlot() {
   const [sdk, setSdk] = useState<Ads | null>(null);
   const [width, setWidth] = useState(0);
   const [retrySignal, setRetrySignal] = useState(0);
+  const [bannerRetrySignal, setBannerRetrySignal] = useState(0);
   const retryCountRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bannerRetryCountRef = useRef(0);
+  const bannerRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enabled = process.env.EXPO_PUBLIC_ADS_ENABLED === 'true';
   const supported = Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
   const canShowAds = premium.ready && !premium.isPremium && enabled && supported;
@@ -34,10 +37,31 @@ export default function AdSlot() {
     }, delay);
   }
 
+  function scheduleBannerRetry() {
+    if (bannerRetryCountRef.current >= 3 || bannerRetryTimerRef.current) return;
+
+    bannerRetryCountRef.current += 1;
+    const delay = bannerRetryCountRef.current * 5000;
+    bannerRetryTimerRef.current = setTimeout(() => {
+      bannerRetryTimerRef.current = null;
+      setBannerRetrySignal((value) => value + 1);
+    }, delay);
+  }
+
   useEffect(() => {
     return subscribeAdsConsentChanged(() => {
       retryCountRef.current = 0;
+      bannerRetryCountRef.current = 0;
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+      if (bannerRetryTimerRef.current) {
+        clearTimeout(bannerRetryTimerRef.current);
+        bannerRetryTimerRef.current = null;
+      }
       setSdk(null);
+      setBannerRetrySignal((value) => value + 1);
       setRetrySignal((value) => value + 1);
     });
   }, []);
@@ -67,6 +91,10 @@ export default function AdSlot() {
         clearTimeout(retryTimerRef.current);
         retryTimerRef.current = null;
       }
+      if (bannerRetryTimerRef.current) {
+        clearTimeout(bannerRetryTimerRef.current);
+        bannerRetryTimerRef.current = null;
+      }
     };
   }, [canShowAds, retrySignal]);
 
@@ -94,15 +122,20 @@ export default function AdSlot() {
       {__DEV__ ? <Text style={{ color: '#999', fontSize: 12 }}>Test reklamı</Text> : null}
       {width >= 250 ? (
         <Banner
-          key={width}
+          key={`${width}-${bannerRetrySignal}`}
           width={Math.floor(width)}
           maxHeight={120}
           unitId={unitId}
           size={sdk.BannerAdSize.INLINE_ADAPTIVE_BANNER}
+          onAdLoaded={() => {
+            bannerRetryCountRef.current = 0;
+            if (bannerRetryTimerRef.current) {
+              clearTimeout(bannerRetryTimerRef.current);
+              bannerRetryTimerRef.current = null;
+            }
+          }}
           onAdFailedToLoad={() => {
-            setSdk(null);
-            resetAdsInitialization();
-            scheduleRetry();
+            scheduleBannerRetry();
           }}
         />
       ) : null}
