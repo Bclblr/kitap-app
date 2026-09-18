@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import AppLoadingState from '@/components/AppLoadingState';
 import Image from '@/components/SafeImage';
 import { useScreenRefresh, ScreenRefreshSource } from '@/hooks/use-screen-refresh';
@@ -157,7 +158,7 @@ export default function EventScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <Text style={styles.errorText}>{errorMessage ?? 'Etkinlik bulunamadı.'}</Text>
-          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Geri dön">
+          <Pressable onPress={() => safeBack(router, '/explore')} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Geri dön">
             <Text style={styles.backButtonText}>Geri dön</Text>
           </Pressable>
         </View>
@@ -184,7 +185,7 @@ export default function EventScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <Pressable onPress={() => router.back()} style={styles.topBack} accessibilityRole="button" accessibilityLabel="Geri dön">
+        <Pressable onPress={() => safeBack(router, '/explore')} style={styles.topBack} accessibilityRole="button" accessibilityLabel="Geri dön">
           <Text style={[styles.topBackText, { color: colors.primary }]}>‹ Geri</Text>
         </Pressable>
 
