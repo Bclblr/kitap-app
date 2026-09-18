@@ -57,7 +57,15 @@
       "expo-image",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kitap, kitap kapaklarını ve paylaşım görsellerini çekebilmen için kamerana erişim ister.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
