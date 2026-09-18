@@ -31,6 +31,7 @@ import { Action, useReaderStyles } from '@/components/ReaderUI';
 import { useReaderSocial } from '@/hooks/use-reader-social';
 import { supabase } from '@/lib/supabase';
 import { existingBookCover, loadBookCover, openLibraryWorkUrl } from '@/lib/open-library-cover';
+import type { BookCoverData } from '@/lib/open-library-cover';
 import { normalizeQuoteCardTemplate, quoteCardPalette } from '@/lib/quote-card';
 import type { FeedComment as Comment, FeedPost as Post, FeedReview as Review } from '@/features/feed/model';
 import { loadFeedProfiles } from '@/features/feed/profiles';
