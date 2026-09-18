@@ -26,7 +26,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (event === 'SIGNED_OUT' && previousUserId) {
-        void clearAccountLocalState(previousUserId).catch((error) => {
+        void clearAccountLocalState(previousUserId, {
+          includeLegacyKeys: false,
+          includeAuthSessionKeys: false,
+        }).catch((error) => {
           console.warn('Hesap yerel verileri temizlenemedi:', error);
         });
       }
