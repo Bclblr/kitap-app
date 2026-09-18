@@ -17,6 +17,8 @@ export type HomeStory = {
   text: string | null;
   created_at: string;
   expires_at: string;
+  allow_likes?: boolean;
+  allow_replies?: boolean;
 };
 
 export type HomeStoryGroup = {
@@ -304,6 +306,8 @@ export function HomeStoryViewer({
               key={`actions-${selectedStory.id}`}
               storyId={selectedStory.id}
               ownerId={selectedStory.user_id}
+              allowLikes={selectedStory.allow_likes !== false}
+              allowReplies={selectedStory.allow_replies !== false}
               onClose={onClose}
               onDeleted={() => onDeleted(selectedStory.id)}
             />
