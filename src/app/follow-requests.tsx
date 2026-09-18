@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { supabase } from '@/lib/supabase';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -109,7 +110,7 @@ export default function FollowRequestsScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Geri dön">
+          <Pressable onPress={() => safeBack(router, '/profile')} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Geri dön">
             <Text style={styles.backText}>‹</Text>
           </Pressable>
           <Text style={styles.title}>Takip İstekleri</Text>
