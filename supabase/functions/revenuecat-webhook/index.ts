@@ -1,4 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  isRevenueCatAppUuid,
+  resolveMatchedTransferUsers,
+  transferUuidCandidates,
+} from './identity.ts';
 
 type RevenueCatEnvironment = 'SANDBOX' | 'PRODUCTION';
 
@@ -41,9 +46,7 @@ function toIso(ms: number | null | undefined) {
   return new Date(ms).toISOString();
 }
 
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
+const isUuid = isRevenueCatAppUuid;
 
 function revenueCatUserCandidates(event: NonNullable<RevenueCatWebhook['event']>) {
   return [
@@ -173,22 +176,12 @@ Deno.serve(async (request) => {
       return jsonResponse(400, { error: 'invalid_environment' });
     }
 
-    const transferredFromCandidates = [
-      ...new Set(
-        (event.transferred_from ?? [])
-          .filter((value): value is string => typeof value === 'string')
-          .map((value) => value.trim())
-          .filter(isUuid)
-      ),
-    ];
-    const transferredToCandidates = [
-      ...new Set(
-        (event.transferred_to ?? [])
-          .filter((value): value is string => typeof value === 'string')
-          .map((value) => value.trim())
-          .filter(isUuid)
-      ),
-    ];
+    const transferredFromCandidates = transferUuidCandidates(
+      event.transferred_from
+    );
+    const transferredToCandidates = transferUuidCandidates(
+      event.transferred_to
+    );
 
     if (
       transferredFromCandidates.length === 0 ||
@@ -217,34 +210,19 @@ Deno.serve(async (request) => {
       return jsonResponse(500, { error: 'transfer_identity_lookup_failed' });
     }
 
-    const transferredFrom = [
-      ...new Set((sourceProfiles.data ?? []).map((profile) => profile.id)),
-    ];
-    const transferredTo = [
-      ...new Set((destinationProfiles.data ?? []).map((profile) => profile.id)),
-    ];
+    const resolvedTransfer = resolveMatchedTransferUsers(
+      (sourceProfiles.data ?? []).map((profile) => profile.id),
+      (destinationProfiles.data ?? []).map((profile) => profile.id)
+    );
 
-    if (transferredFrom.length === 0) {
-      return jsonResponse(409, { error: 'unknown_transfer_source' });
-    }
-
-    if (transferredTo.length !== 1) {
-      return jsonResponse(409, {
-        error:
-          transferredTo.length > 1
-            ? 'ambiguous_transfer_destination'
-            : 'unknown_transfer_destination',
-      });
-    }
-
-    if (transferredFrom.includes(transferredTo[0])) {
-      return jsonResponse(409, { error: 'transfer_destination_is_source' });
+    if (!resolvedTransfer.ok) {
+      return jsonResponse(409, { error: resolvedTransfer.error });
     }
 
     const { data, error } = await admin.rpc('process_revenuecat_transfer_event', {
       p_event_id: event.id,
-      p_transferred_from: transferredFrom,
-      p_transferred_to: transferredTo,
+      p_transferred_from: resolvedTransfer.sourceUserIds,
+      p_transferred_to: [resolvedTransfer.destinationUserId],
       p_provider_event_at: providerEventAt,
       p_environment: validEnvironment(event.environment) ? event.environment : null,
     });
