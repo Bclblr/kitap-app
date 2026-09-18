@@ -154,7 +154,7 @@ export default function ProfileSettingsScreen() {
       return null;
     }
 
-    clearSignedImageUrlCache('avatars', filePath);
+    clearSignedImageUrlCache(user.id, 'avatars', filePath);
     const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
     return permanentImageUrl(`${data.publicUrl}?v=${Date.now()}`);
   }
