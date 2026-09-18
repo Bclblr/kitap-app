@@ -16,6 +16,7 @@ function read(relative) {
 const webhook = read('supabase/functions/revenuecat-webhook/index.ts');
 const provider = read('src/providers/PremiumProvider.tsx');
 const migration = read('supabase/migrations/202609180004_revenuecat_lifecycle_hardening.sql');
+const transferMigration = read('supabase/migrations/20260918224200_revenuecat_transfer_single_target.sql');
 
 const webhookChecks = [
   ['SUBSCRIPTION_PAUSED erişimi expiration öncesi korunmalı', webhook.includes("type === 'SUBSCRIPTION_PAUSED'")],
@@ -27,6 +28,8 @@ const webhookChecks = [
   ['Subscriber alias alanları işlenmeli', webhook.includes('aliases') && webhook.includes('original_app_user_id')],
   ['Alias çözümlemesi profil eşleşmesiyle sınırlandırılmalı', webhook.includes("from('profiles')") && webhook.includes('matchedUserIds')],
   ['Birden fazla hesap eşleşmesi açıkça reddedilmeli', webhook.includes('ambiguous_subscriber_identity')],
+  ['TRANSFER anonymous alias UUID filtresinde güvenle yok sayılmalı', webhook.includes('transferUuidCandidates')],
+  ['TRANSFER hedefi tek gerçek profile çözülmeli', webhook.includes('resolveMatchedTransferUsers') && webhook.includes('ambiguous_transfer_destination')],
 ];
 
 const providerChecks = [
@@ -41,6 +44,7 @@ const migrationChecks = [
   ['TRANSFER RPC bulunmalı', migration.includes('process_revenuecat_transfer_event')],
   ['Premium tablo Realtime publication içinde olmalı', migration.includes('supabase_realtime') && migration.includes('premium_entitlements')],
   ['Webhook event environment metadata saklanmalı', migration.includes('revenuecat_webhook_events') && migration.includes('environment')],
+  ['Transfer RPC tek destination zorunluluğu uygulamalı', transferMigration.includes('exactly one user') && transferMigration.includes('v_distinct_destinations')],
 ];
 
 for (const [label, ok] of [...webhookChecks, ...providerChecks, ...migrationChecks]) {
