@@ -19,6 +19,7 @@ import StoryTransition from '@/components/StoryTransition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReadersList from '@/components/ReadersList';
 import ReviewSpoilerText from '@/components/ReviewSpoilerText';
+import QuoteMetadata from '@/components/QuoteMetadata';
 import RetryNotice from '@/components/RetryNotice';
 import ThemePicker from '@/components/ThemePicker';
 import { requirePermanentImage } from '@/lib/image-policy';
@@ -98,6 +99,10 @@ type Post = BookCoverData & {
   isReview?: boolean;
   isQuote?: boolean;
   card_template_key?: QuoteCardTemplate;
+  quoteTitle?: string | null;
+  quoteTopic?: string | null;
+  quotePageNumber?: number | null;
+  quoteNote?: string | null;
   reviewTitle?: string | null;
   reviewTopic?: string | null;
   reviewTags?: string[];
@@ -577,7 +582,7 @@ export default function HomeScreen() {
           .limit(30),
         supabase
           .from('quotes')
-          .select('id,user_id,book_key,book_title,text,created_at')
+          .select('id,user_id,book_key,book_title,text,title,topic,page_number,note,card_template_key,created_at')
           .order('created_at', { ascending: false })
           .limit(30),
       ]);
@@ -634,6 +639,10 @@ export default function HomeScreen() {
           book_title: quote.book_title,
           rating: 0,
           created_at: quote.created_at,
+          quoteTitle: quote.title ?? null,
+          quoteTopic: quote.topic ?? null,
+          quotePageNumber: Number.isInteger(quote.page_number) ? quote.page_number : null,
+          quoteNote: quote.note ?? null,
           card_template_key: normalizeQuoteCardTemplate(quote.card_template_key),
           isQuote: true,
         }));
@@ -1415,7 +1424,17 @@ export default function HomeScreen() {
                         textStyle={styles.postText}
                       />
                     ) : (
-                      <HashtagText text={post.isQuote ? `“${post.text}”` : post.text} style={[styles.postText, post.isQuote && styles.quotePostText, quoteCard ? { color: quoteCard.text } : null]} />
+                      <>
+                        <HashtagText text={post.isQuote ? `“${post.text}”` : post.text} style={[styles.postText, post.isQuote && styles.quotePostText, quoteCard ? { color: quoteCard.text } : null]} />
+                        {post.isQuote ? (
+                          <QuoteMetadata
+                            title={post.quoteTitle}
+                            topic={post.quoteTopic}
+                            pageNumber={post.quotePageNumber}
+                            note={post.quoteNote}
+                          />
+                        ) : null}
+                      </>
                     )
                   ) : null}
                   {post.book_title && (
