@@ -25,6 +25,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const canSubmit = email.trim().length > 0 && password.length > 0;
@@ -177,9 +178,21 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               placeholder="Şifren"
               placeholderTextColor="#686873"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               style={styles.input}
             />
+            <Pressable
+              onPress={() => setShowPassword((current) => !current)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+            >
+              <Feather
+                name={showPassword ? 'eye-off' : 'eye'}
+                size={20}
+                color="#777783"
+              />
+            </Pressable>
           </View>
 
           <View style={styles.forgotRow}>
@@ -197,7 +210,7 @@ export default function LoginScreen() {
               pressed && !loading && canSubmit && styles.buttonPressed,
             ]}
           >
-            <Text style={[styles.buttonText, !canSubmit && styles.disabledButtonText]}>
+            <Text style={[styles.buttonText, (loading || !canSubmit) && styles.disabledButtonText]}>
               {loading ? 'Giriş yapılıyor...' : 'E-posta ile Giriş Yap'}
             </Text>
           </Pressable>
