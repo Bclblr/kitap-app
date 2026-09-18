@@ -6,6 +6,8 @@ import { useAppTheme } from '@/providers/ThemeProvider';
 
 type NetworkContextValue = {
   isOnline: boolean;
+  networkAvailable: boolean | null;
+  backendReachable: boolean;
   checking: boolean;
   retrySignal: number;
   checkNow: () => Promise<boolean>;
@@ -13,6 +15,8 @@ type NetworkContextValue = {
 
 const NetworkContext = createContext<NetworkContextValue>({
   isOnline: true,
+  networkAvailable: null,
+  backendReachable: true,
   checking: false,
   retrySignal: 0,
   checkNow: async () => true,
@@ -20,6 +24,11 @@ const NetworkContext = createContext<NetworkContextValue>({
 
 const CHECK_INTERVAL_MS = 30_000;
 const CHECK_TIMEOUT_MS = 6_000;
+
+function browserNetworkAvailability(): boolean | null {
+  if (Platform.OS !== 'web' || typeof navigator === 'undefined') return null;
+  return navigator.onLine;
+}
 
 async function canReachBackend() {
   const controller = new AbortController();
@@ -40,25 +49,40 @@ async function canReachBackend() {
 }
 
 export function NetworkProvider({ children }: PropsWithChildren) {
-  const [isOnline, setIsOnline] = useState(true);
+  const [networkAvailable, setNetworkAvailable] = useState<boolean | null>(
+    browserNetworkAvailability()
+  );
+  const [backendReachable, setBackendReachable] = useState(true);
   const [checking, setChecking] = useState(false);
   const [retrySignal, setRetrySignal] = useState(0);
-  const wasOfflineRef = useRef(false);
+  const backendWasUnavailableRef = useRef(false);
 
   const checkNow = useCallback(async () => {
     setChecking(true);
-    const nextOnline = await canReachBackend();
-    const reconnected = nextOnline && wasOfflineRef.current;
 
-    wasOfflineRef.current = !nextOnline;
-    setIsOnline(nextOnline);
+    const transportAvailable = browserNetworkAvailability();
+    if (transportAvailable !== null) setNetworkAvailable(transportAvailable);
+
+    if (transportAvailable === false) {
+      backendWasUnavailableRef.current = true;
+      setBackendReachable(false);
+      setChecking(false);
+      return false;
+    }
+
+    const nextBackendReachable = await canReachBackend();
+    const reconnected =
+      nextBackendReachable && backendWasUnavailableRef.current;
+
+    backendWasUnavailableRef.current = !nextBackendReachable;
+    setBackendReachable(nextBackendReachable);
     setChecking(false);
 
     if (reconnected) {
       setRetrySignal((value) => value + 1);
     }
 
-    return nextOnline;
+    return nextBackendReachable;
   }, []);
 
   useEffect(() => {
@@ -74,10 +98,15 @@ export function NetworkProvider({ children }: PropsWithChildren) {
           if (state === 'active') void checkNow();
         });
 
-    const handleOnline = () => void checkNow();
+    const handleOnline = () => {
+      setNetworkAvailable(true);
+      void checkNow();
+    };
+
     const handleOffline = () => {
-      wasOfflineRef.current = true;
-      setIsOnline(false);
+      setNetworkAvailable(false);
+      backendWasUnavailableRef.current = true;
+      setBackendReachable(false);
     };
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -97,8 +126,15 @@ export function NetworkProvider({ children }: PropsWithChildren) {
   }, [checkNow]);
 
   const value = useMemo(
-    () => ({ isOnline, checking, retrySignal, checkNow }),
-    [isOnline, checking, retrySignal, checkNow]
+    () => ({
+      isOnline: backendReachable,
+      networkAvailable,
+      backendReachable,
+      checking,
+      retrySignal,
+      checkNow,
+    }),
+    [networkAvailable, backendReachable, checking, retrySignal, checkNow]
   );
 
   return <NetworkContext.Provider value={value}>{children}</NetworkContext.Provider>;
@@ -110,24 +146,40 @@ export function useNetworkStatus() {
 
 export function NetworkStatusBanner() {
   const { colors } = useAppTheme();
-  const { isOnline, checking, checkNow } = useNetworkStatus();
+  const {
+    networkAvailable,
+    backendReachable,
+    checking,
+    checkNow,
+  } = useNetworkStatus();
 
-  if (isOnline) return null;
+  if (backendReachable) return null;
+
+  const message =
+    networkAvailable === false
+      ? 'İnternet bağlantısı yok. Açık içerikler görüntülenebilir; yeni işlemler bağlantı gelince yapılabilir.'
+      : 'Sunucuya şu anda ulaşılamıyor. İnternet bağlantın çalışıyor olabilir; tekrar denediğinde uygulama sunucu durumunu yeniden kontrol eder.';
 
   return (
     <View
       accessibilityRole="alert"
       style={[styles.banner, { backgroundColor: colors.surface, borderColor: colors.border }]}
     >
-      <Text style={[styles.message, { color: colors.text }]}>Bağlantı yok. Açık içerikler görüntülenebilir; yeni işlemler bağlantı gelince yapılabilir.</Text>
+      <Text style={[styles.message, { color: colors.text }]}>{message}</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Bağlantıyı yeniden kontrol et"
         disabled={checking}
         onPress={() => void checkNow()}
-        style={({ pressed }) => [styles.button, { borderColor: colors.primary }, (pressed || checking) && styles.pressed]}
+        style={({ pressed }) => [
+          styles.button,
+          { borderColor: colors.primary },
+          (pressed || checking) && styles.pressed,
+        ]}
       >
-        <Text style={[styles.buttonText, { color: colors.primary }]}>{checking ? 'Kontrol ediliyor…' : 'Tekrar Dene'}</Text>
+        <Text style={[styles.buttonText, { color: colors.primary }]}>
+          {checking ? 'Kontrol ediliyor…' : 'Tekrar Dene'}
+        </Text>
       </Pressable>
     </View>
   );
