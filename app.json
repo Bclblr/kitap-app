@@ -44,7 +44,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Kitap, profil ve paylaşım görsellerini seçebilmen için fotoğraflarına erişim gerekiyor.",
-          "cameraPermission": false,
+          "cameraPermission": "Kitap, kitap kapaklarını ve paylaşım görsellerini çekebilmen için kamerana erişim ister.",
           "microphonePermission": false
         }
       ],
