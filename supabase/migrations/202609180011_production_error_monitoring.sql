@@ -3,7 +3,9 @@ begin;
 create index if not exists client_error_events_kind_created_idx
   on public.client_error_events(error_kind, created_at desc);
 
-create or replace function public.admin_client_error_summary(
+drop function if exists public.admin_client_error_summary(integer);
+
+create function public.admin_client_error_summary(
   p_hours integer default 24
 )
 returns table (
