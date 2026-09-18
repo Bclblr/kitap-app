@@ -11,18 +11,41 @@ type CacheEntry = {
 const signedUrlCache = new Map<string, CacheEntry>();
 const signedUrlRequests = new Map<string, Promise<string | null>>();
 
-function cacheKey(bucket: string, path: string) {
-  return `${bucket}/${path}`;
+function cacheKey(userId: string, bucket: string, path: string) {
+  return `${userId}/${bucket}/${path}`;
 }
 
-export function clearSignedImageUrlCache(bucket?: string, path?: string) {
-  if (!bucket) {
+async function currentUserId() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return session?.user?.id ?? null;
+}
+
+export function clearSignedImageUrlCache(userId?: string, bucket?: string, path?: string) {
+  if (!userId) {
     signedUrlCache.clear();
     signedUrlRequests.clear();
     return;
   }
 
-  const prefix = path ? cacheKey(bucket, path) : `${bucket}/`;
+  const userPrefix = `${userId}/`;
+
+  if (!bucket) {
+    for (const key of signedUrlCache.keys()) {
+      if (key.startsWith(userPrefix)) signedUrlCache.delete(key);
+    }
+    for (const key of signedUrlRequests.keys()) {
+      if (key.startsWith(userPrefix)) signedUrlRequests.delete(key);
+    }
+    return;
+  }
+
+  const prefix = path
+    ? cacheKey(userId, bucket, path)
+    : `${userId}/${bucket}/`;
+
   for (const key of signedUrlCache.keys()) {
     if (path ? key === prefix : key.startsWith(prefix)) signedUrlCache.delete(key);
   }
@@ -31,8 +54,14 @@ export function clearSignedImageUrlCache(bucket?: string, path?: string) {
   }
 }
 
-export async function getSignedImageUrl(bucket: string, path: string): Promise<string | null> {
-  const key = cacheKey(bucket, path);
+export async function getSignedImageUrl(
+  bucket: string,
+  path: string
+): Promise<string | null> {
+  const userId = await currentUserId();
+  if (!userId) return null;
+
+  const key = cacheKey(userId, bucket, path);
   const cached = signedUrlCache.get(key);
 
   if (cached && cached.expiresAt > Date.now()) {
@@ -47,13 +76,18 @@ export async function getSignedImageUrl(bucket: string, path: string): Promise<s
   const request = supabase.storage
     .from(bucket)
     .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
-    .then(({ data, error }) => {
+    .then(async ({ data, error }) => {
       if (error || !data?.signedUrl) return null;
+
+      // Do not cache a URL if the account changed while the request was in flight.
+      const activeUserId = await currentUserId();
+      if (activeUserId !== userId) return null;
 
       signedUrlCache.set(key, {
         url: data.signedUrl,
         expiresAt: Date.now() + SIGNED_URL_CACHE_MS,
       });
+
       return data.signedUrl;
     })
     .catch(() => null)
