@@ -139,7 +139,7 @@ export default function AdminEventsScreen() {
         p_priority: next.priority,
         p_hidden: next.hidden,
         p_cancelled: next.cancelled,
-        p_note: next.note,
+        ...(next.note ? { p_note: next.note } : {}),
       });
       if (error) throw error;
 
