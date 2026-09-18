@@ -603,6 +603,11 @@ export default function ProfileScreen() {
             item.text || ''
           ),
 
+          title: item.title ? String(item.title) : null,
+          topic: item.topic ? String(item.topic) : null,
+          pageNumber: Number.isInteger(item.page_number) ? item.page_number : null,
+          note: item.note ? String(item.note) : null,
+
           createdAt:
             item.created_at ||
             new Date().toISOString(),
@@ -994,7 +999,7 @@ export default function ProfileScreen() {
         supabase
           .from('reviews')
           .select(
-            'id, user_id, book_key, book_title, rating, text, created_at'
+            'id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at'
           )
           .eq(
             'user_id',
@@ -1158,6 +1163,11 @@ export default function ProfileScreen() {
                 item.text ||
                   ''
               ),
+
+            title: item.title ? String(item.title) : null,
+            topic: item.topic ? String(item.topic) : null,
+            pageNumber: Number.isInteger(item.page_number) ? item.page_number : null,
+            note: item.note ? String(item.note) : null,
 
             createdAt:
               item.created_at ||
