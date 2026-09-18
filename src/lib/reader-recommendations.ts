@@ -115,7 +115,7 @@ export async function loadSuggestedReaders(userId: string, following: string[]) 
     ...(sharedGroups.data ?? []),
     ...(recent.data ?? []),
   ]) {
-    candidateIds.add(row.user_id);
+    if (row.user_id) candidateIds.add(row.user_id);
   }
   for (const row of fallback.data ?? []) candidateIds.add(row.id);
 
@@ -170,7 +170,7 @@ export async function loadSuggestedReaders(userId: string, following: string[]) 
       ).size,
       sharedHashtag: [...readerTags].filter((tag) => myTags.has(tag)).length,
       recentPost: activity.some(
-        (post) => Date.now() - Date.parse(post.created_at) < 7 * 86400000
+        (post) => !!post.created_at && Date.now() - Date.parse(post.created_at) < 7 * 86400000
       )
         ? 1
         : 0,
