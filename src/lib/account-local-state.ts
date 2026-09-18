@@ -21,8 +21,20 @@ function isSupabaseAuthKey(key: string) {
   return /^sb-[a-z0-9]+-auth-token(?:-code-verifier)?$/i.test(key);
 }
 
-export async function clearAccountLocalState(userId?: string | null) {
+export type ClearAccountLocalStateOptions = {
+  includeLegacyKeys?: boolean;
+  includeAuthSessionKeys?: boolean;
+};
+
+export async function clearAccountLocalState(
+  userId?: string | null,
+  options: ClearAccountLocalStateOptions = {}
+) {
   const keys = await AsyncStorage.getAllKeys();
+
+  const includeLegacyKeys = options.includeLegacyKeys ?? true;
+  const includeAuthSessionKeys =
+    options.includeAuthSessionKeys ?? !userId;
 
   const scopedPrefixes = userId
     ? [
@@ -34,8 +46,8 @@ export async function clearAccountLocalState(userId?: string | null) {
     : [];
 
   const keysToRemove = keys.filter((key) => {
-    if (LEGACY_ACCOUNT_KEYS.has(key)) return true;
-    if (isSupabaseAuthKey(key)) return true;
+    if (includeLegacyKeys && LEGACY_ACCOUNT_KEYS.has(key)) return true;
+    if (includeAuthSessionKeys && isSupabaseAuthKey(key)) return true;
 
     if (userId) {
       return scopedPrefixes.some((prefix) => key.startsWith(prefix));
