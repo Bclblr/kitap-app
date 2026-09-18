@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import PremiumBadge from '@/components/PremiumBadge';
 import {
   loadCurrentPremiumPlan,
@@ -229,7 +230,7 @@ export default function PremiumScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Geri dön"
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile-settings'))}
+            onPress={() => safeBack(router, '/profile-settings')}
             style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <Feather name="chevron-left" size={22} color={colors.text} />
