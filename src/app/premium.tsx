@@ -1,11 +1,12 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PremiumBadge from '@/components/PremiumBadge';
 import {
   loadCurrentPremiumPlan,
+  loadSubscriptionManagementUrl,
   purchasePremiumPlan,
   restorePremiumPurchases,
   RevenueCatStorePlan,
@@ -41,6 +42,7 @@ export default function PremiumScreen() {
   const [monthlyPlan, setMonthlyPlan] = useState<RevenueCatStorePlan | null>(null);
   const [annualPlan, setAnnualPlan] = useState<RevenueCatStorePlan | null>(null);
   const [plansLoading, setPlansLoading] = useState(false);
+  const [plansError, setPlansError] = useState(false);
   const [purchasing, setPurchasing] = useState<'monthly' | 'annual' | null>(null);
   const [restoring, setRestoring] = useState(false);
 
@@ -67,12 +69,14 @@ export default function PremiumScreen() {
         if (!cancelled) {
           setMonthlyPlan(monthly);
           setAnnualPlan(annual);
+          setPlansError(!monthly || !annual);
         }
       } catch (error) {
         console.warn('Premium mağaza planları alınamadı:', error);
         if (!cancelled) {
           setMonthlyPlan(null);
           setAnnualPlan(null);
+          setPlansError(true);
         }
       } finally {
         if (!cancelled) setPlansLoading(false);
@@ -100,20 +104,22 @@ export default function PremiumScreen() {
     setPurchasing(period);
     try {
       const result = await purchasePremiumPlan(period);
-      await premium.reload();
+      const synced = await premium.reload();
 
       Alert.alert(
         'Satın alma tamamlandı',
-        `${result.plan.priceString} tutarındaki ${period === 'monthly' ? 'aylık' : 'yıllık'} Premium satın alma RevenueCat tarafından doğrulandı. Premium erişimi sunucu senkronizasyonu tamamlandığında etkinleşecek.`
+        synced.isPremium
+          ? `${result.plan.priceString} tutarındaki ${period === 'monthly' ? 'aylık' : 'yıllık'} Premium planın etkinleştirildi.`
+          : 'Satın alma mağaza tarafından tamamlandı. Premium erişimin sunucuyla eşitleniyor; kısa süre içinde otomatik olarak güncellenecek.'
       );
     } catch (error) {
-      const purchaseError = error as { userCancelled?: boolean; message?: string };
+      const purchaseError = error as { userCancelled?: boolean };
       if (purchaseError.userCancelled) return;
 
       console.warn('Premium satın alma hatası:', error);
       Alert.alert(
         'Satın alma tamamlanamadı',
-        purchaseError.message || 'Mağaza işlemi sırasında bir hata oluştu. Lütfen tekrar dene.'
+        'Mağaza işlemi tamamlanamadı. Bağlantını ve mağaza hesabını kontrol edip tekrar deneyebilirsin.'
       );
     } finally {
       setPurchasing(null);
@@ -148,22 +154,52 @@ export default function PremiumScreen() {
         );
       }
     } catch (error) {
-      const restoreError = error as { message?: string };
       console.warn('Premium geri yükleme hatası:', error);
       Alert.alert(
         'Geri yükleme tamamlanamadı',
-        restoreError.message || 'Satın alımlar geri yüklenirken bir hata oluştu. Lütfen tekrar dene.'
+        'Satın alımlar şu anda geri yüklenemedi. Bağlantını ve mağaza hesabını kontrol edip tekrar dene.'
       );
     } finally {
       setRestoring(false);
     }
   }
 
-  function manageNotReady() {
-    Alert.alert(
-      'Aboneliği yönet',
-      'Mağaza abonelik yönetimi RevenueCat ve Apple/Google ürünleri bağlandıktan sonra etkinleşecek.'
-    );
+  async function handleManageSubscription() {
+    if (!premium.revenueCat.configured) {
+      Alert.alert(
+        'Abonelik yönetimi kullanılamıyor',
+        'Bu cihazda mağaza abonelik bilgisi henüz hazır değil.'
+      );
+      return;
+    }
+
+    try {
+      const managementUrl = await loadSubscriptionManagementUrl();
+
+      if (!managementUrl) {
+        Alert.alert(
+          'Aktif mağaza aboneliği bulunamadı',
+          premium.hasAdminPremium
+            ? 'Bu hesapta admin tarafından verilen Premium erişimi bulunuyor; mağazada yönetilecek aktif bir abonelik yok.'
+            : 'Apple App Store veya Google Play üzerinde yönetilecek aktif bir abonelik bulunamadı.'
+        );
+        return;
+      }
+
+      const supported = await Linking.canOpenURL(managementUrl);
+      if (!supported) {
+        Alert.alert('Abonelik yönetimi açılamadı', 'Mağaza abonelik yönetim sayfası bu cihazda açılamadı.');
+        return;
+      }
+
+      await Linking.openURL(managementUrl);
+    } catch (error) {
+      console.warn('Abonelik yönetimi açılamadı:', error);
+      Alert.alert(
+        'Abonelik yönetimi açılamadı',
+        'Mağaza abonelik yönetim sayfası şu anda açılamadı. Daha sonra tekrar deneyebilirsin.'
+      );
+    }
   }
 
   function openPremiumFeature(path: '/premium-reading-stats' | '/premium-year-report' | '/premium-reading-goals' | '/premium-profile-customization' | '/premium-shelf-customization' | '/premium-quote-cards', message: string) {
@@ -351,6 +387,15 @@ export default function PremiumScreen() {
         </Pressable>
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Planını seç</Text>
+        {plansError && !plansLoading ? (
+          <View style={[styles.planErrorCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Feather name="alert-circle" size={18} color={colors.primary} />
+            <Text style={[styles.planErrorText, { color: colors.textSecondary }]}>
+              Mağaza planları şu anda yüklenemedi. Uygulamayı yeniden açtığında tekrar denenecek.
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.planGrid}>
           <View style={[styles.planCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
             <Text style={[styles.planName, { color: colors.text }]}>Aylık</Text>
@@ -413,7 +458,7 @@ export default function PremiumScreen() {
               {restoring ? 'Geri yükleniyor…' : 'Satın alımları geri yükle'}
             </Text>
           </Pressable>
-          <Pressable onPress={manageNotReady} style={[styles.secondaryButton, { borderColor: colors.border }]}> 
+          <Pressable onPress={() => void handleManageSubscription()} style={[styles.secondaryButton, { borderColor: colors.border }]}> 
             <Feather name="settings" size={17} color={colors.text} />
             <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Aboneliği yönet</Text>
           </Pressable>
@@ -455,6 +500,8 @@ const styles = StyleSheet.create({
   featureActionTitle: { fontSize: 14, fontWeight: '900' },
   featureActionBody: { fontSize: 12, lineHeight: 17 },
   planGrid: { gap: 12 },
+  planErrorCard: { marginBottom: 12, borderWidth: 1, borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  planErrorText: { flex: 1, fontSize: 12, lineHeight: 17 },
   planCard: { borderWidth: 1, borderRadius: 20, padding: 17, gap: 9, overflow: 'hidden' },
   highlightedPlan: { borderWidth: 2 },
   recommendedPill: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
