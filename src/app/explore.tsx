@@ -312,15 +312,21 @@ export default function ExploreScreen() {
   }, []);
 
   useEffect(() => {
-    void loadPopularBooks();
-    void loadUpcomingEvents();
-    void loadDiscoverCommunities();
-    void loadTrendingHashtags();
+    const timer = setTimeout(() => {
+      void loadPopularBooks();
+      void loadUpcomingEvents();
+      void loadDiscoverCommunities();
+      void loadTrendingHashtags();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadPopularBooks, loadUpcomingEvents, loadDiscoverCommunities, loadTrendingHashtags]);
 
   useEffect(() => {
-    if (popularBooks.length) void loadFeaturedAuthors(popularBooks);
-    else setFeaturedAuthors([]);
+    const timer = setTimeout(() => {
+      if (popularBooks.length) void loadFeaturedAuthors(popularBooks);
+      else setFeaturedAuthors([]);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [popularBooks, loadFeaturedAuthors]);
 
   const searchAll = useCallback(async () => {
@@ -432,12 +438,14 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (!query.trim()) {
       searchRequestIdRef.current += 1;
-      setBooks([]);
-      setUsers([]);
-      setAuthors([]);
-      setSearched(false);
-      setLoading(false);
-      return;
+      const resetTimer = setTimeout(() => {
+        setBooks([]);
+        setUsers([]);
+        setAuthors([]);
+        setSearched(false);
+        setLoading(false);
+      }, 0);
+      return () => clearTimeout(resetTimer);
     }
 
     if (skipNextSearchRef.current) {
