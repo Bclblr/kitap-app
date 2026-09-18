@@ -244,6 +244,15 @@ export async function restorePremiumPurchases(): Promise<RevenueCatSnapshot> {
   return snapshotFromCustomerInfo(customerInfo);
 }
 
+export async function loadSubscriptionManagementUrl(): Promise<string | null> {
+  if (!configured || (Platform.OS !== 'ios' && Platform.OS !== 'android')) {
+    return null;
+  }
+
+  const customerInfo = await Purchases.getCustomerInfo();
+  return customerInfo.managementURL ?? null;
+}
+
 export async function detachRevenueCatUser() {
   if (!configured || !configuredUserId || Platform.OS === 'web') return;
 
