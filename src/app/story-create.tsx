@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { requirePermanentImage } from '@/lib/image-policy';
+import { cleanupUploadedMedia } from '@/lib/media-cleanup';
 import { supabase } from '@/lib/supabase';
 
 export default function StoryCreateScreen() {
@@ -87,13 +88,11 @@ export default function StoryCreateScreen() {
       router.replace('/');
     } catch (error) {
       if (uploadedPath) {
-        const { error: rollbackError } = await supabase.storage
-          .from('story-images')
-          .remove([uploadedPath]);
-
-        if (rollbackError) {
-          console.error('Hikâye medya rollback hatası:', rollbackError);
-        }
+        await cleanupUploadedMedia(
+          'story-images',
+          uploadedPath,
+          'story_insert_failed'
+        );
       }
 
       console.error('Hikâye paylaşma hatası:', error);
