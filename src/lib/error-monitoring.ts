@@ -11,7 +11,9 @@ function redact(value: string, maxLength: number) {
   return value
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
     .replace(/Bearer\s+[A-Za-z0-9._~+\/-]+=*/gi, 'Bearer [redacted]')
-    .replace(/([?&](?:token|access_token|refresh_token|code)=)[^&\s]+/gi, '$1[redacted]')
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[jwt]')
+    .replace(/([?&](?:token|access_token|refresh_token|code|apikey|api_key|key)=)[^&\s]+/gi, '$1[redacted]')
+    .replace(/("(?:access_token|refresh_token|token|apikey|api_key|password)"\s*:\s*")[^"]+(")/gi, '$1[redacted]$2')
     .slice(0, maxLength);
 }
 
