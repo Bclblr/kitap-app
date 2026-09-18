@@ -14,6 +14,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
       - run: npm ci
       - name: Dependency security audit
         run: npm audit --audit-level=high
@@ -29,6 +32,12 @@ jobs:
         run: npm run audit:premium-free-core
       - name: Premium lifecycle preflight
         run: npm run audit:premium-lifecycle
+      - name: Ads configuration audit
+        run: npm run audit:ads
+      - name: Edge Function behavior audit
+        run: npm run audit:edge-functions
+      - name: Edge Function typecheck
+        run: deno check supabase/functions/*/index.ts
       - name: Release security audit
         run: npm run audit:release-security
       - name: Mobile auth preflight
@@ -38,6 +47,7 @@ jobs:
       - name: Web bundle smoke build
         env:
           EXPO_PUBLIC_ADS_ENABLED: 'false'
+          EXPO_PUBLIC_SUPABASE_URL: 'https://ci-placeholder.supabase.co'
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_ci_placeholder_key'
         run: npx expo export --platform web --output-dir dist-ci
       # Physical-device acceptance is intentionally tracked separately.
