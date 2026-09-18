@@ -2,13 +2,14 @@ import { PropsWithChildren } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { safeBack } from '@/lib/navigation';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useAppTheme } from '@/providers/ThemeProvider';
 export function ReaderScreen({ title, children, onBack, fullSafeArea = false }: PropsWithChildren<{ title: string; onBack?: () => void; fullSafeArea?: boolean }>) {
   const ui = useReaderStyles();
   const router = useRouter();
   return <SafeAreaView edges={fullSafeArea ? ['top','bottom','left','right'] : ['bottom']} style={ui.screen}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <View style={ui.header}><Action label="Geri" onPress={onBack ?? (() => router.canGoBack() ? router.back() : router.replace('/'))} /><Text style={[ui.title, { flex: 1 }]}>{title}</Text></View>
+    <View style={ui.header}><Action label="Geri" onPress={onBack ?? (() => router.canGoBack() ? safeBack(router, '/') : router.replace('/'))} /><Text style={[ui.title, { flex: 1 }]}>{title}</Text></View>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={ui.content}>{children}</ScrollView>
   </KeyboardAvoidingView></SafeAreaView>;
 }
