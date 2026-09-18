@@ -35,12 +35,12 @@ const DEFAULTS: Preferences = {
   system_enabled: true,
 };
 
-const ROWS: Array<{
+const ROWS: {
   key: keyof Preferences;
   title: string;
   description: string;
   icon: keyof typeof Feather.glyphMap;
-}> = [
+}[] = [
   { key: 'likes_enabled', title: 'Beğeniler', description: 'İçeriklerin beğenildiğinde bildirim al.', icon: 'heart' },
   { key: 'comments_enabled', title: 'Yorumlar', description: 'İçeriklerine yorum geldiğinde bildirim al.', icon: 'message-circle' },
   { key: 'reposts_enabled', title: 'Yeniden paylaşımlar', description: 'İçeriklerin yeniden paylaşıldığında bildirim al.', icon: 'repeat' },
