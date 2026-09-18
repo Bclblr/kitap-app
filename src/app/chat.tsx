@@ -21,6 +21,8 @@ import {
 import { supabase } from '@/lib/supabase';
 import ChatActions from '@/components/ChatActions';
 
+const MESSAGE_PAGE_SIZE = 50;
+
 type Message = {
   id: string;
   conversation_id: string;
@@ -77,6 +79,10 @@ export default function ChatScreen() {
 
   const [messages, setMessages] =
     useState<Message[]>([]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasOlderMessages, setHasOlderMessages] = useState(true);
+  const loadedMessageCountRef = useRef(0);
+  const initialScrollDoneRef = useRef(false);
 
   const [text, setText] =
     useState(params.reply ?? '');
@@ -248,7 +254,8 @@ export default function ChatScreen() {
               activeConversationId
             )
             .order('created_at', { ascending: false })
-            .limit(100);
+            .order('id', { ascending: false })
+            .range(0, MESSAGE_PAGE_SIZE - 1);
 
         if (error) {
           console.error(
@@ -264,6 +271,10 @@ export default function ChatScreen() {
           return;
         }
 
+        const page = (data as Message[]) || [];
+        loadedMessageCountRef.current = page.length;
+        setHasOlderMessages(page.length === MESSAGE_PAGE_SIZE);
+
         const { error: readError } = await supabase
           .from('messages')
           .update({ is_read: true })
@@ -275,11 +286,48 @@ export default function ChatScreen() {
           console.error('Mesajlar okundu olarak işaretlenemedi:', readError);
         }
 
-        const ordered = ((data as Message[]) || []).slice().reverse();
-        setMessages(ordered);
+        setMessages(page.slice().reverse());
+        initialScrollDoneRef.current = false;
       },
       []
     );
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!conversationId || loadingOlder || !hasOlderMessages) return;
+
+    try {
+      setLoadingOlder(true);
+
+      const start = loadedMessageCountRef.current;
+      const end = start + MESSAGE_PAGE_SIZE - 1;
+
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id, conversation_id, sender_id, content, created_at, is_read')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(start, end);
+
+      if (error) throw error;
+
+      const page = (data as Message[]) || [];
+      loadedMessageCountRef.current += page.length;
+      setHasOlderMessages(page.length === MESSAGE_PAGE_SIZE);
+
+      if (page.length) {
+        const older = page.slice().reverse();
+        setMessages((current) => {
+          const currentIds = new Set(current.map((message) => message.id));
+          return [...older.filter((message) => !currentIds.has(message.id)), ...current];
+        });
+      }
+    } catch (error) {
+      console.error('Eski mesajlar yüklenemedi:', error);
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [conversationId, hasOlderMessages, loadingOlder]);
       useEffect(() => {
     if (
       !conversationId ||
@@ -315,6 +363,7 @@ export default function ChatScreen() {
               return previous;
             }
 
+            loadedMessageCountRef.current += 1;
             return [
               ...previous,
               newMessage,
@@ -561,10 +610,14 @@ export default function ChatScreen() {
        */
       if (data) {
         setMessages(
-            previous => previous.some(message => message.id === data.id) ? previous : [
-            ...previous,
-            data as Message,
-          ]
+          previous => {
+            if (previous.some(message => message.id === data.id)) return previous;
+            loadedMessageCountRef.current += 1;
+            return [
+              ...previous,
+              data as Message,
+            ];
+          }
         );
       }
 
@@ -796,8 +849,24 @@ export default function ChatScreen() {
       ) : (
         <FlatList
           ref={list}
-          onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
-          onLayout={() => list.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() => {
+            if (!initialScrollDoneRef.current && messages.length > 0) {
+              initialScrollDoneRef.current = true;
+              requestAnimationFrame(() => list.current?.scrollToEnd({ animated: false }));
+            }
+          }}
+          onScroll={({ nativeEvent }) => {
+            if (nativeEvent.contentOffset.y <= 120) {
+              void loadOlderMessages();
+            }
+          }}
+          scrollEventThrottle={120}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          onLayout={() => {
+            if (!initialScrollDoneRef.current && messages.length > 0) {
+              requestAnimationFrame(() => list.current?.scrollToEnd({ animated: false }));
+            }
+          }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           data={messages}
@@ -816,6 +885,14 @@ export default function ChatScreen() {
           initialNumToRender={24}
           maxToRenderPerBatch={24}
           windowSize={9}
+          ListHeaderComponent={
+            loadingOlder ? (
+              <View style={styles.historyLoader}>
+                <ActivityIndicator size="small" />
+                <Text style={styles.historyLoaderText}>Eski mesajlar yükleniyor...</Text>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View
               style={
@@ -968,6 +1045,8 @@ const baseStyles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  historyLoader: { alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 6 },
+  historyLoaderText: { color: '#8E8E9D', fontSize: 12 },
   loadingText: {
     marginTop: 10,
     color: '#8A8A94',
