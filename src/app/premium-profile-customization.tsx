@@ -84,10 +84,10 @@ export default function PremiumProfileCustomizationScreen() {
         <View style={styles.centered}>
           <View style={[styles.lockedCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
             <Feather name="lock" size={26} color={colors.primary} />
-            <Text style={[styles.lockedTitle, { color: colors.text }]}>Profil kişiselleştirme Premium'a özel</Text>
+            <Text style={[styles.lockedTitle, { color: colors.text }]}>Profil kişiselleştirme Premium’a özel</Text>
             <Text style={[styles.lockedBody, { color: colors.textSecondary }]}>Tema, profil düzeni ve Premium çerçeve seçenekleri aktif Premium üyelik gerektirir.</Text>
             <Pressable onPress={() => router.replace('/premium')} style={[styles.primaryButton, { backgroundColor: colors.primary }]}> 
-              <Text style={styles.primaryButtonText}>Premium'u İncele</Text>
+              <Text style={styles.primaryButtonText}>Premium’u İncele</Text>
             </Pressable>
           </View>
         </View>
