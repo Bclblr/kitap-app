@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import HashtagText from '@/components/HashtagText';
 import { supabase } from '@/lib/supabase';
@@ -139,7 +140,7 @@ export default function ContentScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityLabel="Geri">
+        <Pressable onPress={() => safeBack(router, '/')} style={styles.backButton} accessibilityLabel="Geri">
           <Feather name="arrow-left" size={22} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>İçerik</Text>
