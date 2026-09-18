@@ -131,29 +131,12 @@ export default function AdminUsersScreen() {
 
     setUpdatingId(user.id);
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      const adminId = authData.user?.id ?? null;
-
-      const { error } = await supabase.from('user_roles').upsert(
-        {
-          user_id: user.id,
-          role: nextRole,
-          updated_by: adminId,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' }
-      );
+      const { error } = await supabase.rpc('admin_set_user_role', {
+        p_user_id: user.id,
+        p_role: nextRole,
+      });
 
       if (error) throw error;
-
-      await supabase.from('admin_audit_logs').insert({
-        admin_id: adminId,
-        action: 'user_role_changed',
-        target_type: 'user',
-        target_id: user.id,
-        old_value: { role: user.role },
-        new_value: { role: nextRole },
-      });
 
       setUsers((current) =>
         current.map((item) => (item.id === user.id ? { ...item, role: nextRole } : item))
