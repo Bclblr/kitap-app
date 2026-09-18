@@ -1,2 +1,2 @@
-export type Work = { id: string; author_id: string; title: string; description: string; cover_url: string | null; genre: string; tags: string[]; language: string; audience: string; completed: boolean; status: 'draft' | 'published'; updated_at: string };
-export type Chapter = { id: string; work_id: string; title: string; content: string; position: number; status: 'draft' | 'published' };
+export type Work = { id: string; author_id: string; title: string; description: string; cover_url: string | null; genre: string; tags: string[]; language: string; audience: string; completed: boolean; status: string; updated_at: string };
+export type Chapter = { id: string; work_id: string; title: string; content: string; position: number; status: string };
