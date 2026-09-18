@@ -62,7 +62,7 @@ export function NetworkProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
-    void checkNow();
+    const initialCheck = setTimeout(() => void checkNow(), 0);
 
     const interval = setInterval(() => {
       void checkNow();
@@ -86,6 +86,7 @@ export function NetworkProvider({ children }: PropsWithChildren) {
     }
 
     return () => {
+      clearTimeout(initialCheck);
       clearInterval(interval);
       appState?.remove();
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
