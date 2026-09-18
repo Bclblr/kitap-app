@@ -19,21 +19,13 @@ import BottomNav from '@/components/BottomNav';
 import ReadersList from '@/components/ReadersList';
 import { supabase } from '@/lib/supabase';
 
-type Conversation = {
-  id: string;
-  user1_id: string;
-  user2_id: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type InboxMessage = {
-  id: string;
+type InboxSummaryRow = {
   conversation_id: string;
-  sender_id: string;
-  content: string;
-  created_at: string;
-  is_read: boolean;
+  other_user_id: string;
+  last_message: string | null;
+  last_message_at: string | null;
+  conversation_updated_at: string;
+  unread_count: number | string;
 };
 
 type ConversationItem = {
@@ -67,114 +59,56 @@ export default function MessagesScreen() {
         return;
       }
 
-      const { data: conversationData, error } = await supabase
-        .from('conversations')
-        .select('id, user1_id, user2_id, created_at, updated_at')
-        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
-        .order('updated_at', { ascending: false })
-        .limit(100);
+      const inboxResult = await supabase.rpc('get_my_inbox', {
+        p_limit: 100,
+      });
 
-      if (error) {
-        console.error('Konuşmalar yüklenemedi:', error);
+      if (inboxResult.error) {
+        console.error('Inbox özeti yüklenemedi:', inboxResult.error);
         Alert.alert('Hata', 'Mesajlar yüklenemedi.');
         return;
       }
 
-      const rows = (conversationData ?? []) as Conversation[];
+      const rows = (inboxResult.data ?? []) as InboxSummaryRow[];
       if (!rows.length) {
         setConversations([]);
         return;
       }
 
-      const conversationIds = rows.map((item) => item.id);
       const otherUserIds = [
-        ...new Set(
-          rows.map((item) =>
-            item.user1_id === currentUserId ? item.user2_id : item.user1_id
-          )
-        ),
+        ...new Set(rows.map((item) => String(item.other_user_id)).filter(Boolean)),
       ];
 
-      const [hiddenResult, profilesResult, messagesResult] = await Promise.all([
-        supabase
-          .from('conversation_hidden')
-          .select('conversation_id, hidden_at')
-          .eq('user_id', currentUserId)
-          .in('conversation_id', conversationIds),
-        supabase
-          .from('profiles')
-          .select('id, username, full_name, profile_image')
-          .in('id', otherUserIds),
-        supabase
-          .from('messages')
-          .select('id, conversation_id, sender_id, content, created_at, is_read')
-          .in('conversation_id', conversationIds)
-          .order('created_at', { ascending: false })
-          .limit(2000),
-      ]);
+      const profilesResult = await supabase
+        .from('profiles')
+        .select('id, username, full_name, profile_image')
+        .in('id', otherUserIds);
 
-      if (hiddenResult.error) throw hiddenResult.error;
       if (profilesResult.error) throw profilesResult.error;
-      if (messagesResult.error) throw messagesResult.error;
-
-      const hiddenMap = new Map<string, string>();
-      for (const item of hiddenResult.data ?? []) {
-        hiddenMap.set(String(item.conversation_id), String(item.hidden_at));
-      }
 
       const profileMap = new Map<string, any>();
       for (const item of profilesResult.data ?? []) {
         profileMap.set(String(item.id), item);
       }
 
-      const latestMessageMap = new Map<string, InboxMessage>();
-      const unreadMap = new Map<string, number>();
+      const items = rows.map((row): ConversationItem => {
+        const otherUserId = String(row.other_user_id);
+        const profileData = profileMap.get(otherUserId);
+        const unreadCount = Number(row.unread_count) || 0;
 
-      for (const raw of (messagesResult.data ?? []) as InboxMessage[]) {
-        const hiddenAt = hiddenMap.get(raw.conversation_id);
-        if (hiddenAt && Date.parse(raw.created_at) <= Date.parse(hiddenAt)) continue;
-
-        if (!latestMessageMap.has(raw.conversation_id)) {
-          latestMessageMap.set(raw.conversation_id, raw);
-        }
-
-        if (!raw.is_read && raw.sender_id !== currentUserId) {
-          unreadMap.set(
-            raw.conversation_id,
-            (unreadMap.get(raw.conversation_id) ?? 0) + 1
-          );
-        }
-      }
-
-      const items = rows
-        .map((conversation): ConversationItem | null => {
-          const otherUserId =
-            conversation.user1_id === currentUserId
-              ? conversation.user2_id
-              : conversation.user1_id;
-          const profileData = profileMap.get(otherUserId);
-          const lastMessage = latestMessageMap.get(conversation.id);
-          const hiddenAt = hiddenMap.get(conversation.id);
-
-          if (hiddenAt && !lastMessage) return null;
-
-          return {
-            id: conversation.id,
-            otherUserId,
-            username:
-              [profileData?.full_name, profileData?.username]
-                .filter(Boolean)
-                .join(' · ') || 'Kitap Okuru',
-            profileImage: profileData?.profile_image || null,
-            lastMessage: lastMessage?.content || 'Henüz mesaj yok',
-            updatedAt: lastMessage?.created_at || conversation.updated_at,
-            unreadCount: unreadMap.get(conversation.id) ?? 0,
-          };
-        })
-        .filter((item): item is ConversationItem => item !== null)
-        .sort(
-          (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)
-        );
+        return {
+          id: String(row.conversation_id),
+          otherUserId,
+          username:
+            [profileData?.full_name, profileData?.username]
+              .filter(Boolean)
+              .join(' · ') || 'Kitap Okuru',
+          profileImage: profileData?.profile_image || null,
+          lastMessage: row.last_message || 'Henüz mesaj yok',
+          updatedAt: row.last_message_at || row.conversation_updated_at,
+          unreadCount,
+        };
+      });
 
       setConversations(items);
     } catch (error) {
