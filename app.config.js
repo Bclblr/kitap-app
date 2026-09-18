@@ -18,6 +18,9 @@ module.exports = () => {
     if (!process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID?.trim()) {
       missing.push('EXPO_PUBLIC_ADMOB_IOS_BANNER_ID');
     }
+    if (process.env.EXPO_PUBLIC_ADS_ENABLED !== 'true') {
+      missing.push('EXPO_PUBLIC_ADS_ENABLED=true');
+    }
 
     if (missing.length) {
       throw new Error(
