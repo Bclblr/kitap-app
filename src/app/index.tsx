@@ -30,153 +30,16 @@ import {
 import { Action, useReaderStyles } from '@/components/ReaderUI';
 import { useReaderSocial } from '@/hooks/use-reader-social';
 import { supabase } from '@/lib/supabase';
-import { loadVerifiedUserIds } from '@/lib/verification';
-import { loadPremiumUserIds } from '@/lib/premium';
-import { BookCoverData, existingBookCover, loadBookCover, openLibraryWorkUrl } from '@/lib/open-library-cover';
-import { normalizeQuoteCardTemplate, quoteCardPalette, QuoteCardTemplate } from '@/lib/quote-card';
-
-type Comment = {
-  id: string;
-  username: string;
-  text: string;
-  createdAt: string;
-  user_id?: string;
-};
-
-type Review = BookCoverData & {
-  id: string;
-  user_id?: string;
-  bookKey: string;
-  bookTitle: string;
-  rating: number;
-  text: string;
-  title?: string | null;
-  topic?: string | null;
-  tags?: string[];
-  containsSpoiler?: boolean;
-  createdAt: string;
-  username?: string;
-  full_name?: string | null;
-  profile_image?: string | null;
-  is_verified?: boolean;
-  is_premium?: boolean;
-  likes?: number;
-  liked?: boolean;
-  comments?: Comment[];
-  reposts?: number;
-  reposted?: boolean;
-};
-
-type Post = BookCoverData & {
-  id: string;
-  user_id: string | null;
-  username: string;
-  full_name?: string | null;
-  profile_image?: string | null;
-  is_verified?: boolean;
-  is_premium?: boolean;
-  text: string | null;
-  image_url: string | null;
-  book_key: string | null;
-  book_title: string | null;
-  rating: number;
-  created_at: string;
-
-  saved?: boolean;
-
-  likes?: number;
-  liked?: boolean;
-
-  comments?: Comment[];
-  reposts?: number;
-  reposted?: boolean;
-  isReview?: boolean;
-  isQuote?: boolean;
-  card_template_key?: QuoteCardTemplate;
-  quoteTitle?: string | null;
-  quoteTopic?: string | null;
-  quotePageNumber?: number | null;
-  quoteNote?: string | null;
-  reviewTitle?: string | null;
-  reviewTopic?: string | null;
-  reviewTags?: string[];
-  containsSpoiler?: boolean;
-};
+import { existingBookCover, loadBookCover, openLibraryWorkUrl } from '@/lib/open-library-cover';
+import { normalizeQuoteCardTemplate, quoteCardPalette } from '@/lib/quote-card';
+import type { FeedComment as Comment, FeedPost as Post, FeedReview as Review } from '@/features/feed/model';
+import { loadFeedProfiles } from '@/features/feed/profiles';
 
 type Story = HomeStory;
 
 const STORY_SEEN_KEY = 'story-seen-ids';
-
 const CURRENT_USERNAME = 'Kitap Okuru';
 const FEED_PAGE_SIZE = 15;
-
-type FeedProfile = {
-  id: string;
-  full_name: string | null;
-  username: string | null;
-  profile_image: string | null;
-  is_verified: boolean;
-  is_premium: boolean;
-};
-
-type FeedProfileResult = { data: FeedProfile[]; error: any };
-
-const feedProfilesCache = new Map<
-  string,
-  { profile: FeedProfile; expiresAt: number }
->();
-
-async function loadFeedProfiles(userIds: string[]): Promise<FeedProfileResult> {
-  const ids = [...new Set(userIds.filter(Boolean))];
-  if (!ids.length) return { data: [], error: null };
-
-  const now = Date.now();
-  const cachedProfiles: FeedProfile[] = [];
-  const missingIds: string[] = [];
-
-  for (const id of ids) {
-    const cached = feedProfilesCache.get(id);
-    if (cached && cached.expiresAt > now) {
-      cachedProfiles.push(cached.profile);
-    } else {
-      if (cached) feedProfilesCache.delete(id);
-      missingIds.push(id);
-    }
-  }
-
-  if (!missingIds.length) {
-    return { data: cachedProfiles, error: null };
-  }
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, username, profile_image')
-    .in('id', missingIds);
-
-  if (error) {
-    return { data: cachedProfiles, error };
-  }
-
-  const baseProfiles = (data ?? []) as Omit<FeedProfile, 'is_verified' | 'is_premium'>[];
-  const profileIds = baseProfiles.map((profile) => profile.id);
-  const [verifiedIds, premiumIds] = await Promise.all([
-    loadVerifiedUserIds(profileIds).catch(() => new Set<string>()),
-    loadPremiumUserIds(profileIds).catch(() => new Set<string>()),
-  ]);
-
-  const loadedProfiles: FeedProfile[] = baseProfiles.map((profile) => ({
-    ...profile,
-    is_verified: verifiedIds.has(profile.id),
-    is_premium: premiumIds.has(profile.id),
-  }));
-
-  const expiresAt = Date.now() + 30_000;
-  for (const profile of loadedProfiles) {
-    feedProfilesCache.set(profile.id, { profile, expiresAt });
-  }
-
-  return { data: [...cachedProfiles, ...loadedProfiles], error: null };
-}
 
 function isValidUUID(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
