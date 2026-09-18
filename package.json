@@ -67,7 +67,8 @@
     "audit:ads": "node scripts/audit-ads-config.cjs",
     "test:product-rules": "node scripts/test-product-rules.cjs",
     "audit:edge-functions": "node scripts/audit-edge-functions.cjs",
-    "audit:admin-analytics": "node scripts/audit-admin-analytics.cjs"
+    "audit:admin-analytics": "node scripts/audit-admin-analytics.cjs",
+    "test:feed-pagination": "node scripts/test-feed-pagination.cjs"
   },
   "private": true,
   "overrides": {
