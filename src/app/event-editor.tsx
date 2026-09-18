@@ -3,7 +3,7 @@ import { Action, Field, ReaderScreen, useReaderStyles } from '@/components/Reade
 import { requirePermanentImage } from '@/lib/image-policy';
 import { getRuntimeControls, hasActiveRestriction, settingBoolean } from '@/lib/runtime-controls';
 import { supabase } from '@/lib/supabase';
-import DateTimePicker from '@expo/ui/community/datetime-picker';
+import CommunityDateTimePicker from '@expo/ui/community/datetime-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -172,7 +172,7 @@ export default function EventEditorScreen() {
 
       {pickerMode && Platform.OS !== 'web' ? (
         <View style={styles.pickerWrap}>
-          <DateTimePicker
+          <CommunityDateTimePicker
             value={eventDate}
             mode={pickerMode}
             minimumDate={pickerMode === 'date' ? new Date() : undefined}
