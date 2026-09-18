@@ -2540,7 +2540,7 @@ export default function ProfileScreen() {
                 </Pressable>
               )}
             </View>
-          ) : visibleFeed.length === 0 ? (
+          ) : loadError && feed.length === 0 ? null : visibleFeed.length === 0 ? (
             <View
               style={
                 styles.emptyCard
