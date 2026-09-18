@@ -52,6 +52,8 @@ jobs:
         run: npm run audit:edge-functions
       - name: Edge Function typecheck
         run: deno check supabase/functions/*/index.ts
+      - name: RevenueCat transfer identity tests
+        run: deno test supabase/functions/revenuecat-webhook/identity_test.ts
       - name: Release security audit
         run: npm run audit:release-security
       - name: Native release structural preflight
