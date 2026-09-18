@@ -3370,6 +3370,14 @@ export type Database = {
         Args: { p_community_id: string; p_user_id: string }
         Returns: undefined
       }
+      queue_my_storage_cleanup: {
+        Args: {
+          p_bucket: string
+          p_object_name: string
+          p_reason?: string
+        }
+        Returns: undefined
+      }
       report_client_error: {
         Args: {
           p_app_version?: string
