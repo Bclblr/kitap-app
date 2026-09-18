@@ -114,4 +114,28 @@ $$;
 revoke all on function public.get_profile_content_stats(uuid) from public, anon;
 grant execute on function public.get_profile_content_stats(uuid) to authenticated;
 
+create or replace function public.get_my_shelf_counts()
+returns table (
+  want_count bigint,
+  reading_count bigint,
+  read_count bigint,
+  total_count bigint
+)
+language sql
+stable
+security invoker
+set search_path = ''
+as $
+  select
+    count(*) filter (where status = 'want')::bigint,
+    count(*) filter (where status = 'reading')::bigint,
+    count(*) filter (where status = 'read')::bigint,
+    count(*)::bigint
+  from public.user_book_status
+  where user_id = (select auth.uid());
+$;
+
+revoke all on function public.get_my_shelf_counts() from public, anon;
+grant execute on function public.get_my_shelf_counts() to authenticated;
+
 commit;
