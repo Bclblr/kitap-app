@@ -57,6 +57,14 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
    await db.exec(sql);
   }
  }
+ await db.exec(`grant select on table
+  public.posts,
+  public.stories,
+  public.events,
+  public.follows,
+  public.profile_privacy_settings,
+  public.user_blocks
+ to anon, authenticated;`);
  console.log('PASS: migrations apply twice on fixture schema');
  async function as(id) { await db.exec(`reset role; set role authenticated; select set_config('request.jwt.claim.sub','${id}',false);`); }
  async function denied(sql) { await assert.rejects(db.query(sql)); }
