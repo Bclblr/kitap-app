@@ -10,6 +10,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import Image from '@/components/SafeImage';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import PremiumBadge from '@/components/PremiumBadge';
+import RetryNotice from '@/components/RetryNotice';
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
@@ -130,6 +131,7 @@ export default function ProfileScreen() {
   const [bio, setBio] = useState('');
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [bookCount, setBookCount] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
@@ -1576,6 +1578,7 @@ export default function ProfileScreen() {
         'Profil istatistikleri yüklenemedi:',
         error
       );
+      setLoadError('Profil içerikleri şu anda yenilenemedi. Mevcut bilgiler korunuyor.');
     }
   }, [userId, profile.username]);
 
@@ -1591,6 +1594,7 @@ export default function ProfileScreen() {
 
       async function loadAll() {
         setLoading(true);
+        setLoadError(null);
 
         try {
           await loadProfile();
@@ -2347,6 +2351,17 @@ export default function ProfileScreen() {
         >
           Profil
         </Text>
+
+        {loadError ? (
+          <RetryNotice
+            message={loadError}
+            busy={loading}
+            onRetry={async () => {
+              setLoadError(null);
+              await Promise.all([loadProfile(), loadStats(), loadFollowData()]);
+            }}
+          />
+        ) : null}
 
         {/* KAPAK + PROFİL ÜST BİLGİ */}
         <View
