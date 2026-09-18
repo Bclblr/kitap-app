@@ -31,6 +31,7 @@ export default function EventScreen() {
   const [attendeeCount, setAttendeeCount] = useState(0);
   const [isAttending, setIsAttending] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [renderNow] = useState(() => Date.now());
 
   const loadEvent = useCallback(async (source: ScreenRefreshSource) => {
     if (!id) {
@@ -168,7 +169,7 @@ export default function EventScreen() {
 
   const eventDate = new Date(event.event_date);
   const eventTimestamp = eventDate.getTime();
-  const hasEnded = Number.isFinite(eventTimestamp) && eventTimestamp <= Date.now();
+  const hasEnded = Number.isFinite(eventTimestamp) && eventTimestamp <= renderNow;
   const formattedDate = eventDate.toLocaleDateString('tr-TR', {
     day: 'numeric',
     month: 'long',
