@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { usePremium } from '@/providers/PremiumProvider';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -149,7 +150,7 @@ export default function PremiumYearReportScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Geri dön"
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/premium'))}
+            onPress={() => (router.canGoBack() ? safeBack(router, '/premium') : router.replace('/premium'))}
             style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <Feather name="chevron-left" size={22} color={colors.text} />
