@@ -1,5 +1,6 @@
 begin;
 
+drop policy if exists interaction_post_parent_visibility_select on public.post_comments;
 create policy interaction_post_parent_visibility_select
 on public.post_comments
 as restrictive for select
@@ -12,6 +13,7 @@ using (
   )
 );
 
+drop policy if exists interaction_post_parent_visibility_insert on public.post_comments;
 create policy interaction_post_parent_visibility_insert
 on public.post_comments
 as restrictive for insert
@@ -25,6 +27,7 @@ with check (
   )
 );
 
+drop policy if exists interaction_post_like_parent_visibility_select on public.post_likes;
 create policy interaction_post_like_parent_visibility_select
 on public.post_likes
 as restrictive for select
@@ -37,6 +40,7 @@ using (
   )
 );
 
+drop policy if exists interaction_post_like_parent_visibility_insert on public.post_likes;
 create policy interaction_post_like_parent_visibility_insert
 on public.post_likes
 as restrictive for insert
@@ -50,6 +54,7 @@ with check (
   )
 );
 
+drop policy if exists interaction_post_repost_parent_visibility_select on public.post_reposts;
 create policy interaction_post_repost_parent_visibility_select
 on public.post_reposts
 as restrictive for select
@@ -62,6 +67,7 @@ using (
   )
 );
 
+drop policy if exists interaction_post_repost_parent_visibility_insert on public.post_reposts;
 create policy interaction_post_repost_parent_visibility_insert
 on public.post_reposts
 as restrictive for insert
@@ -75,6 +81,7 @@ with check (
   )
 );
 
+drop policy if exists interaction_review_parent_visibility_select on public.comments;
 create policy interaction_review_parent_visibility_select
 on public.comments
 as restrictive for select
@@ -87,6 +94,7 @@ using (
   )
 );
 
+drop policy if exists interaction_review_parent_visibility_insert on public.comments;
 create policy interaction_review_parent_visibility_insert
 on public.comments
 as restrictive for insert
@@ -100,6 +108,7 @@ with check (
   )
 );
 
+drop policy if exists interaction_review_like_parent_visibility_select on public.likes;
 create policy interaction_review_like_parent_visibility_select
 on public.likes
 as restrictive for select
@@ -112,6 +121,7 @@ using (
   )
 );
 
+drop policy if exists interaction_review_like_parent_visibility_insert on public.likes;
 create policy interaction_review_like_parent_visibility_insert
 on public.likes
 as restrictive for insert
@@ -125,6 +135,7 @@ with check (
   )
 );
 
+drop policy if exists interaction_review_repost_parent_visibility_select on public.reposts;
 create policy interaction_review_repost_parent_visibility_select
 on public.reposts
 as restrictive for select
@@ -137,6 +148,7 @@ using (
   )
 );
 
+drop policy if exists interaction_review_repost_parent_visibility_insert on public.reposts;
 create policy interaction_review_repost_parent_visibility_insert
 on public.reposts
 as restrictive for insert
