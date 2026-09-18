@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import { createContext, PropsWithChildren, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { clearAccountLocalState } from '@/lib/account-local-state';
+import { clearSignedImageUrlCache } from '@/lib/image-cache';
 import { supabase } from '@/lib/supabase';
 
 const AuthContext = createContext<{ session: Session | null; loading: boolean }>({ session: null, loading: true });
@@ -18,13 +19,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
       eventReceived = true;
 
       const previousUserId = lastUserIdRef.current;
+      const nextUserId = session?.user?.id ?? null;
+
+      if (previousUserId && previousUserId !== nextUserId) {
+        clearSignedImageUrlCache(previousUserId);
+      }
+
       if (event === 'SIGNED_OUT' && previousUserId) {
         void clearAccountLocalState(previousUserId).catch((error) => {
           console.warn('Hesap yerel verileri temizlenemedi:', error);
         });
       }
 
-      lastUserIdRef.current = session?.user?.id ?? null;
+      lastUserIdRef.current = nextUserId;
       if (alive) setState({ session, loading: false });
     });
 
@@ -35,6 +42,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setState({ session, loading: false });
     }).catch(() => {
       if (alive && !eventReceived) {
+        clearSignedImageUrlCache();
         lastUserIdRef.current = null;
         setState({ session: null, loading: false });
       }
