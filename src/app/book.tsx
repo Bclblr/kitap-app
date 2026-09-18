@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import BookCover from '@/components/BookCover';
 import BookDiscoveryRecommendations from '@/components/BookDiscoveryRecommendations';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -339,7 +340,7 @@ export default function BookScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
           <View style={styles.topBar}>
-            <Pressable onPress={() => router.back()} style={styles.iconButton}>
+            <Pressable onPress={() => safeBack(router, '/explore')} style={styles.iconButton}>
               <Feather name="arrow-left" size={21} color="#F4F5F7" />
             </Pressable>
             <Text style={styles.pageTitle}>Kitap Detayı</Text>
