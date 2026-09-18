@@ -80,6 +80,27 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
  assert.equal(Number((await db.query(`select count(*) as n from notifications where user_id=auth.uid()`)).rows[0].n),1);
  assert.equal(Number((await db.query(`select count(*) as n from saved_posts`)).rows[0].n),0);
  console.log('PASS: clean-install core social CRUD policies');
+
+ await as(A);
+ await db.query(`update profile_privacy_settings set is_private=true where user_id=auth.uid()`);
+ await as(B);
+ assert.equal(Number((await db.query(`select count(*) as n from posts where id='${baselinePost}'`)).rows[0].n),0);
+ assert.equal(Number((await db.query(`select count(*) as n from post_comments where post_id='${baselinePost}'`)).rows[0].n),0);
+ assert.equal(Number((await db.query(`select count(*) as n from post_likes where post_id='${baselinePost}'`)).rows[0].n),0);
+ assert.equal(Number((await db.query(`select count(*) as n from post_reposts where post_id='${baselinePost}'`)).rows[0].n),0);
+ assert.equal(Number((await db.query(`select count(*) as n from reviews where id='${baselineReview}'`)).rows[0].n),0);
+ assert.equal(Number((await db.query(`select count(*) as n from comments where review_id='${baselineReview}'`)).rows[0].n),0);
+ assert.equal(Number((await db.query(`select count(*) as n from likes where review_id='${baselineReview}'`)).rows[0].n),0);
+ assert.equal(Number((await db.query(`select count(*) as n from reposts where review_id='${baselineReview}'`)).rows[0].n),0);
+ await denied(`insert into post_comments(post_id,user_id,text) values('${baselinePost}',auth.uid(),'hidden parent')`);
+ await denied(`insert into post_likes(post_id,user_id) values('${baselinePost}',auth.uid())`);
+ await denied(`insert into post_reposts(post_id,user_id) values('${baselinePost}',auth.uid())`);
+ await denied(`insert into comments(review_id,user_id,text) values('${baselineReview}',auth.uid(),'hidden parent')`);
+ await denied(`insert into likes(review_id,user_id) values('${baselineReview}',auth.uid())`);
+ await denied(`insert into reposts(review_id,user_id) values('${baselineReview}',auth.uid())`);
+ await as(A);
+ await db.query(`update profile_privacy_settings set is_private=false where user_id=auth.uid()`);
+ console.log('PASS: private parent hides comments, likes and reposts and blocks new interactions');
  await as(A);
  const work=(await db.query("insert into works(author_id,title) values(auth.uid(),'Private draft') returning id")).rows[0].id;
  await db.query(`insert into work_chapters(work_id,title,content) values('${work}','Draft chapter','Private text')`);
@@ -168,6 +189,44 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
  await as(B); assert.equal(await count('quotes'),1);
  await denied(`insert into quotes(user_id,text) values('${A}','Spoofed quote')`);
  console.log('PASS: public quotes and authenticated author insertion');
+
+ await db.exec('reset role');
+ await db.query(`
+   insert into premium_entitlements(
+     user_id, source, status, source_reference, starts_at, expires_at,
+     provider_event_at, provider_environment
+   )
+   values(
+     '${A}', 'apple', 'active', 'rc-transfer-test',
+     now() - interval '1 hour', now() + interval '1 day',
+     now() - interval '1 minute', 'PRODUCTION'
+   )
+   on conflict do nothing
+ `);
+ await db.exec('set role service_role');
+ await denied(`select process_revenuecat_transfer_event(
+   'rc-transfer-multi',
+   array['${A}'::uuid],
+   array['${B}'::uuid,'${C}'::uuid],
+   now(),
+   'PRODUCTION'
+ )`);
+ assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${B}' and source_reference='rc-transfer-test' and status='active'`)).rows[0].n),0);
+ assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${C}' and source_reference='rc-transfer-test' and status='active'`)).rows[0].n),0);
+ assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${A}' and source_reference='rc-transfer-test' and status='active'`)).rows[0].n),1);
+ const transferResult=(await db.query(`select process_revenuecat_transfer_event(
+   'rc-transfer-single',
+   array['${A}'::uuid],
+   array['${B}'::uuid],
+   now() + interval '1 second',
+   'PRODUCTION'
+ ) as processed`)).rows[0].processed;
+ assert.equal(transferResult,true);
+ assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${A}' and source_reference='rc-transfer-test' and status='inactive'`)).rows[0].n),1);
+ assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${B}' and source_reference='rc-transfer-test' and status='active'`)).rows[0].n),1);
+ assert.equal(Number((await db.query(`select count(*) as n from premium_entitlements where user_id='${C}' and source_reference='rc-transfer-test'`)).rows[0].n),0);
+ console.log('PASS: RevenueCat transfer is single-destination at RPC level');
+
  await db.exec("reset role; set role anon; select set_config('request.jwt.claim.sub','',false)");
  assert.equal(await count('works'),1); assert.equal(await count('work_chapters'),1);
  assert.equal(await count('communities'),1);
