@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
@@ -25,12 +25,6 @@ export default function PremiumQuoteCardsScreen() {
   const [book, setBook] = useState(typeof params.book === 'string' ? params.book : 'Kitap adı');
   const initialTemplate: QuoteCardTemplate = params.template === 'editorial' || params.template === 'noir' || params.template === 'minimal' ? params.template : 'classic';
   const [template, setTemplate] = useState<QuoteCardTemplate>(initialTemplate);
-
-  useEffect(() => {
-    if (premium.ready && !premium.isPremium && template !== 'classic') {
-      setTemplate('classic');
-    }
-  }, [premium.isPremium, premium.ready, template]);
 
   const selectedTemplate = template !== 'classic' && !premium.isPremium ? 'classic' : template;
   const palette = useMemo(() => quoteCardPalette(selectedTemplate, colors), [colors, selectedTemplate]);
