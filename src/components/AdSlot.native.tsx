@@ -1,59 +1,72 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 
+import {
+  initializeAds,
+  resetAdsInitialization,
+  subscribeAdsConsentChanged,
+} from '@/lib/ads';
 import { usePremium } from '@/providers/PremiumProvider';
-import { Action } from './ReaderUI';
 
 type Ads = typeof import('react-native-google-mobile-ads');
-let initialization: Promise<Ads | null> | undefined;
-
-function initialize() {
-  initialization ??= (async () => {
-    try {
-      const sdk = await import('react-native-google-mobile-ads');
-      try {
-        await sdk.AdsConsent.gatherConsent();
-      } catch (error) {
-        if (__DEV__) console.warn('Ad consent gathering failed:', error);
-      }
-
-      const consentInfo = await sdk.AdsConsent.getConsentInfo();
-      if (!consentInfo.canRequestAds) return null;
-
-      if (__DEV__) {
-        await sdk.default().setRequestConfiguration({
-          testDeviceIdentifiers: ['EMULATOR'],
-        });
-      }
-
-      await sdk.default().initialize();
-      return sdk;
-    } catch {
-      return null;
-    }
-  })();
-  return initialization;
-}
 
 export default function AdSlot() {
   const premium = usePremium();
   const [sdk, setSdk] = useState<Ads | null>(null);
   const [width, setWidth] = useState(0);
+  const [retrySignal, setRetrySignal] = useState(0);
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enabled = process.env.EXPO_PUBLIC_ADS_ENABLED === 'true';
   const supported = Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
   const canShowAds = premium.ready && !premium.isPremium && enabled && supported;
 
   useEffect(() => {
-    if (!canShowAds) return;
-    let alive = true;
-    void initialize().then((result) => {
-      if (alive) setSdk(result);
+    return subscribeAdsConsentChanged(() => {
+      retryCountRef.current = 0;
+      setSdk(null);
+      setRetrySignal((value) => value + 1);
     });
+  }, []);
+
+  useEffect(() => {
+    if (!canShowAds) {
+      setSdk(null);
+      return;
+    }
+
+    let alive = true;
+
+    void initializeAds().then((result) => {
+      if (!alive) return;
+
+      if (result) {
+        retryCountRef.current = 0;
+        setSdk(result);
+        return;
+      }
+
+      // Initialization can fail because of a temporary SDK/network issue.
+      // Retry with a bounded backoff instead of permanently caching null.
+      if (retryCountRef.current < 3) {
+        retryCountRef.current += 1;
+        const delay = retryCountRef.current * 5000;
+        retryTimerRef.current = setTimeout(() => {
+          resetAdsInitialization();
+          setRetrySignal((value) => value + 1);
+        }, delay);
+      }
+    });
+
     return () => {
       alive = false;
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
     };
-  }, [canShowAds]);
+  }, [canShowAds, retrySignal]);
 
   // Premium state must be resolved before any ad SDK UI can appear. This also
   // prevents a brief ad flash while a paid/admin entitlement is loading.
@@ -74,7 +87,7 @@ export default function AdSlot() {
   return (
     <View
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      style={{ width: '100%', overflow: 'hidden', alignItems: 'center', gap: 8, paddingVertical: 12 }}
+      style={{ width: '100%', overflow: 'hidden', alignItems: 'center', paddingVertical: 12 }}
     >
       {__DEV__ ? <Text style={{ color: '#999', fontSize: 12 }}>Test reklamı</Text> : null}
       {width >= 250 ? (
@@ -84,20 +97,13 @@ export default function AdSlot() {
           maxHeight={120}
           unitId={unitId}
           size={sdk.BannerAdSize.INLINE_ADAPTIVE_BANNER}
-          onAdFailedToLoad={() => setSdk(null)}
+          onAdFailedToLoad={() => {
+            setSdk(null);
+            resetAdsInitialization();
+            setRetrySignal((value) => value + 1);
+          }}
         />
       ) : null}
-      <Action
-        label="Reklam gizlilik tercihleri"
-        onPress={() => {
-          void sdk.AdsConsent.showPrivacyOptionsForm()
-            .then(() => sdk.AdsConsent.getConsentInfo())
-            .then((info) => {
-              if (!info.canRequestAds) setSdk(null);
-            })
-            .catch(() => setSdk(null));
-        }}
-      />
     </View>
   );
 }
