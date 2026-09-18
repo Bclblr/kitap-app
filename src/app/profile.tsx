@@ -3,7 +3,7 @@ import QuoteMetadata from '@/components/QuoteMetadata';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import ReadersList from '@/components/ReadersList';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
 import ProfileHeader from '@/components/profile/ProfileHeader';
@@ -14,6 +14,11 @@ import { supabase } from '@/lib/supabase';
 import { isUserVerified } from '@/lib/verification';
 import { isUserPremium } from '@/lib/premium';
 import { loadProfileCustomization, PremiumProfileCustomization } from '@/lib/profile-customization';
+import {
+  feedCursorFilter,
+  nextFeedCursor,
+  type FeedCursor,
+} from '@/features/feed/pagination';
 
 type Comment = {
   id: string;
@@ -133,6 +138,12 @@ export default function ProfileScreen() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [profileLoadingMore, setProfileLoadingMore] = useState(false);
   const [profileHasMore, setProfileHasMore] = useState({ post: true, review: true, quote: true, repost: true });
+  const profileCursorRef = useRef<Record<'post' | 'review' | 'quote' | 'repost', FeedCursor>>({
+    post: null,
+    review: null,
+    quote: null,
+    repost: null,
+  });
   const visibleFeed = canViewProfileContent
     ? feed.filter(item => profileTab === 'repost' ? item.reposted : !item.reposted && item.type === profileTab)
     : [];
@@ -538,18 +549,23 @@ export default function ProfileScreen() {
     const targetUserId = typeof userId === 'string' && userId ? userId : loggedInUserId;
     if (!targetUserId) return;
 
+    const cursor = profileCursorRef.current[profileTab];
+
     setProfileLoadingMore(true);
     try {
       let newItems: FeedItem[] = [];
       let pageLength = 0;
 
       if (profileTab === 'review') {
-        const { data, error } = await supabase
+        let query = supabase
           .from('reviews')
           .select('id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
-          .range(reviews.length, reviews.length + PROFILE_PAGE_SIZE - 1);
+          .order('id', { ascending: false })
+          .limit(PROFILE_PAGE_SIZE);
+        if (cursor) query = query.or(feedCursorFilter(cursor));
+        const { data, error } = await query;
         if (error) throw error;
         const page: Review[] = (data ?? []).map((item: any) => ({
           id: String(item.id),
@@ -573,12 +589,15 @@ export default function ProfileScreen() {
           review,
         }));
       } else if (profileTab === 'quote') {
-        const { data, error } = await supabase
+        let query = supabase
           .from('quotes')
           .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
-          .range(quotes.length, quotes.length + PROFILE_PAGE_SIZE - 1);
+          .order('id', { ascending: false })
+          .limit(PROFILE_PAGE_SIZE);
+        if (cursor) query = query.or(feedCursorFilter(cursor));
+        const { data, error } = await query;
         if (error) throw error;
         const page: Quote[] = (data ?? []).map((item: any) => ({
           id: String(item.id),
@@ -601,12 +620,15 @@ export default function ProfileScreen() {
           quote,
         }));
       } else if (profileTab === 'post') {
-        const { data, error } = await supabase
+        let query = supabase
           .from('posts')
           .select('id, username, text, image_url, book_key, book_title, rating, created_at, user_id')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
-          .range(posts.length, posts.length + PROFILE_PAGE_SIZE - 1);
+          .order('id', { ascending: false })
+          .limit(PROFILE_PAGE_SIZE);
+        if (cursor) query = query.or(feedCursorFilter(cursor));
+        const { data, error } = await query;
         if (error) throw error;
         const page: Post[] = (data ?? []).map((item: any) => ({
           id: String(item.id),
@@ -628,13 +650,15 @@ export default function ProfileScreen() {
           post,
         }));
       } else {
-        const repostOffset = feed.filter((item) => item.reposted).length;
-        const { data: repostRows, error } = await supabase
+        let query = supabase
           .from('post_reposts')
           .select('id, post_id, user_id, created_at')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
-          .range(repostOffset, repostOffset + PROFILE_PAGE_SIZE - 1);
+          .order('id', { ascending: false })
+          .limit(PROFILE_PAGE_SIZE);
+        if (cursor) query = query.or(feedCursorFilter(cursor));
+        const { data: repostRows, error } = await query;
         if (error) throw error;
 
         pageLength = repostRows?.length ?? 0;
@@ -674,6 +698,17 @@ export default function ProfileScreen() {
             }] : [];
           });
         }
+      }
+
+      if (newItems.length > 0) {
+        const rawCursorRows = newItems.map((item) => ({
+          id: item.id.replace(/^(review|quote|post|repost)-/, ''),
+          created_at: item.repostedAt ?? item.createdAt,
+        }));
+        profileCursorRef.current = {
+          ...profileCursorRef.current,
+          [profileTab]: nextFeedCursor(rawCursorRows) ?? cursor,
+        };
       }
 
       setFeed((current) => [...current, ...newItems].sort(
@@ -746,6 +781,7 @@ export default function ProfileScreen() {
               ascending: false,
             }
           )
+          .order('id', { ascending: false })
           .limit(PROFILE_PAGE_SIZE),
 
         supabase
@@ -763,6 +799,7 @@ export default function ProfileScreen() {
               ascending: false,
             }
           )
+          .order('id', { ascending: false })
           .limit(PROFILE_PAGE_SIZE),
 
         supabase
@@ -780,6 +817,7 @@ export default function ProfileScreen() {
               ascending: false,
             }
           )
+          .order('id', { ascending: false })
           .limit(PROFILE_PAGE_SIZE),
 
         supabase
@@ -797,6 +835,7 @@ export default function ProfileScreen() {
               ascending: false,
             }
           )
+          .order('id', { ascending: false })
           .limit(PROFILE_PAGE_SIZE),
 
         supabase.rpc('get_profile_content_stats', {
@@ -1124,6 +1163,13 @@ export default function ProfileScreen() {
       setReviewCount(Number(statsRow?.review_count) || 0);
       setQuoteCount(Number(statsRow?.quote_count) || 0);
       setBookCount(Number(statsRow?.book_count) || 0);
+
+      profileCursorRef.current = {
+        review: nextFeedCursor(reviewsResult.data ?? []),
+        quote: nextFeedCursor(quotesResult.data ?? []),
+        post: nextFeedCursor(postsResult.data ?? []),
+        repost: nextFeedCursor(repostResult.data ?? []),
+      };
 
       setProfileHasMore({
         review: (reviewsResult.data?.length ?? 0) === PROFILE_PAGE_SIZE,
