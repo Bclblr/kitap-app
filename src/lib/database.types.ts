@@ -2418,6 +2418,7 @@ export type Database = {
         Args: { p_hours?: number }
         Returns: {
           affected_users: number
+          alert_level: string
           boundary_events: number
           fatal_events: number
           latest_event_at: string
