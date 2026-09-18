@@ -135,7 +135,7 @@ export default function PremiumYearReportScreen() {
               onPress={() => router.replace('/premium')}
               style={[styles.primaryButton, { backgroundColor: colors.primary }]}
             >
-              <Text style={styles.primaryButtonText}>Premium'u İncele</Text>
+              <Text style={styles.primaryButtonText}>Premium’u İncele</Text>
             </Pressable>
           </View>
         </View>
