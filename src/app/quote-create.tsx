@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import BookCover from '@/components/BookCover';
 import BookPickerModal, { ComposerBook } from '@/components/BookPickerModal';
 import { QUOTE_CARD_LABELS, QuoteCardTemplate } from '@/lib/quote-card';
@@ -100,7 +101,7 @@ export default function QuoteCreate() {
   }
 
   function closeComposer() {
-    if (router.canGoBack()) router.back();
+    if (router.canGoBack()) safeBack(router, '/');
     else router.replace('/');
   }
 
