@@ -13,23 +13,24 @@ import VerifiedBadge from '@/components/VerifiedBadge';
 import PremiumBadge from '@/components/PremiumBadge';
 
 import BottomNav from '@/components/BottomNav';
-import StoryPlayback from '@/components/StoryPlayback';
-import StoryActions from '@/components/StoryActions';
-import StoryTransition from '@/components/StoryTransition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReadersList from '@/components/ReadersList';
 import ReviewSpoilerText from '@/components/ReviewSpoilerText';
 import QuoteMetadata from '@/components/QuoteMetadata';
 import RetryNotice from '@/components/RetryNotice';
-import ThemePicker from '@/components/ThemePicker';
 import { requirePermanentImage } from '@/lib/image-policy';
 import AdSlot from '@/components/AdSlot';
+import {
+  HomeDrawer,
+  HomeStories,
+  HomeStoryViewer,
+  type HomeStory,
+} from '@/components/home/HomeChrome';
 import { Action, useReaderStyles } from '@/components/ReaderUI';
 import { useReaderSocial } from '@/hooks/use-reader-social';
 import { supabase } from '@/lib/supabase';
 import { loadVerifiedUserIds } from '@/lib/verification';
 import { loadPremiumUserIds } from '@/lib/premium';
-import { storyAge } from '@/lib/reader-date';
 import { BookCoverData, existingBookCover, loadBookCover, openLibraryWorkUrl } from '@/lib/open-library-cover';
 import { normalizeQuoteCardTemplate, quoteCardPalette, QuoteCardTemplate } from '@/lib/quote-card';
 
@@ -109,16 +110,7 @@ type Post = BookCoverData & {
   containsSpoiler?: boolean;
 };
 
-type Story = {
-  id: string;
-  user_id?: string | null;
-  username: string;
-  profile_image?: string | null;
-  image_url: string | null;
-  text: string | null;
-  created_at: string;
-  expires_at: string;
-};
+type Story = HomeStory;
 
 const REVIEWS_KEY = 'reviews';
 const STORY_SEEN_KEY = 'story-seen-ids';
@@ -1466,40 +1458,32 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Modal visible={showAuthMenu} transparent animationType="fade" onRequestClose={() => setShowAuthMenu(false)}>
-        <View style={styles.drawerOverlay}>
-          <ScrollView style={{width:'86%',flexGrow:0}} contentContainerStyle={[styles.drawerPanel,{width:'100%',height:undefined,flexGrow:1,paddingTop:Math.max(insets.top,12),paddingBottom:insets.bottom}]}>
-            <View style={styles.drawerHeader}>
-              <Text style={styles.drawerBrand}>1000<Text style={styles.drawerBrandAccent}>Kitap</Text></Text>
-              <Pressable onPress={() => setShowAuthMenu(false)} style={styles.drawerCloseButton} accessibilityLabel="Menüyü kapat">
-                <Feather name="x" size={24} color={colors.text} />
-              </Pressable>
-            </View>
-            <View style={styles.drawerDivider} />
-            <View style={styles.drawerSection}>
-              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/saved'); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="bookmark" size={22} color={colors.text} /></View>
-                <Text style={styles.drawerItemText}>Kaydedilenler</Text>
-              </Pressable>
-              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/premium'); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="star" size={22} color={colors.primary} /></View>
-                <Text style={styles.drawerItemText}>Kitap Premium</Text>
-              </Pressable>
-              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/profile-settings'); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="settings" size={22} color={colors.text} /></View>
-                <Text style={styles.drawerItemText}>Profil ayarları</Text>
-              </Pressable>
-              <Pressable onPress={() => { setShowAuthMenu(false); void supabase.auth.signOut().then(({error})=>{if(error) Alert.alert('Hata','Çıkış yapılamadı.');}); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="log-out" size={22} color={colors.text} /></View>
-                <Text style={styles.drawerItemText}>Çıkış yap</Text>
-              </Pressable>
-            </View>
-            <ThemePicker />
-            <View style={styles.drawerBottomArea}><Text style={styles.drawerBottomText}>Okuma dünyana hoş geldin.</Text></View>
-          </ScrollView>
-          <Pressable style={styles.drawerDismissArea} onPress={() => setShowAuthMenu(false)} />
-        </View>
-      </Modal>
+      <HomeDrawer
+        visible={showAuthMenu}
+        styles={styles}
+        colors={colors}
+        topInset={insets.top}
+        bottomInset={insets.bottom}
+        onClose={() => setShowAuthMenu(false)}
+        onSaved={() => {
+          setShowAuthMenu(false);
+          router.push('/saved');
+        }}
+        onPremium={() => {
+          setShowAuthMenu(false);
+          router.push('/premium');
+        }}
+        onProfileSettings={() => {
+          setShowAuthMenu(false);
+          router.push('/profile-settings');
+        }}
+        onSignOut={() => {
+          setShowAuthMenu(false);
+          void supabase.auth.signOut().then(({ error }) => {
+            if (error) Alert.alert('Hata', 'Çıkış yapılamadı.');
+          });
+        }}
+      />
 
       <FlatList
         ref={scrollRef}
@@ -1541,32 +1525,15 @@ export default function HomeScreen() {
         <View style={styles.headerActions}></View>
         <View style={styles.readerHighlights}></View>
 
-        <View style={styles.storySection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Hikâyeler</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyList}>
-            <Pressable onPress={() => router.push('/story-create')} style={styles.storyItem}>
-              <View style={styles.addStoryCircle}>
-                {storyProfileImage ? <Image source={{ uri: storyProfileImage }} style={styles.addStoryAvatar} resizeMode="cover" /> : <Feather name="user" size={28} color={colors.textSecondary} />}
-                <View style={styles.addStoryBadge}><Text style={styles.addStoryIcon}>+</Text></View>
-              </View>
-              <Text style={styles.storyName}>Hikâyen</Text>
-            </Pressable>
-            {loadingStories ? <ActivityIndicator /> : storyGroups.map((group, groupIndex) => {
-              const previewStory = group.stories[group.stories.length - 1];
-              return (
-                <Pressable key={group.key} onPress={() => openStoryGroup(groupIndex)} style={styles.storyItem}>
-                  <View style={[styles.storyRing, group.hasUnseen ? styles.storyRingUnseen : styles.storyRingSeen]}>
-                    {group.profile_image || previewStory?.image_url ? <Image source={{ uri: group.profile_image || previewStory?.image_url || '' }} style={styles.storyCircleInner} /> : <View style={[styles.storyCircleInner, styles.storyTextCircle]}><Text style={styles.storyFallbackIcon}>📖</Text></View>}
-                    {group.stories.length > 1 ? <View style={styles.storyCountBadge}><Text style={styles.storyCountText}>{group.stories.length}</Text></View> : null}
-                  </View>
-                  <Text numberOfLines={1} style={[styles.storyName, !group.hasUnseen && styles.storyNameSeen]}>{group.username}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
+        <HomeStories
+          styles={styles}
+          colors={colors}
+          profileImage={storyProfileImage}
+          loading={loadingStories}
+          groups={storyGroups}
+          onCreate={() => router.push('/story-create')}
+          onOpenGroup={openStoryGroup}
+        />
 
         {feedTab === 'following' && <Action label="Okurları keşfet" onPress={() => router.push('/readers')} />}
 
@@ -1587,30 +1554,23 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <Modal visible={!!selectedStory} transparent animationType="fade" onRequestClose={closeStory}>
-          <View style={[styles.storyModalOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-            <View style={styles.storyViewer} {...storyPanResponder.panHandlers}>
-              <View style={[styles.storyProgressRow, { opacity: 0 }]}>{(activeStoryGroup?.stories ?? []).map((story, index) => <View key={story.id} style={[styles.storyProgressTrack, index <= storyIndex && styles.storyProgressActive]} />)}</View>
-              <View style={styles.storyViewerHeader}>
-                <View style={styles.storyViewerIdentity}>
-                  {activeStoryGroup?.profile_image ? <Image source={{ uri: activeStoryGroup.profile_image }} style={styles.storyViewerAvatar} /> : <View style={styles.storyViewerAvatarFallback}><Text style={styles.storyViewerAvatarText}>{(selectedStory?.username || 'K').trim().charAt(0).toUpperCase()}</Text></View>}
-                  <View><Text style={styles.storyViewerUsername}>{selectedStory?.username}</Text><Text style={styles.storyViewerCounter}>{selectedStory ? storyAge(selectedStory.created_at) : ''} · {storyIndex + 1}/{activeStoryGroup?.stories.length ?? 1}</Text></View>
-                </View>
-                <Pressable onPress={closeStory} style={styles.storyCloseButton}><Text style={styles.storyCloseText}>×</Text></Pressable>
-              </View>
-              <View style={styles.storyMediaArea}>
-                <StoryTransition key={selectedStory?.id}>
-                  {selectedStory?.image_url ? <Image source={{ uri: selectedStory.image_url }} style={styles.storyViewerImage} resizeMode="contain" /> : <View style={styles.storyTextOnlyCard}><Text style={styles.storyTextOnlyIcon}>📚</Text></View>}
-                  {selectedStory?.text ? <View style={styles.storyTextOverlay}><Text style={styles.storyViewerText}>{selectedStory.text}</Text></View> : null}
-                </StoryTransition>
-              </View>
-              <View style={styles.storySwipeHint}><View style={styles.storySwipeHandle} /><Text style={styles.storySwipeText}>Aşağı kaydırarak kapat</Text></View>
-              {selectedStory && <StoryPlayback key={selectedStory.id} storyId={selectedStory.id} count={activeStoryGroup?.stories.length ?? 1} index={storyIndex} onNext={nextStory} onPrevious={previousStory} />}
-              {selectedStory && <StoryActions key={`actions-${selectedStory.id}`} storyId={selectedStory.id} ownerId={selectedStory.user_id} onClose={closeStory} onDeleted={() => { setStories(current => current.filter(item => item.id !== selectedStory.id)); closeStory(); }} />}
-            </View>
-          </View>
-        </Modal>
-
+        <HomeStoryViewer
+          styles={styles}
+          visible={!!selectedStory}
+          selectedStory={selectedStory}
+          activeGroup={activeStoryGroup ?? null}
+          storyIndex={storyIndex}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+          panHandlers={storyPanResponder.panHandlers}
+          onClose={closeStory}
+          onNext={nextStory}
+          onPrevious={previousStory}
+          onDeleted={(storyId) => {
+            setStories((current) => current.filter((item) => item.id !== storyId));
+            closeStory();
+          }}
+        />
 
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Topluluk Akışı</Text></View>
 
