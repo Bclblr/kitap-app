@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -62,7 +63,7 @@ export default function AdminStorageScreen() {
       const access = await getCurrentAdminAccess();
       if (!access.canManageSystem) {
         Alert.alert('Yetkisiz erişim', 'Bu alan yalnızca admin ve super admin hesaplarına açıktır.');
-        router.back();
+        safeBack(router, '/admin');
         return;
       }
 
@@ -142,7 +143,7 @@ export default function AdminStorageScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.headerButton}>
+          <Pressable onPress={() => safeBack(router, '/admin')} style={styles.headerButton}>
             <Feather name="chevron-left" size={24} color={colors.textPrimary} />
           </Pressable>
           <View style={styles.headerCopy}>
