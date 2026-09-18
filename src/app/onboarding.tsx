@@ -245,7 +245,7 @@ export default function OnboardingScreen() {
             accessibilityLabel="Hakkında"
             accessibilityHint="Profilinde görünecek kısa açıklamayı yazabilirsin."
           />
-          <Text style={styles.profileHint}>Profil fotoğrafı ve kapak görselini daha sonra Profil Ayarları'ndan ekleyebilirsin.</Text>
+          <Text style={styles.profileHint}>Profil fotoğrafı ve kapak görselini daha sonra Profil Ayarları’ndan ekleyebilirsin.</Text>
         </View>
 
         <View style={styles.card}>
