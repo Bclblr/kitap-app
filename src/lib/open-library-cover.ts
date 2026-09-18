@@ -73,9 +73,5 @@ export async function loadBookCover(bookKey: string, fallback: string | null): P
 }
 
 export function existingBookCover(data: BookCoverData): string | null {
-  const finalCoverUrl = resolveBookCover(data);
-  console.log('BOOK COVER DEBUG', { title: data.title ?? data.book_title, key: data.key ?? data.workKey,
-    cover_i: data.cover_i, covers: data.covers, edition_key: data.edition_key, isbn: data.isbn,
-    coverUrl: data.coverUrl, cover_url: data.cover_url, finalCoverUrl });
-  return finalCoverUrl;
+  return resolveBookCover(data);
 }
