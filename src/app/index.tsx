@@ -19,6 +19,7 @@ import ReviewSpoilerText from '@/components/ReviewSpoilerText';
 import QuoteMetadata from '@/components/QuoteMetadata';
 import RetryNotice from '@/components/RetryNotice';
 import { requirePermanentImage } from '@/lib/image-policy';
+import { cleanupUploadedMedia } from '@/lib/media-cleanup';
 import AdSlot from '@/components/AdSlot';
 import {
   HomeDrawer,
@@ -772,11 +773,13 @@ export default function HomeScreen() {
       return;
     }
     setPosting(true);
+    let uploadedPostPath: string | null = null;
     try {
       let imageUrl: string | null = null;
       if (postImage) {
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.jpg`;
         const filePath = `${user.id}/${fileName}`;
+        uploadedPostPath = filePath;
         const response = await fetch(postImage);
         if (!response.ok) throw new Error('Fotoğraf dosyası okunamadı.');
         const arrayBuffer = await response.arrayBuffer();
@@ -804,13 +807,18 @@ export default function HomeScreen() {
 
       if (error) {
         console.error('Gönderi oluşturulamadı:', error);
-        if (imageUrl) {
-          const filePath = `${user.id}/${imageUrl.split('/').pop()}`;
-          await supabase.storage.from('post-images').remove([filePath]);
+        if (uploadedPostPath) {
+          await cleanupUploadedMedia(
+            'post-images',
+            uploadedPostPath,
+            'post_insert_failed'
+          );
         }
         Alert.alert('Hata', error.message);
         return;
       }
+
+      uploadedPostPath = null;
 
       if (data) {
         setPosts((current) => [{
