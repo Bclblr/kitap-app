@@ -29,7 +29,7 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
  create table public.event_attendees(event_id uuid references public.events(id) on delete cascade,user_id uuid references auth.users(id) on delete cascade,created_at timestamptz default now(),primary key(event_id,user_id));
   create table public.conversations(id uuid primary key default gen_random_uuid(),user1_id uuid references auth.users(id),user2_id uuid references auth.users(id),updated_at timestamptz default now(),created_at timestamptz default now());
  create table public.messages(id uuid primary key default gen_random_uuid(),conversation_id uuid references public.conversations(id),sender_id uuid references auth.users(id),content text,created_at timestamptz default now(),is_read boolean default false);
- create table public.stories(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id),expires_at timestamptz default now()+interval '1 day');
+ create table public.stories(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id),expires_at timestamptz default now()+interval '1 day',created_at timestamptz default now());
  create table public.community_posts(id uuid primary key default gen_random_uuid(),community_id uuid,user_id uuid,text text);
  create table public.community_post_comments(id uuid primary key default gen_random_uuid(),post_id uuid,user_id uuid,text text);
  create table public.community_post_likes(id uuid primary key default gen_random_uuid(),post_id uuid,user_id uuid);
