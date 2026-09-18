@@ -66,7 +66,8 @@
     "audit:premium-lifecycle": "node scripts/audit-premium-lifecycle.cjs",
     "audit:ads": "node scripts/audit-ads-config.cjs",
     "test:product-rules": "node scripts/test-product-rules.cjs",
-    "audit:edge-functions": "node scripts/audit-edge-functions.cjs"
+    "audit:edge-functions": "node scripts/audit-edge-functions.cjs",
+    "audit:admin-analytics": "node scripts/audit-admin-analytics.cjs"
   },
   "private": true,
   "overrides": {
