@@ -10,6 +10,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import Image from '@/components/SafeImage';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import PremiumBadge from '@/components/PremiumBadge';
+import ProfileHeader from '@/components/profile/ProfileHeader';
 import RetryNotice from '@/components/RetryNotice';
 
 import BottomNav from '@/components/BottomNav';
@@ -2292,6 +2293,42 @@ export default function ProfileScreen() {
     setComments([]);
   }
 
+  async function openMessageToProfile() {
+    if (!profile?.id) {
+      Alert.alert('Hata', 'Kullanıcı bulunamadı.');
+      return;
+    }
+
+    const { data: authData } = await supabase.auth.getUser();
+    const senderId = authData.user?.id;
+    if (!senderId) {
+      Alert.alert('Giriş gerekli', 'Mesaj göndermek için giriş yapmalısın.');
+      return;
+    }
+
+    const { data: allowed, error } = await supabase.rpc('can_message_user', {
+      p_sender: senderId,
+      p_target: profile.id,
+    });
+    if (error) {
+      console.error('Mesaj izni kontrol edilemedi:', error);
+      Alert.alert('Hata', 'Mesaj izni kontrol edilemedi.');
+      return;
+    }
+    if (!allowed) {
+      Alert.alert(
+        'Mesaj gönderilemiyor',
+        'Bu kullanıcı kimlerin mesaj gönderebileceğini sınırlandırmış olabilir.'
+      );
+      return;
+    }
+
+    router.push({
+      pathname: '/chat',
+      params: { userId: profile.id, username: profile.username || 'Kitap Okuru' },
+    });
+  }
+
   /*
    * ============================================================
    * YÜKLENİYOR
@@ -2363,141 +2400,36 @@ export default function ProfileScreen() {
           />
         ) : null}
 
-        {/* KAPAK + PROFİL ÜST BİLGİ */}
-        <View
-          style={[
-            styles.profileHero,
-            premiumProfileCustomization?.show_premium_frame
-              ? {
-                  borderWidth: 2,
-                  borderColor: PROFILE_THEME_ACCENTS[premiumProfileCustomization.theme_key],
-                  borderRadius: premiumProfileCustomization.layout_key === 'spotlight' ? 22 : 14,
-                  overflow: 'hidden',
-                }
-              : null,
-          ]}
-        >
-          {premiumProfileCustomization?.highlight_text ? (
-            <View style={{ paddingHorizontal: 14, paddingVertical: 9, backgroundColor: PROFILE_THEME_ACCENTS[premiumProfileCustomization.theme_key] }}>
-              <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800', textAlign: 'center' }}>
-                {premiumProfileCustomization.highlight_text}
-              </Text>
-            </View>
-          ) : null}
-          <Pressable
-            disabled
-            style={styles.coverContainer}
-          >
-            {profile.coverImage ? (
-              <Image source={{ uri: profile.coverImage }} style={styles.coverImage} />
-            ) : (
-              <View style={styles.coverPlaceholder}>
-                <Text style={styles.coverIcon}>🖼️</Text>
-                {isOwnProfile && <Text style={styles.coverText}>Kapak fotoğrafı ekle</Text>}
-              </View>
-            )}
-          </Pressable>
-
-          <View style={styles.identityRow}>
-            <Pressable
-              onPress={() => setAvatarOpen(true)}
-              style={styles.profileImageContainer}
-            >
-              {profile.profileImage ? (
-                <Image source={{ uri: profile.profileImage }} style={styles.profileImage} />
-              ) : (
-                <View style={styles.profilePlaceholder}><Text style={styles.profileIcon}>👤</Text></View>
-              )}
-            </Pressable>
-
-            {!editing && (
-              <View style={styles.identityInfo}>
-                <View style={styles.nameRow}>
-
-                  <Text style={styles.fullName} numberOfLines={1}>
-
-                    {profile.fullName || 'Ad Soyad'}
-
-                  </Text>
-
-                  {isVerified ? <VerifiedBadge size={19} /> : null}
-              {isPremium ? <PremiumBadge size={19} /> : null}
-
-                </View>
-                <Text style={styles.handle}>@{profile.username.toLowerCase().replace(/\s+/g, '')}</Text>
-                <Text style={styles.bio}>{profile.bio}</Text>
-              </View>
-            )}
-          </View>
-
-          {editing ? null : isOwnProfile ? (
-            <Pressable
-              onPress={() => router.push('/profile-settings')}
-              style={styles.settingsButton}
-              accessibilityLabel="Profil ayarları"
-            >
-              <Text style={styles.settingsButtonText}>⚙</Text>
-            </Pressable>
-          ) : (
-            <View style={styles.profileActions}>
-              <Pressable onPress={toggleFollow} disabled={followLoading} style={[styles.followButton, (isFollowing || followRequestPending) && styles.followingButton]}>
-                <Text style={[styles.followButtonText, (isFollowing || followRequestPending) && styles.followingButtonText]}>
-                  {followLoading ? '...' : isFollowing ? 'Takiptesin' : followRequestPending ? 'İstek Gönderildi' : isPrivateProfile ? 'Takip İsteği Gönder' : 'Takip Et'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={async () => {
-                  if (!profile?.id) { Alert.alert('Hata', 'Kullanıcı bulunamadı.'); return; }
-                  const { data: authData } = await supabase.auth.getUser();
-                  const senderId = authData.user?.id;
-                  if (!senderId) { Alert.alert('Giriş gerekli', 'Mesaj göndermek için giriş yapmalısın.'); return; }
-                  const { data: allowed, error } = await supabase.rpc('can_message_user', { p_sender: senderId, p_target: profile.id });
-                  if (error) { console.error('Mesaj izni kontrol edilemedi:', error); Alert.alert('Hata', 'Mesaj izni kontrol edilemedi.'); return; }
-                  if (!allowed) { Alert.alert('Mesaj gönderilemiyor', 'Bu kullanıcı kimlerin mesaj gönderebileceğini sınırlandırmış olabilir.'); return; }
-                  router.push({ pathname: '/chat', params: { userId: profile.id, username: profile.username || 'Kitap Okuru' } });
-                }}
-                style={styles.messageButton}
-              ><Text style={styles.messageButtonText}>💬 Mesaj</Text></Pressable>
-              <Pressable onPress={openSafetyMenu} disabled={safetyLoading} style={styles.messageButton} accessibilityLabel="Profil seçenekleri">
-                <Text style={styles.messageButtonText}>{safetyLoading ? '...' : '⋯'}</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-
-        {/* İSTATİSTİKLER */}
-        <View style={styles.stats}>
-          <View style={styles.stat} accessibilityLabel={`${bookCount} farklı kitap hakkında paylaşım`}>
-            <Text style={styles.statNumber}>{bookCount}</Text>
-            <Text style={styles.statLabel}>Kitap</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <Pressable onPress={() => router.push({ pathname: '/readers', params: { id: profile.id, mode: 'followers' } })} style={styles.stat}>
-            <Text style={styles.statNumber}>{followerCount}</Text>
-            <Text style={styles.statLabel}>Takipçi</Text>
-          </Pressable>
-
-          <View style={styles.statDivider} />
-
-          <Pressable onPress={() => router.push({ pathname: '/readers', params: { id: profile.id, mode: 'following' } })} style={styles.stat}>
-            <Text style={styles.statNumber}>{followingCount}</Text>
-            <Text style={styles.statLabel}>Takip</Text>
-          </Pressable>
-
-          <View style={styles.statDivider} />
-
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{quoteCount}</Text>
-            <Text style={styles.statLabel}>Alıntı</Text>
-          </View>
-
-          <View style={styles.statDivider} />
-
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{reviewCount}</Text>
-            <Text style={styles.statLabel}>İnceleme</Text>
-          </View>
-        </View>
+        <ProfileHeader
+          profile={profile}
+          customization={premiumProfileCustomization}
+          isVerified={isVerified}
+          isPremium={isPremium}
+          editing={editing}
+          isOwnProfile={isOwnProfile}
+          isFollowing={isFollowing}
+          followRequestPending={followRequestPending}
+          isPrivateProfile={isPrivateProfile}
+          followLoading={followLoading}
+          safetyLoading={safetyLoading}
+          bookCount={bookCount}
+          followerCount={followerCount}
+          followingCount={followingCount}
+          quoteCount={quoteCount}
+          reviewCount={reviewCount}
+          styles={styles}
+          onAvatarPress={() => setAvatarOpen(true)}
+          onOpenSettings={() => router.push('/profile-settings')}
+          onToggleFollow={() => void toggleFollow()}
+          onMessage={() => void openMessageToProfile()}
+          onSafety={openSafetyMenu}
+          onFollowers={() =>
+            router.push({ pathname: '/readers', params: { id: profile.id, mode: 'followers' } })
+          }
+          onFollowing={() =>
+            router.push({ pathname: '/readers', params: { id: profile.id, mode: 'following' } })
+          }
+        />
 
         {/* =====================================================
             TEK AKIŞ
