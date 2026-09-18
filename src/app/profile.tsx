@@ -1,4 +1,5 @@
 import ReviewSpoilerText from '@/components/ReviewSpoilerText';
+import QuoteMetadata from '@/components/QuoteMetadata';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { permanentImageUrl } from '@/lib/image-policy';
 import * as ImagePicker from 'expo-image-picker';
@@ -64,6 +65,10 @@ type Quote = {
   bookKey: string;
   bookTitle: string;
   text: string;
+  title?: string | null;
+  topic?: string | null;
+  pageNumber?: number | null;
+  note?: string | null;
   createdAt: string;
 };
 
@@ -523,6 +528,11 @@ export default function ProfileScreen() {
             item.text || ''
           ),
 
+          title: item.title ? String(item.title) : null,
+          topic: item.topic ? String(item.topic) : null,
+          pageNumber: Number.isInteger(item.page_number) ? item.page_number : null,
+          note: item.note ? String(item.note) : null,
+
           createdAt:
             item.created_at ||
             new Date().toISOString(),
@@ -549,7 +559,7 @@ export default function ProfileScreen() {
     } = await supabase
       .from('quotes')
       .select(
-        'id, user_id, book_key, book_title, text, created_at'
+        'id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at'
       )
       .eq(
         'user_id',
@@ -1000,7 +1010,7 @@ export default function ProfileScreen() {
         supabase
           .from('quotes')
           .select(
-            'id, user_id, book_key, book_title, text, created_at'
+            'id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at'
           )
           .eq(
             'user_id',
@@ -2626,6 +2636,13 @@ export default function ProfileScreen() {
                       >
                         “{quote.text}”
                       </Text>
+
+                      <QuoteMetadata
+                        title={quote.title}
+                        topic={quote.topic}
+                        pageNumber={quote.pageNumber}
+                        note={quote.note}
+                      />
                     </Pressable>
                   );
                 }
