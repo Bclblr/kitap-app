@@ -43,10 +43,7 @@ export default function AdSlot() {
   }, []);
 
   useEffect(() => {
-    if (!canShowAds) {
-      setSdk(null);
-      return;
-    }
+    if (!canShowAds) return;
 
     let alive = true;
 
