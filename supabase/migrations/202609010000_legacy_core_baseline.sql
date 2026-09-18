@@ -148,6 +148,24 @@ create table if not exists public.notifications (
   post_id uuid references public.posts(id) on delete cascade
 );
 
+create table if not exists public.events (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  description text,
+  event_date timestamptz not null,
+  location text,
+  image_url text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.event_attendees (
+  event_id uuid not null references public.events(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key(event_id,user_id)
+);
+
 create index if not exists posts_user_id_idx on public.posts(user_id);
 create index if not exists post_likes_post_id_idx on public.post_likes(post_id);
 create index if not exists post_comments_post_id_idx on public.post_comments(post_id);
@@ -182,5 +200,7 @@ alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
 alter table public.follows enable row level security;
 alter table public.notifications enable row level security;
+alter table public.events enable row level security;
+alter table public.event_attendees enable row level security;
 
 commit;
