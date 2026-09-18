@@ -1094,7 +1094,7 @@ export default function HomeScreen() {
       setPosts((current) => current.map((item) => item.id === post.id ? { ...item, liked: true, likes: (item.likes ?? 0) + 1 } : item));
       const { data: postData, error: postError } = await supabase.from('posts').select('user_id').eq('id', post.id).single();
       if (postError || !postData) { console.error('Post sahibi bulunamadı:', postError); return; }
-      if (postData.user_id === user.id) return;
+      if (!postData.user_id || postData.user_id === user.id) return;
       const { data: existingNotification, error: notificationCheckError } = await supabase.from('notifications').select('id').eq('user_id', postData.user_id).eq('actor_id', user.id).eq('type', 'like').eq('post_id', post.id).maybeSingle();
       if (notificationCheckError) { console.error('Beğeni bildirimi kontrol edilemedi:', notificationCheckError); return; }
       if (!existingNotification) {
@@ -1158,7 +1158,7 @@ export default function HomeScreen() {
       if (error) { console.error('Post yorum hatası:', error); Alert.alert('Hata', error.message); return; }
       const newComment: Comment = { id: data.id, user_id: user.id, username: CURRENT_USERNAME, text: data.text, createdAt: data.created_at };
       setPosts((current) => current.map((item) => item.id === postId ? { ...item, comments: [...(item.comments ?? []), newComment] } : item));
-      if (postData.user_id !== user.id) {
+      if (postData.user_id && postData.user_id !== user.id) {
         const { error: notificationError } = await supabase.from('notifications').insert({ user_id: postData.user_id, actor_id: user.id, type: 'comment', message: 'gönderine yorum yaptı.', read: false });
         if (notificationError) console.error('Post yorum bildirimi oluşturulamadı:', notificationError);
       }
