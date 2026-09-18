@@ -86,9 +86,8 @@ export default function AdminAuditScreen() {
         const [{ data, error }, { data: filterRows, error: filterError }] = await Promise.all([
           supabase.rpc('admin_list_audit_logs', {
             p_search: query.trim(),
-            p_action: selectedAction,
-            p_target_type: selectedTarget,
-            p_admin_id: null,
+            ...(selectedAction ? { p_action: selectedAction } : {}),
+            ...(selectedTarget ? { p_target_type: selectedTarget } : {}),
             p_limit: PAGE_SIZE,
             p_offset: offset,
           }),
