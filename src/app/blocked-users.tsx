@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -119,7 +120,7 @@ export default function BlockedUsersScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityLabel="Geri">
+        <Pressable onPress={() => safeBack(router, '/privacy-settings')} style={styles.backButton} accessibilityLabel="Geri">
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <Text style={styles.title}>Engellenen Kullanıcılar</Text>
