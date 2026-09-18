@@ -46,10 +46,34 @@ else {
 }
 
 const adsNative = path.join(root, 'src/components/AdSlot.native.tsx');
-if (fs.existsSync(adsNative)) {
-  const text = fs.readFileSync(adsNative, 'utf8');
-  if (!text.includes('AdsConsent.gatherConsent')) failures.push('Ad consent gate is missing.');
-  if (!text.includes('EXPO_PUBLIC_ADMOB_BANNER_ID')) failures.push('Production AdMob banner ID must come from environment configuration.');
+const adsLifecycle = path.join(root, 'src/lib/ads.native.ts');
+if (fs.existsSync(adsNative) && fs.existsSync(adsLifecycle)) {
+  const adSlotText = fs.readFileSync(adsNative, 'utf8');
+  const lifecycleText = fs.readFileSync(adsLifecycle, 'utf8');
+
+  if (!lifecycleText.includes('AdsConsent.gatherConsent')) {
+    failures.push('Ad consent gate is missing.');
+  }
+  if (!lifecycleText.includes('consentInfo.canRequestAds')) {
+    failures.push('Ads may initialize without consent eligibility.');
+  }
+  if (!adSlotText.includes('EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID')) {
+    failures.push('Android production AdMob banner ID must come from environment configuration.');
+  }
+  if (!adSlotText.includes('EXPO_PUBLIC_ADMOB_IOS_BANNER_ID')) {
+    failures.push('iOS production AdMob banner ID must come from environment configuration.');
+  }
+}
+
+const supabaseClient = fs.readFileSync(path.join(root, 'src/lib/supabase.ts'), 'utf8');
+if (!supabaseClient.includes('process.env.EXPO_PUBLIC_SUPABASE_URL')) {
+  failures.push('Supabase URL must come from EXPO_PUBLIC_SUPABASE_URL.');
+}
+if (!supabaseClient.includes('process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY')) {
+  failures.push('Supabase publishable key must come from environment configuration.');
+}
+if (/https:\/\/[a-z0-9]+\.supabase\.co/i.test(supabaseClient)) {
+  failures.push('Supabase project URL must not be hardcoded in the client.');
 }
 
 if (failures.length) {
