@@ -70,7 +70,10 @@
     "audit:admin-analytics": "node scripts/audit-admin-analytics.cjs",
     "test:feed-pagination": "node scripts/test-feed-pagination.cjs",
     "test:async-key-lock": "node scripts/test-async-key-lock.mjs",
-    "audit:signed-image-cache": "node scripts/audit-signed-image-cache.cjs"
+    "audit:signed-image-cache": "node scripts/audit-signed-image-cache.cjs",
+    "audit:account-cleanup": "node scripts/audit-account-cleanup.cjs",
+    "audit:reader-request-race": "node scripts/audit-reader-request-race.cjs",
+    "audit:storage-cleanup-worker": "node scripts/audit-storage-cleanup-worker.cjs"
   },
   "private": true,
   "overrides": {
