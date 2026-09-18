@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -156,7 +157,7 @@ export default function AdminContentScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.headerButton}>
+        <Pressable onPress={() => safeBack(router, '/admin')} style={styles.headerButton}>
           <Feather name="chevron-left" size={24} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.headerCopy}>
