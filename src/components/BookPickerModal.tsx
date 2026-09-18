@@ -45,20 +45,24 @@ export default function BookPickerModal({ visible, onClose, onSelect, title = 'K
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!visible) {
+    if (visible) return;
+    const resetTimer = setTimeout(() => {
       setQuery('');
       setResults([]);
       setError('');
-    }
+    }, 0);
+    return () => clearTimeout(resetTimer);
   }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
     const clean = query.trim();
     if (clean.length < 2) {
-      setResults([]);
-      setError('');
-      return;
+      const resetTimer = setTimeout(() => {
+        setResults([]);
+        setError('');
+      }, 0);
+      return () => clearTimeout(resetTimer);
     }
 
     const controller = new AbortController();
