@@ -302,7 +302,7 @@ export default function HomeScreen() {
     ]);
   }
 
-  async function getCurrentUser() {
+  const getCurrentUser = useCallback(async () => {
     const {
       data: { user },
       error,
@@ -312,20 +312,15 @@ export default function HomeScreen() {
       return null;
     }
 
-    async function checkAuth() {
-      const user = await getCurrentUser();
-      setCurrentUser(user);
-    }
-
     return user;
-  }
+  }, []);
 
-  async function getCurrentUserId() {
+  const getCurrentUserId = useCallback(async () => {
     const user = await getCurrentUser();
     return user?.id ?? null;
-  }
+  }, [getCurrentUser]);
 
-  async function getBlockedUserIds(userId: string | null) {
+  const getBlockedUserIds = useCallback(async (userId: string | null) => {
     const blocked = new Set<string>();
     if (!userId) return blocked;
 
@@ -345,7 +340,7 @@ export default function HomeScreen() {
     }
 
     return blocked;
-  }
+  }, []);
 
   const loadReviews = useCallback(async () => {
     try {
@@ -465,7 +460,7 @@ export default function HomeScreen() {
       console.error('İncelemeler yüklenemedi:', error);
       setReviews([]);
     }
-  }, []);
+  }, [getBlockedUserIds, getCurrentUserId]);
 
   const loadPosts = useCallback(async (reset = false) => {
     if (loadingFeedRef.current) return;
@@ -775,7 +770,7 @@ export default function HomeScreen() {
       setLoadingPosts(false);
       setLoadingMoreFeed(false);
     }
-  }, []);
+  }, [getBlockedUserIds, getCurrentUserId]);
   const loadStories = useCallback(async () => {
     setLoadingStories(true);
 
@@ -835,7 +830,7 @@ export default function HomeScreen() {
     } finally {
       setLoadingStories(false);
     }
-  }, []);
+  }, [getBlockedUserIds, getCurrentUserId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -899,7 +894,7 @@ export default function HomeScreen() {
       }
       loadAll();
       return () => { active = false; };
-    }, [loadPosts, loadStories])
+    }, [getCurrentUser, getCurrentUserId, loadPosts, loadStories])
   );
 
   async function pickPostImage() {
