@@ -1,9 +1,7 @@
-const base = require('./app.json');
-
 const TEST_ANDROID_APP_ID = 'ca-app-pub-3940256099942544~3347511713';
 const TEST_IOS_APP_ID = 'ca-app-pub-3940256099942544~1458002511';
 
-module.exports = () => {
+module.exports = ({ config }) => {
   const requireProductionAds = process.env.ADMOB_REQUIRE_PRODUCTION === 'true';
   const androidAppId = process.env.ADMOB_ANDROID_APP_ID?.trim() || TEST_ANDROID_APP_ID;
   const iosAppId = process.env.ADMOB_IOS_APP_ID?.trim() || TEST_IOS_APP_ID;
@@ -29,7 +27,7 @@ module.exports = () => {
     }
   }
 
-  const plugins = base.expo.plugins.map((plugin) => {
+  const plugins = (config.plugins || []).map((plugin) => {
     if (Array.isArray(plugin) && plugin[0] === 'react-native-google-mobile-ads') {
       return [
         'react-native-google-mobile-ads',
@@ -57,7 +55,7 @@ module.exports = () => {
   ]);
 
   return {
-    ...base.expo,
+    ...config,
     plugins,
   };
 };
