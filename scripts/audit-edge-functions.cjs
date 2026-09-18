@@ -40,6 +40,10 @@ requirePattern('storyCleanup', 'must use server-validated cleanup candidates', /
 
 requirePattern('revenueCat', 'must reject missing webhook authorization', /authorization/i);
 requirePattern('revenueCat', 'must process lifecycle events through hardened RPC', /process_revenuecat_(?:subscription|transfer)_event/);
+requirePattern('revenueCat', 'must inspect RevenueCat aliases', /aliases/);
+requirePattern('revenueCat', 'must inspect original RevenueCat app user id', /original_app_user_id/);
+requirePattern('revenueCat', 'must resolve subscriber ids against profiles', /from\(['"]profiles['"]\)[\s\S]*?\.in\(['"]id['"]/);
+requirePattern('revenueCat', 'must reject ambiguous subscriber identity', /ambiguous_subscriber_identity/);
 
 if (failures.length) {
   console.error('Edge Function behavior audit failed:');
