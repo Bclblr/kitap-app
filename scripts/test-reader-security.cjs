@@ -101,6 +101,41 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
  await as(A);
  await db.query(`update profile_privacy_settings set is_private=false where user_id=auth.uid()`);
  console.log('PASS: private parent hides comments, likes and reposts and blocks new interactions');
+
+ await as(A);
+ await db.query(`update posts set text='SECRET #auditprivate' where id='${baselinePost}'`);
+ await db.query(`update reviews set text='SECRET REVIEW #auditprivate' where id='${baselineReview}'`);
+ await db.query(`update profile_privacy_settings set is_private=true, discoverable=false where user_id=auth.uid()`);
+ await db.query(`insert into user_book_status(user_id,book_key,book_title,status) values(auth.uid(),'audit-book','Audit Book','reading') on conflict(user_id,book_key) do update set status='reading'`);
+
+ await as(B);
+ const hiddenHashtag=(await db.query(`select * from get_hashtag_content('auditprivate',20,null)`)).rows;
+ assert.equal(hiddenHashtag.length,0);
+ const hiddenTrending=(await db.query(`select * from get_trending_hashtags()`)).rows;
+ assert.equal(hiddenTrending.some((row) => row.hashtag === 'auditprivate'),false);
+ const hiddenReader=(await db.query(`select * from get_same_book_readers('audit-book')`)).rows;
+ assert.equal(hiddenReader.some((row) => row.user_id === A),false);
+
+ await as(A);
+ await db.query(`update profile_privacy_settings set is_private=false, discoverable=true where user_id=auth.uid()`);
+ await as(B);
+ const visibleHashtag=(await db.query(`select * from get_hashtag_content('auditprivate',20,null)`)).rows;
+ assert.equal(visibleHashtag.some((row) => row.content_id === baselinePost),true);
+ const visibleReader=(await db.query(`select * from get_same_book_readers('audit-book')`)).rows;
+ assert.equal(visibleReader.some((row) => row.user_id === A),true);
+
+ await as(A);
+ await db.query(`insert into user_blocks(blocker_id,blocked_id) values(auth.uid(),'${B}') on conflict do nothing`);
+ await as(B);
+ const blockedHashtag=(await db.query(`select * from get_hashtag_content('auditprivate',20,null)`)).rows;
+ assert.equal(blockedHashtag.length,0);
+ const blockedReader=(await db.query(`select * from get_same_book_readers('audit-book')`)).rows;
+ assert.equal(blockedReader.some((row) => row.user_id === A),false);
+ await as(A);
+ await db.query(`delete from user_blocks where blocker_id=auth.uid() and blocked_id='${B}'`);
+ await db.query(`update posts set text='baseline post' where id='${baselinePost}'`);
+ await db.query(`update reviews set text='baseline review' where id='${baselineReview}'`);
+ console.log('PASS: discovery RPCs respect private content, discoverability and bilateral blocks');
  await as(A);
  const work=(await db.query("insert into works(author_id,title) values(auth.uid(),'Private draft') returning id")).rows[0].id;
  await db.query(`insert into work_chapters(work_id,title,content) values('${work}','Draft chapter','Private text')`);
