@@ -41,7 +41,17 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
  create policy legacy_comments on public.community_post_comments for all using(true) with check(true);
  create policy legacy_likes on public.community_post_likes for all using(true) with check(true);`);
  const files=fs.readdirSync('supabase/migrations').filter(name=>name.endsWith('.sql')).sort();
- for(let run=0;run<2;run++) for(const file of files) await db.exec(fs.readFileSync(`supabase/migrations/${file}`,'utf8'));
+ function pgliteCompatibleMigration(sql) {
+  return sql
+   .replace(/create extension if not exists pgcrypto with schema extensions;?/gi, '')
+   .replace(/create schema if not exists extensions;?/gi, '');
+ }
+ for(let run=0;run<2;run++) {
+  for(const file of files) {
+   const sql=pgliteCompatibleMigration(fs.readFileSync(`supabase/migrations/${file}`,'utf8'));
+   await db.exec(sql);
+  }
+ }
  console.log('PASS: migrations apply twice on fixture schema');
  async function as(id) { await db.exec(`reset role; set role authenticated; select set_config('request.jwt.claim.sub','${id}',false);`); }
  async function denied(sql) { await assert.rejects(db.query(sql)); }
