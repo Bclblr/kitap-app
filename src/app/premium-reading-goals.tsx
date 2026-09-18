@@ -132,10 +132,10 @@ export default function PremiumReadingGoalsScreen() {
         <View style={styles.centeredContent}>
           <View style={[styles.lockedCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
             <Feather name="lock" size={26} color={colors.primary} />
-            <Text style={[styles.lockedTitle, { color: colors.text }]}>Gelişmiş hedefler Premium'a özel</Text>
+            <Text style={[styles.lockedTitle, { color: colors.text }]}>Gelişmiş hedefler Premium’a özel</Text>
             <Text style={[styles.lockedBody, { color: colors.textSecondary }]}>Haftalık, aylık, yıllık ve seri hedeflerini Premium üyelikle kullanabilirsin.</Text>
             <Pressable onPress={() => router.replace('/premium')} style={[styles.primaryButton, { backgroundColor: colors.primary }]}> 
-              <Text style={styles.primaryButtonText}>Premium'u İncele</Text>
+              <Text style={styles.primaryButtonText}>Premium’u İncele</Text>
             </Pressable>
           </View>
         </View>
