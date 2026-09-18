@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/quote-card-deps.yml
+      - app.config.js
 
 permissions:
   contents: write
