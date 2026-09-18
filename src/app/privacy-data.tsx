@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import AdPrivacyPreferences from '@/components/AdPrivacyPreferences';
 import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -277,6 +278,8 @@ export default function PrivacyDataScreen() {
             <Feather name="external-link" size={18} color={colors.textSecondary} />
           </Pressable>
         ) : null}
+
+        <AdPrivacyPreferences />
 
         <Text style={styles.sectionTitle}>Kontroller</Text>
 
