@@ -71,17 +71,10 @@ Deno.serve(async (request) => {
     grouped.set(row.bucket_id, names);
   }
 
-  // Delete the Auth identity first. Until this succeeds, no user media is
-  // removed, so a failed account deletion cannot leave an active account
-  // whose files have already disappeared.
-  const { error: deleteError } = await admin.auth.admin.deleteUser(user.id, false);
-  if (deleteError) {
-    console.error('delete-account: auth user deletion failed', deleteError);
-    return jsonResponse(500, { error: 'account_delete_failed' });
-  }
-
-  const cleanupFailures: Array<{ bucketId: string; count: number }> = [];
-
+  // Supabase Auth refuses to delete a user while that user still owns
+  // Storage objects. Remove every known object through the Storage API first.
+  // If any chunk cannot be removed, leave the Auth identity intact so the
+  // deletion can be retried safely.
   for (const [bucketId, names] of grouped) {
     for (let index = 0; index < names.length; index += 100) {
       const chunk = names.slice(index, index + 100);
@@ -96,6 +89,7 @@ Deno.serve(async (request) => {
         }
 
         console.error('delete-account: storage cleanup attempt failed', {
+          userId: user.id,
           bucketId,
           count: chunk.length,
           attempt,
@@ -108,20 +102,27 @@ Deno.serve(async (request) => {
       }
 
       if (!cleaned) {
-        cleanupFailures.push({ bucketId, count: chunk.length });
+        return jsonResponse(500, {
+          error: 'storage_cleanup_failed',
+          account_deleted: false,
+        });
       }
     }
   }
 
-  if (cleanupFailures.length > 0) {
-    // The account is already deleted, so return success and surface the
-    // cleanup warning instead of telling a user to retry an account that no
-    // longer exists. Failures remain visible in function logs for operator
-    // cleanup.
-    return jsonResponse(200, {
-      ok: true,
-      storage_cleanup_warning: true,
-      failed_chunks: cleanupFailures.length,
+  const { error: deleteError } = await admin.auth.admin.deleteUser(user.id, false);
+
+  if (deleteError) {
+    // Storage has already been removed because Supabase requires that ordering.
+    // Surface a hard failure for operator follow-up rather than claiming success.
+    console.error('delete-account: auth user deletion failed after storage cleanup', {
+      userId: user.id,
+      error: deleteError,
+    });
+
+    return jsonResponse(500, {
+      error: 'account_delete_failed',
+      storage_cleanup_completed: true,
     });
   }
 
