@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
@@ -140,7 +141,7 @@ export default function AdminAuthorsScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.headerButton}>
+          <Pressable onPress={() => safeBack(router, '/admin')} style={styles.headerButton}>
             <Feather name="chevron-left" size={24} color={colors.textPrimary} />
           </Pressable>
           <View style={styles.headerCopy}>
