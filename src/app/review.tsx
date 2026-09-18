@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import BookCover from '@/components/BookCover';
 import BookPickerModal, { ComposerBook } from '@/components/BookPickerModal';
 import Image from '@/components/SafeImage';
@@ -117,7 +118,7 @@ export default function ReviewScreen() {
   const initial = displayName.charAt(0).toLocaleUpperCase('tr-TR') || 'K';
 
   function closeComposer() {
-    if (router.canGoBack()) router.back();
+    if (router.canGoBack()) safeBack(router, '/');
     else router.replace('/');
   }
 
