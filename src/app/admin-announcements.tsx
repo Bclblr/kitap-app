@@ -56,6 +56,7 @@ export default function AdminAnnouncementsScreen() {
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [active, setActive] = useState(true);
+  const [summaryNow] = useState(() => Date.now());
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -84,14 +85,14 @@ export default function AdminAnnouncementsScreen() {
   );
 
   const summary = useMemo(() => {
-    const now = Date.now();
+    const now = summaryNow;
     return {
       total: items.length,
       active: items.filter((x) => x.active && new Date(x.starts_at).getTime() <= now && (!x.ends_at || new Date(x.ends_at).getTime() > now)).length,
       scheduled: items.filter((x) => new Date(x.starts_at).getTime() > now).length,
       passive: items.filter((x) => !x.active).length,
     };
-  }, [items]);
+  }, [items, summaryNow]);
 
   function resetForm() {
     setEditingId(null);
