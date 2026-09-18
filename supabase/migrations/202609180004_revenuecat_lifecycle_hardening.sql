@@ -169,7 +169,7 @@ begin
         provider_event_at = p_provider_event_at,
         provider_event_id = trim(p_event_id),
         provider_event_type = trim(p_event_type),
-        provider_environment = coalesce(p_environment, pe.provider_environment),
+        provider_environment = p_environment,
         will_renew = v_will_renew,
         updated_at = now()
       where id = v_existing.id;
@@ -290,7 +290,7 @@ begin
     provider_event_at = p_provider_event_at,
     provider_event_id = trim(p_event_id),
     provider_event_type = 'TRANSFER',
-    provider_environment = p_environment,
+    provider_environment = coalesce(p_environment, pe.provider_environment),
     will_renew = false,
     updated_at = now()
   where pe.user_id = any(p_transferred_from)
