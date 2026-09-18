@@ -35,8 +35,14 @@ const base = { screen:{backgroundColor:'#09090D',padding:16}, text:{color:'#F5F5
 const light = useThemedStyles(base);
 assert.equal(light.screen.backgroundColor,palette.light.background); assert.equal(light.text.color,palette.light.text);
 assert.equal(light.card.backgroundColor,palette.light.surface); assert.equal(light.card.borderColor,palette.light.border); assert.equal(light.screen.padding,16);
-theme = { colors:palette.dark,scheme:'dark',ready:true }; assert.equal(useThemedStyles(base),base);
-console.log('PASS: light semantic surfaces/text/borders and unchanged dark styles/layout');
+theme = { colors:palette.dark,scheme:'dark',ready:true };
+const dark = useThemedStyles(base);
+assert.equal(dark.screen.backgroundColor,palette.dark.background);
+assert.equal(dark.text.color,palette.dark.text);
+assert.equal(dark.card.backgroundColor,palette.dark.surface);
+assert.equal(dark.card.borderColor,palette.dark.border);
+assert.equal(dark.screen.padding,16);
+console.log('PASS: semantic surfaces/text/borders map to the active light/dark palette while layout stays unchanged');
 const rec = load('src/lib/reader-recommendations.ts');
 const signals = {followedByFriends:0,sharedBook:0,sharedCommunity:0,sharedHashtag:0,recentPost:0,completeProfile:0};
 assert.match(rec.explainReader({...signals,followedByFriends:3}).reason,/3 kişi/);
