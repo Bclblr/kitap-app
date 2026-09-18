@@ -8,6 +8,7 @@ const workCover = fs.readFileSync(path.join(root, 'src/lib/upload-cover.ts'), 'u
 const eventEditor = fs.readFileSync(path.join(root, 'src/app/event-editor.tsx'), 'utf8');
 const home = fs.readFileSync(path.join(root, 'src/app/index.tsx'), 'utf8');
 const profile = fs.readFileSync(path.join(root, 'src/app/profile-settings.tsx'), 'utf8');
+const mediaCleanup = fs.readFileSync(path.join(root, 'src/lib/media-cleanup.ts'), 'utf8');
 
 const errors = [];
 
