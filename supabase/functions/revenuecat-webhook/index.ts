@@ -150,15 +150,15 @@ Deno.serve(async (request) => {
     return jsonResponse(400, { error: 'invalid_event_timestamp' });
   }
 
-  if (!validEnvironment(event.environment)) {
-    return jsonResponse(400, { error: 'invalid_environment' });
-  }
-
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
   if (event.type === 'TRANSFER') {
+    if (event.environment && !validEnvironment(event.environment)) {
+      return jsonResponse(400, { error: 'invalid_environment' });
+    }
+
     const transferredFrom = (event.transferred_from ?? []).filter(isUuid);
     const transferredTo = (event.transferred_to ?? []).filter(isUuid);
 
@@ -176,7 +176,7 @@ Deno.serve(async (request) => {
       p_transferred_from: transferredFrom,
       p_transferred_to: transferredTo,
       p_provider_event_at: providerEventAt,
-      p_environment: event.environment,
+      p_environment: validEnvironment(event.environment) ? event.environment : null,
     });
 
     if (error) {
@@ -192,8 +192,12 @@ Deno.serve(async (request) => {
       ok: true,
       processed: data === true,
       duplicate: data === false,
-      environment: event.environment,
+      environment: validEnvironment(event.environment) ? event.environment : null,
     });
+  }
+
+  if (!validEnvironment(event.environment)) {
+    return jsonResponse(400, { error: 'invalid_environment' });
   }
 
   if (!event.app_user_id) {
