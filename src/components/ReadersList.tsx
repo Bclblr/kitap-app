@@ -63,15 +63,28 @@ function ReaderDirectory({
   const [error, setError] = useState('');
   const [pending, setPending] = useState<string | null>(null);
   const lock = useRef(false);
+  const pageOffsetRef = useRef(0);
+  const hasMoreRef = useRef(true);
+  const pageLoadingRef = useRef(false);
+  const scopeKey = `${targetId ?? ''}|${mode ?? ''}|${query?.trim() ?? ''}`;
+  const scopeKeyRef = useRef(scopeKey);
+  scopeKeyRef.current = scopeKey;
 
   const followingSet = useMemo(() => new Set(social.following), [social.following]);
   const blockedSet = useMemo(() => new Set(social.blocked), [social.blocked]);
 
   const loadPage = useCallback(async (reset: boolean) => {
-    const offset = reset ? 0 : readers.length;
-    if (!reset && (!hasMore || loadingMore)) return;
+    if (pageLoadingRef.current) return;
+    if (!reset && !hasMoreRef.current) return;
+
+    const requestScope = scopeKey;
+    const offset = reset ? 0 : pageOffsetRef.current;
+
+    pageLoadingRef.current = true;
 
     if (reset) {
+      pageOffsetRef.current = 0;
+      hasMoreRef.current = true;
       setLoading(true);
       setError('');
     } else {
@@ -97,6 +110,8 @@ function ReaderDirectory({
         loadPremiumUserIds(readerIds).catch(() => new Set<string>()),
       ]);
 
+      if (scopeKeyRef.current !== requestScope) return;
+
       const loadedReaders: Reader[] = baseReaders.map((reader) => ({
         ...reader,
         username: reader.username || 'Kitap Okuru',
@@ -109,24 +124,35 @@ function ReaderDirectory({
         is_premium: premiumIds.has(reader.id),
       }));
 
+      pageOffsetRef.current = offset + baseReaders.length;
+      const nextHasMore = baseReaders.length === DIRECTORY_PAGE_SIZE;
+      hasMoreRef.current = nextHasMore;
+
       setReaders((current) => {
         if (reset) return loadedReaders;
         const existing = new Set(current.map((reader) => reader.id));
         return [...current, ...loadedReaders.filter((reader) => !existing.has(reader.id))];
       });
-      setHasMore(loadedReaders.length === DIRECTORY_PAGE_SIZE);
+      setHasMore(nextHasMore);
     } catch (loadError) {
+      if (scopeKeyRef.current !== requestScope) return;
       console.error('Reader directory load error:', loadError);
       setError('Okurlar yüklenemedi.');
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (scopeKeyRef.current === requestScope) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+      pageLoadingRef.current = false;
     }
-  }, [hasMore, loadingMore, mode, query, readers.length, targetId]);
+  }, [mode, query, scopeKey, targetId]);
 
   useFocusEffect(
     useCallback(() => {
+      pageOffsetRef.current = 0;
+      hasMoreRef.current = true;
       setHasMore(true);
+
       const timer = setTimeout(() => void loadPage(true), query ? 300 : 0);
       return () => clearTimeout(timer);
     }, [loadPage, query])
