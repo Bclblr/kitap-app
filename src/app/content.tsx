@@ -58,10 +58,13 @@ export default function ContentScreen() {
         return;
       }
 
-      const table = type === 'review' ? 'reviews' : 'posts';
-      const { data, error } = await supabase.from(table).select('*').eq('id', id).maybeSingle();
+      const result = type === 'review'
+        ? await supabase.from('reviews').select('*').eq('id', id).maybeSingle()
+        : await supabase.from('posts').select('*').eq('id', id).maybeSingle();
+      const { data, error } = result;
+      const row = data as ContentRow | null;
 
-      if (error || !data) {
+      if (error || !row) {
         if (active) {
           setErrorText('İçerik bulunamadı, silinmiş olabilir veya bu içeriği görme iznin olmayabilir.');
           setLoading(false);
@@ -69,16 +72,16 @@ export default function ContentScreen() {
         return;
       }
 
-      if (data.user_id) {
+      if (row.user_id) {
         const { data: authData } = await supabase.auth.getUser();
         const viewerId = authData.user?.id ?? null;
 
-        if (viewerId && viewerId !== data.user_id) {
+        if (viewerId && viewerId !== row.user_id) {
           const { data: blockedRows, error: blockError } = await supabase
             .from('user_blocks')
             .select('blocker_id,blocked_id')
             .or(
-              `and(blocker_id.eq.${viewerId},blocked_id.eq.${data.user_id}),and(blocker_id.eq.${data.user_id},blocked_id.eq.${viewerId})`
+              `and(blocker_id.eq.${viewerId},blocked_id.eq.${row.user_id}),and(blocker_id.eq.${row.user_id},blocked_id.eq.${viewerId})`
             )
             .limit(1);
 
@@ -94,7 +97,7 @@ export default function ContentScreen() {
 
           const { data: canView, error: accessError } = await supabase.rpc(
             'can_view_profile_content',
-            { p_owner: data.user_id }
+            { p_owner: row.user_id }
           );
 
           if (accessError) {
@@ -110,30 +113,30 @@ export default function ContentScreen() {
       }
 
       let profile: any = null;
-      if (data.user_id) {
+      if (row.user_id) {
         const profileResult = await supabase
           .from('profiles')
           .select('username, full_name, profile_image')
-          .eq('id', data.user_id)
+          .eq('id', row.user_id)
           .maybeSingle();
         profile = profileResult.data;
       }
 
       if (!active) return;
       setContent({
-        id: String(data.id),
-        user_id: data.user_id ? String(data.user_id) : null,
-        text: data.text ?? null,
-        image_url: data.image_url ?? null,
-        book_key: data.book_key ?? null,
-        book_title: data.book_title ?? null,
-        rating: Number(data.rating ?? 0),
-        title: data.title ?? null,
-        topic: data.topic ?? null,
-        tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
-        contains_spoiler: data.contains_spoiler === true,
-        created_at: String(data.created_at ?? ''),
-        username: profile?.username ?? data.username ?? 'Kitap Okuru',
+        id: String(row.id),
+        user_id: row.user_id ? String(row.user_id) : null,
+        text: row.text ?? null,
+        image_url: row.image_url ?? null,
+        book_key: row.book_key ?? null,
+        book_title: row.book_title ?? null,
+        rating: Number(row.rating ?? 0),
+        title: row.title ?? null,
+        topic: row.topic ?? null,
+        tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
+        contains_spoiler: row.contains_spoiler === true,
+        created_at: String(row.created_at ?? ''),
+        username: profile?.username ?? row.username ?? 'Kitap Okuru',
         full_name: profile?.full_name ?? null,
         profile_image: profile?.profile_image ?? null,
       });
