@@ -75,7 +75,9 @@
     "audit:reader-request-race": "node scripts/audit-reader-request-race.cjs",
     "audit:storage-cleanup-worker": "node scripts/audit-storage-cleanup-worker.cjs",
     "audit:backend-health-monitoring": "node scripts/audit-backend-health-monitoring.cjs",
-    "audit:profile-pagination": "node scripts/audit-profile-pagination.cjs"
+    "audit:profile-pagination": "node scripts/audit-profile-pagination.cjs",
+    "audit:production-env": "node scripts/audit-production-env.cjs",
+    "eas-build-pre-install": "node scripts/audit-production-env.cjs"
   },
   "private": true,
   "overrides": {
