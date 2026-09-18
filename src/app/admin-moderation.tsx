@@ -129,51 +129,16 @@ export default function AdminModerationScreen() {
 
     setBusyId(report.id);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.replace('/login');
-        return;
-      }
-
-      const resolved = status === 'actioned' || status === 'rejected';
-      const nextValues = {
-        status,
-        assigned_to: status === 'reviewing' ? user.id : report.assigned_to ?? user.id,
-        resolution: resolution || null,
-        resolved_at: resolved ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase
-        .from('reports')
-        .update(nextValues)
-        .eq('id', report.id);
-
-      if (error) {
-        Alert.alert('Hata', error.message);
-        return;
-      }
-
-      const { error: auditError } = await supabase.from('admin_audit_logs').insert({
-        admin_id: user.id,
-        action: 'report_status_changed',
-        target_type: 'report',
-        target_id: report.id,
-        reason: resolution || null,
-        old_value: { status: report.status },
-        new_value: { status, resolution: resolution || null },
-        metadata: {
-          reported_target_type: report.target_type,
-          reported_target_id: report.target_id,
-          category: report.category,
-        },
+      const { error } = await supabase.rpc('admin_update_report_status', {
+        p_report_id: report.id,
+        p_status: status,
+        p_resolution: resolution || null,
       });
 
-      if (auditError) {
-        console.warn('Audit log yazılamadı:', auditError.message);
+      if (error) {
+        console.error('Moderasyon işlemi başarısız:', error);
+        Alert.alert('Hata', 'Moderasyon işlemi kaydedilemedi.');
+        return;
       }
 
       await loadReports();
