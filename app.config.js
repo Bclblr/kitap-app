@@ -28,6 +28,15 @@ module.exports = ({ config }) => {
     if (!process.env.EXPO_PUBLIC_REVENUECAT_IOS_ANNUAL_PRODUCT_ID?.trim()) {
       missing.push('EXPO_PUBLIC_REVENUECAT_IOS_ANNUAL_PRODUCT_ID');
     }
+    if (!process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY?.trim()) {
+      missing.push('EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY');
+    }
+    if (!process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_MONTHLY_PRODUCT_ID?.trim()) {
+      missing.push('EXPO_PUBLIC_REVENUECAT_ANDROID_MONTHLY_PRODUCT_ID');
+    }
+    if (!process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_ANNUAL_PRODUCT_ID?.trim()) {
+      missing.push('EXPO_PUBLIC_REVENUECAT_ANDROID_ANNUAL_PRODUCT_ID');
+    }
 
     if (missing.length) {
       throw new Error(
