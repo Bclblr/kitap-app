@@ -128,42 +128,46 @@ export function PremiumProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (authLoading) return;
 
-    const currentUserId = session?.user?.id ?? null;
-    const previousUserId = previousUserIdRef.current;
+    const timer = setTimeout(() => {
+      const currentUserId = session?.user?.id ?? null;
+      const previousUserId = previousUserIdRef.current;
 
-    previousUserIdRef.current = currentUserId;
-    activeUserIdRef.current = currentUserId;
-    // Invalidate every in-flight request whenever the authenticated identity changes.
-    reloadSequenceRef.current += 1;
+      previousUserIdRef.current = currentUserId;
+      activeUserIdRef.current = currentUserId;
+      // Invalidate every in-flight request whenever the authenticated identity changes.
+      reloadSequenceRef.current += 1;
 
-    if (!currentUserId) {
-      if (previousUserId) {
-        void detachRevenueCatUser().catch((revenueCatError) => {
-          console.warn('RevenueCat oturumu kapatılamadı:', revenueCatError);
-        });
+      if (!currentUserId) {
+        if (previousUserId) {
+          void detachRevenueCatUser().catch((revenueCatError) => {
+            console.warn('RevenueCat oturumu kapatılamadı:', revenueCatError);
+          });
+        }
+
+        const empty = resolvePremiumAccess([]);
+        accessRef.current = empty;
+        setAccess(empty);
+        setRevenueCat(emptyRevenueCatSnapshot());
+        setError(null);
+        setRefreshing(false);
+        setReady(true);
+        return;
       }
 
-      const empty = resolvePremiumAccess([]);
-      accessRef.current = empty;
-      setAccess(empty);
-      setRevenueCat(emptyRevenueCatSnapshot());
-      setError(null);
-      setRefreshing(false);
-      setReady(true);
-      return;
-    }
+      // Do not render the previous user's Premium state while the new account loads.
+      if (previousUserId !== currentUserId) {
+        const empty = resolvePremiumAccess([]);
+        accessRef.current = empty;
+        setAccess(empty);
+        setRevenueCat(emptyRevenueCatSnapshot());
+        setError(null);
+      }
 
-    // Do not render the previous user's Premium state while the new account loads.
-    if (previousUserId !== currentUserId) {
-      const empty = resolvePremiumAccess([]);
-      accessRef.current = empty;
-      setAccess(empty);
-      setRevenueCat(emptyRevenueCatSnapshot());
-      setError(null);
-    }
+      setReady(false);
+      void reload().catch(() => undefined);
+    }, 0);
 
-    setReady(false);
-    void reload().catch(() => undefined);
+    return () => clearTimeout(timer);
   }, [authLoading, reload, retrySignal, session?.user?.id]);
 
   useEffect(() => {
