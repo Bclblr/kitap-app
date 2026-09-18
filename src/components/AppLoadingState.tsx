@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -19,7 +19,7 @@ export default function AppLoadingState({
   compact = false,
 }: Props) {
   const { colors } = useAppTheme();
-  const pulse = useRef(new Animated.Value(0.45)).current;
+  const [pulse] = useState(() => new Animated.Value(0.45));
 
   useEffect(() => {
     const animation = Animated.loop(
