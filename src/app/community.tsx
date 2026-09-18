@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { Action } from '@/components/ReaderUI';
 import { readerDate } from '@/lib/reader-date';
@@ -542,7 +543,7 @@ export default function CommunityScreen() {
   }
 
   const goBack = () => {
-    if (router.canGoBack()) router.back();
+    if (router.canGoBack()) safeBack(router, '/explore');
     else router.replace('/explore');
   };
 
