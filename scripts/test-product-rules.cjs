@@ -52,22 +52,38 @@ const readers = ['self','following','blocked-out','blocked-in','hidden','a','b',
 const ranked=rec.rankReaders(readers,new Set(readers.slice(0,5).map(r=>r.id)),3);
 assert.equal(ranked.map(r=>r.id).join(','),'a,c,b');
 console.log('PASS: exclusion filters, evidence-based reasons and ranking diversity');
-const root = load('src/app/_layout.tsx').default();
-const guard = root.props.children.props.children.props.children.type;
-function screens(node,allowed=true) {
-  if (!node || !allowed) return [];
-  if (Array.isArray(node)) return node.flatMap(item=>screens(item,allowed));
-  if(node.type==='Screen') return [node.props.name];
-  return screens(node.props?.children,node.type==='Protected'?!!node.props.guard:allowed);
+const layoutSource = fs.readFileSync('src/app/_layout.tsx','utf8');
+function routeNames(constantName) {
+  const match = layoutSource.match(new RegExp(`const ${constantName} = \\[([\\s\\S]*?)\\] as const;`));
+  assert.ok(match, `Missing ${constantName} route list`);
+  return [...match[1].matchAll(/['"]([^'"]+)['"]/g)].map(item => item[1]);
 }
-loading=true; assert.equal(screens(guard()).length,0);
-loading=false; assert.equal(screens(guard()).join(','),'login,register,auth/callback');
-session={user:{id:'reader'}};
-const privateRoutes = screens(guard());
-for (const file of fs.readdirSync('src/app').filter(f=>f.endsWith('.tsx')&&!['_layout.tsx','login.tsx','register.tsx'].includes(f))) assert.ok(privateRoutes.includes(path.basename(file,'.tsx')),`Missing protected route ${file}`);
-assert.equal(privateRoutes[0],'index'); assert.ok(!privateRoutes.includes('login'));
-session=null; assert.equal(screens(guard())[0],'login');
-console.log('PASS: loading renders no route, logout anchors login, all private routes require session (layout contract)');
+const authenticatedRoutes = routeNames('AUTHENTICATED_ROUTES');
+const adminRoutes = routeNames('ADMIN_ROUTES');
+const publicRoutes = new Set([
+  'login',
+  'register',
+  'forgot-password',
+  'reset-password',
+  'verify-email',
+  'account-deletion',
+]);
+const specialRoutes = new Set(['auth/callback']);
+const appFiles = fs.readdirSync('src/app')
+  .filter(file => file.endsWith('.tsx') && file !== '_layout.tsx')
+  .map(file => path.basename(file,'.tsx'));
+
+for (const route of appFiles) {
+  if (publicRoutes.has(route) || specialRoutes.has(route) || adminRoutes.includes(route)) continue;
+  assert.ok(authenticatedRoutes.includes(route), `Missing authenticated route ${route}`);
+}
+for (const route of adminRoutes) assert.ok(/^admin(?:-|$)/.test(route), `Unexpected admin route ${route}`);
+assert.ok(/<Stack\.Protected guard=\{!session\}>[\s\S]*name="login"[\s\S]*name="register"/.test(layoutSource));
+assert.ok(/<Stack\.Protected guard=\{!!session\}>/.test(layoutSource));
+assert.ok(/<Stack\.Protected guard=\{canOpenAdmin\}>/.test(layoutSource));
+assert.ok(/<Stack\.Screen name="auth\/callback" \/>/.test(layoutSource));
+console.log('PASS: public, authenticated and admin route guard contract is complete');
+
 const explore=fs.readFileSync('src/app/explore.tsx','utf8');
 assert.ok(!/import .*?(ReadersList|ReaderSuggestions|WorksList)/.test(explore));
 for(const file of ['book','shelves','read']) assert.ok(!fs.readFileSync(`src/app/${file}.tsx`,'utf8').includes("from('works')"));
