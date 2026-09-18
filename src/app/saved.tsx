@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -117,7 +118,7 @@ export default function SavedScreen() {
 
   function goBackSafely() {
     if (router.canGoBack()) {
-      router.back();
+      safeBack(router, '/');
       return;
     }
     router.replace('/');
