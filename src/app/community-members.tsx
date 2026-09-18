@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -228,7 +229,7 @@ export default function CommunityMembersScreen() {
     <View style={styles.safe}>
       <View style={styles.header}>
         <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore'))}
+          onPress={() => (router.canGoBack() ? safeBack(router, '/explore') : router.replace('/explore'))}
           style={styles.iconButton}
           accessibilityRole="button"
           accessibilityLabel="Geri dön"
