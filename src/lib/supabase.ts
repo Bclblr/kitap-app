@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import 'react-native-url-polyfill/auto';
+
+import type { Database } from './database.types';
 
 export const SUPABASE_URL =
   'https://bxwlaohlyeexfhqyfkkw.supabase.co';
@@ -9,7 +11,7 @@ export const SUPABASE_URL =
 const supabasePublishableKey =
   process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
-export const supabase = createClient(
+export const supabase = createClient<Database>(
   SUPABASE_URL,
   supabasePublishableKey,
   {
