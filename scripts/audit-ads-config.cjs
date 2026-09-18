@@ -35,6 +35,10 @@ const checks = [
   ['consent check before ads', adsLifecycle.includes('consentInfo.canRequestAds')],
   ['privacy options outside ad slot', adPrivacyPreferences.includes('showAdPrivacyOptions')],
   ['ad init retry reset', adSlot.includes('resetAdsInitialization()')],
+  ['banner retry signal', adSlot.includes('bannerRetrySignal')],
+  ['banner retry scheduler', adSlot.includes('scheduleBannerRetry')],
+  ['banner retry does not require sdk reset', adSlot.includes('onAdFailedToLoad={() => {\n            scheduleBannerRetry();')],
+  ['banner retry resets after load', adSlot.includes('onAdLoaded={() => {') && adSlot.includes('bannerRetryCountRef.current = 0')],
   ['platform-specific banner ID', adSlot.includes("Platform.OS === 'android'")],
   ['development test banner', adSlot.includes('sdk.TestIds.BANNER')],
 ];
