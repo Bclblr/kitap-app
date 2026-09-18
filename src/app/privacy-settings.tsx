@@ -154,7 +154,7 @@ export default function PrivacySettingsScreen() {
 
             <View style={[styles.card, styles.cardSpacing]}>
               <View style={styles.rowText}>
-                <Text style={styles.cardTitle}>Arama ve Keşfet'te görün</Text>
+                <Text style={styles.cardTitle}>Arama ve Keşfet’te görün</Text>
                 <Text style={styles.cardDescription}>Kapalı olduğunda kullanıcı adı aramalarında hesabın gösterilmez.</Text>
               </View>
               <Switch value={discoverable} onValueChange={changeDiscoverable} disabled={saving} />
