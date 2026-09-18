@@ -2,8 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 type ExpiredStory = {
   id: string;
-  storage_path: string | null;
-  image_url: string | null;
+  user_id: string;
+  media_path: string | null;
 };
 
 function jsonResponse(status: number, body: Record<string, unknown>) {
@@ -11,15 +11,6 @@ function jsonResponse(status: number, body: Record<string, unknown>) {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
-}
-
-function legacyStoragePath(imageUrl: string | null) {
-  if (!imageUrl) return null;
-  const marker = '/storage/v1/object/public/story-images/';
-  const index = imageUrl.indexOf(marker);
-  if (index < 0) return null;
-  const value = imageUrl.slice(index + marker.length).split('?')[0];
-  return value || null;
 }
 
 Deno.serve(async (request) => {
@@ -39,17 +30,31 @@ Deno.serve(async (request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  const cleanupSecret = request.headers.get('x-story-cleanup-secret')?.trim() || null;
+  const { data: tokenIsValid, error: tokenError } = await admin.rpc(
+    'validate_story_cleanup_token',
+    { p_token: cleanupSecret }
+  );
+
+  if (tokenError) {
+    console.error('story-media-cleanup: scheduler token validation failed', tokenError);
+    return jsonResponse(500, { error: 'scheduler_auth_validation_failed' });
+  }
+
+  if (tokenIsValid !== true) {
+    return jsonResponse(401, { error: 'unauthorized' });
+  }
+
   const cutoff = new Date().toISOString();
   let deletedStories = 0;
   let deletedMedia = 0;
+  let skippedUnsafeMedia = 0;
 
   for (let batch = 0; batch < 5; batch += 1) {
-    const { data, error } = await admin
-      .from('stories')
-      .select('id, storage_path, image_url')
-      .lte('expires_at', cutoff)
-      .order('expires_at', { ascending: true })
-      .limit(200);
+    const { data, error } = await admin.rpc('get_expired_story_cleanup_candidates', {
+      p_cutoff: cutoff,
+      p_limit: 200,
+    });
 
     if (error) {
       console.error('story-media-cleanup: expired story query failed', error);
@@ -62,10 +67,12 @@ Deno.serve(async (request) => {
     const paths = Array.from(
       new Set(
         stories
-          .map((story) => story.storage_path || legacyStoragePath(story.image_url))
+          .map((story) => story.media_path)
           .filter((path): path is string => !!path)
       )
     );
+
+    skippedUnsafeMedia += stories.filter((story) => !story.media_path).length;
 
     for (let index = 0; index < paths.length; index += 100) {
       const chunk = paths.slice(index, index + 100);
@@ -135,5 +142,6 @@ Deno.serve(async (request) => {
     deleted_stories: deletedStories,
     deleted_media: deletedMedia,
     deleted_orphans: orphanPaths.length,
+    skipped_unsafe_media: skippedUnsafeMedia,
   });
 });
