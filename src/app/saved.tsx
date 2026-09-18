@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -20,6 +20,13 @@ type SavedWork = {
   description: string | null;
   status: string | null;
 };
+
+type SavedRow =
+  | { key: string; kind: 'section'; title: string; second?: boolean }
+  | { key: string; kind: 'post'; post: SavedPost }
+  | { key: string; kind: 'work'; work: SavedWork }
+  | { key: string; kind: 'empty-posts' }
+  | { key: string; kind: 'empty-works' };
 
 export default function SavedScreen() {
   const router = useRouter();
@@ -116,6 +123,26 @@ export default function SavedScreen() {
     }, [loadSaved])
   );
 
+  const rows = useMemo<SavedRow[]>(() => {
+    const next: SavedRow[] = [{ key: 'section:posts', kind: 'section', title: 'Gönderiler' }];
+
+    if (posts.length) {
+      next.push(...posts.map((post) => ({ key: `post:${post.id}`, kind: 'post' as const, post })));
+    } else {
+      next.push({ key: 'empty:posts', kind: 'empty-posts' });
+    }
+
+    next.push({ key: 'section:works', kind: 'section', title: 'Eserler', second: true });
+
+    if (works.length) {
+      next.push(...works.map((work) => ({ key: `work:${work.id}`, kind: 'work' as const, work })));
+    } else {
+      next.push({ key: 'empty:works', kind: 'empty-works' });
+    }
+
+    return next;
+  }, [posts, works]);
+
   function goBackSafely() {
     if (router.canGoBack()) {
       safeBack(router, '/');
@@ -204,63 +231,87 @@ export default function SavedScreen() {
           <Text style={styles.muted}>Kaydedilenler yükleniyor...</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
-          {errorText ? (
-            <View style={styles.errorCard}>
-              <Text style={styles.errorText}>{errorText}</Text>
-              <Pressable onPress={() => void loadSaved()} style={styles.retryButton}>
-                <Text style={styles.retryText}>Tekrar dene</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          <Text style={styles.sectionTitle}>Gönderiler</Text>
-          {posts.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Feather name="bookmark" size={28} color={colors.primary} />
-              <Text style={styles.emptyTitle}>Kaydedilmiş gönderi yok</Text>
-              <Text style={styles.emptyText}>Ana akışta yer imi simgesine dokunduğun gönderiler burada görünür.</Text>
-              <Pressable onPress={() => router.replace('/')} style={styles.browseButton}>
-                <Text style={styles.browseButtonText}>Ana akışa git</Text>
-              </Pressable>
-            </View>
-          ) : (
-            posts.map((post) => (
-              <View key={post.id} style={styles.card}>
-                <Pressable
-                  onPress={() => router.push({ pathname: '/content', params: { type: 'post', id: post.id } })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${post.username || 'Kitap Okuru'} gönderisini aç`}
-                >
-                  <View style={styles.cardHeader}>
-                    <Feather name="bookmark" size={17} color={colors.primary} />
-                    <Text style={styles.cardMeta}>@{post.username || 'kitapokuru'}</Text>
-                  </View>
-                  <Text numberOfLines={4} style={styles.cardText}>{post.text || 'Gönderi'}</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => void removeSavedPost(post.id)}
-                  disabled={removingId !== null}
-                  style={styles.removeButton}
-                  accessibilityRole="button"
-                  accessibilityLabel="Gönderiyi kaydedilenlerden çıkar"
-                >
-                  <Feather name="bookmark" size={16} color={colors.textSecondary} />
-                  <Text style={styles.removeButtonText}>
-                    {removingId === `post:${post.id}` ? 'Kaldırılıyor…' : 'Kaydedilenlerden çıkar'}
-                  </Text>
+        <FlatList
+          data={rows}
+          keyExtractor={(item) => item.key}
+          contentContainerStyle={styles.content}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
+          ListHeaderComponent={
+            errorText ? (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>{errorText}</Text>
+                <Pressable onPress={() => void loadSaved()} style={styles.retryButton}>
+                  <Text style={styles.retryText}>Tekrar dene</Text>
                 </Pressable>
               </View>
-            ))
-          )}
+            ) : null
+          }
+          renderItem={({ item }) => {
+            if (item.kind === 'section') {
+              return (
+                <Text style={[styles.sectionTitle, item.second && styles.secondSection]}>
+                  {item.title}
+                </Text>
+              );
+            }
 
-          <Text style={[styles.sectionTitle, styles.secondSection]}>Eserler</Text>
-          {works.length === 0 ? (
-            <Text style={styles.emptyText}>Henüz kaydedilmiş eser yok.</Text>
-          ) : (
-            works.map((work) => (
-              <View key={work.id} style={styles.card}>
+            if (item.kind === 'empty-posts') {
+              return (
+                <View style={styles.emptyCard}>
+                  <Feather name="bookmark" size={28} color={colors.primary} />
+                  <Text style={styles.emptyTitle}>Kaydedilmiş gönderi yok</Text>
+                  <Text style={styles.emptyText}>
+                    Ana akışta yer imi simgesine dokunduğun gönderiler burada görünür.
+                  </Text>
+                  <Pressable onPress={() => router.replace('/')} style={styles.browseButton}>
+                    <Text style={styles.browseButtonText}>Ana akışa git</Text>
+                  </Pressable>
+                </View>
+              );
+            }
+
+            if (item.kind === 'empty-works') {
+              return <Text style={styles.emptyText}>Henüz kaydedilmiş eser yok.</Text>;
+            }
+
+            if (item.kind === 'post') {
+              const post = item.post;
+              return (
+                <View style={styles.card}>
+                  <Pressable
+                    onPress={() => router.push({ pathname: '/content', params: { type: 'post', id: post.id } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${post.username || 'Kitap Okuru'} gönderisini aç`}
+                  >
+                    <View style={styles.cardHeader}>
+                      <Feather name="bookmark" size={17} color={colors.primary} />
+                      <Text style={styles.cardMeta}>@{post.username || 'kitapokuru'}</Text>
+                    </View>
+                    <Text numberOfLines={4} style={styles.cardText}>{post.text || 'Gönderi'}</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => void removeSavedPost(post.id)}
+                    disabled={removingId !== null}
+                    style={styles.removeButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Gönderiyi kaydedilenlerden çıkar"
+                  >
+                    <Feather name="bookmark" size={16} color={colors.textSecondary} />
+                    <Text style={styles.removeButtonText}>
+                      {removingId === `post:${post.id}` ? 'Kaldırılıyor…' : 'Kaydedilenlerden çıkar'}
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            }
+
+            const work = item.work;
+            return (
+              <View style={styles.card}>
                 <Pressable
                   onPress={() => router.push({ pathname: '/work', params: { id: work.id } } as never)}
                   accessibilityRole="button"
@@ -271,7 +322,9 @@ export default function SavedScreen() {
                     <Text style={styles.cardMeta}>Eser</Text>
                   </View>
                   <Text style={styles.workTitle}>{work.title}</Text>
-                  {work.description ? <Text numberOfLines={3} style={styles.cardText}>{work.description}</Text> : null}
+                  {work.description ? (
+                    <Text numberOfLines={3} style={styles.cardText}>{work.description}</Text>
+                  ) : null}
                 </Pressable>
 
                 <Pressable
@@ -287,9 +340,9 @@ export default function SavedScreen() {
                   </Text>
                 </Pressable>
               </View>
-            ))
-          )}
-        </ScrollView>
+            );
+          }}
+        />
       )}
     </View>
   );
