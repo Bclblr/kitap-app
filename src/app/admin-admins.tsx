@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { getCurrentAdminAccess, type AppRole } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
@@ -119,7 +120,7 @@ export default function AdminAdminsScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.headerButton}><Feather name="chevron-left" size={24} color={colors.textPrimary}/></Pressable>
+          <Pressable onPress={() => safeBack(router, '/admin')} style={styles.headerButton}><Feather name="chevron-left" size={24} color={colors.textPrimary}/></Pressable>
           <View style={styles.headerCopy}><Text style={styles.eyebrow}>YÖNETİM</Text><Text style={styles.title}>Admin Hesapları</Text></View>
           <Pressable onPress={() => void loadAccounts()} style={styles.headerButton}><Feather name="refresh-cw" size={19} color={colors.textSecondary}/></Pressable>
         </View>
