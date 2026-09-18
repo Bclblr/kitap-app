@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import PremiumBadge from '@/components/PremiumBadge';
@@ -124,6 +124,7 @@ const REVIEWS_KEY = 'reviews';
 const STORY_SEEN_KEY = 'story-seen-ids';
 
 const CURRENT_USERNAME = 'Kitap Okuru';
+const FEED_PAGE_SIZE = 15;
 
 type FeedProfile = {
   id: string;
@@ -188,7 +189,7 @@ export default function HomeScreen() {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const ui = useReaderStyles();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<FlatList<Post>>(null);
   const composerY = useRef(0);
   const insets = useSafeAreaInsets();
   const social = useReaderSocial();
@@ -221,7 +222,10 @@ export default function HomeScreen() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [loadingStories, setLoadingStories] = useState(false);
-  const [feedLimit, setFeedLimit] = useState(30);
+  const [loadingMoreFeed, setLoadingMoreFeed] = useState(false);
+  const [hasMoreFeed, setHasMoreFeed] = useState(true);
+  const feedCursorRef = useRef<string | null>(null);
+  const loadingFeedRef = useRef(false);
 
   const [commentingReviewId, setCommentingReviewId] =
     useState<string | null>(null);
@@ -352,7 +356,7 @@ export default function HomeScreen() {
         .from('reviews')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(feedLimit);
+        .limit(FEED_PAGE_SIZE);
 
       if (error) {
         console.error('Supabase incelemeleri yüklenemedi:', error);
@@ -461,35 +465,91 @@ export default function HomeScreen() {
       console.error('İncelemeler yüklenemedi:', error);
       setReviews([]);
     }
-  }, [feedLimit]);
+  }, []);
 
-  const loadPosts = useCallback(async () => {
-    setLoadingPosts(true);
-    setFeedError(null);
+  const loadPosts = useCallback(async (reset = false) => {
+    if (loadingFeedRef.current) return;
+    loadingFeedRef.current = true;
+
+    if (reset) {
+      setLoadingPosts(true);
+      setFeedError(null);
+      setHasMoreFeed(true);
+      feedCursorRef.current = null;
+    } else {
+      setLoadingMoreFeed(true);
+    }
 
     try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(feedLimit);
-
-      if (error) {
-        console.error('Postlar yüklenemedi:', error);
-        setFeedError('Akış şu anda yenilenemedi. İnternet bağlantını kontrol edip tekrar deneyebilirsin.');
-        return;
-      }
-
       const userId = await getCurrentUserId();
       setCurrentUserId(userId);
       const blockedUserIds = await getBlockedUserIds(userId);
-      const visiblePosts = (data ?? []).filter(
+      const cursor = reset ? null : feedCursorRef.current;
+
+      const buildPostQuery = () => {
+        let query = supabase
+          .from('posts')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(FEED_PAGE_SIZE);
+        if (cursor) query = query.lt('created_at', cursor);
+        return query;
+      };
+
+      const buildReviewQuery = () => {
+        let query = supabase
+          .from('reviews')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(FEED_PAGE_SIZE);
+        if (cursor) query = query.lt('created_at', cursor);
+        return query;
+      };
+
+      const buildQuoteQuery = () => {
+        let query = supabase
+          .from('quotes')
+          .select('id,user_id,book_key,book_title,text,title,topic,page_number,note,card_template_key,created_at')
+          .order('created_at', { ascending: false })
+          .limit(FEED_PAGE_SIZE);
+        if (cursor) query = query.lt('created_at', cursor);
+        return query;
+      };
+
+      const [postResult, reviewResult, quoteResult, profileResult] = await Promise.all([
+        buildPostQuery(),
+        buildReviewQuery(),
+        buildQuoteQuery(),
+        loadFeedProfiles(),
+      ]);
+
+      if (postResult.error) throw postResult.error;
+      if (reviewResult.error) throw reviewResult.error;
+      if (quoteResult.error) throw quoteResult.error;
+      if (profileResult.error) console.error('Feed profilleri alınamadı:', profileResult.error);
+
+      const visiblePostRows = (postResult.data ?? []).filter(
         (post: any) => !post.user_id || !blockedUserIds.has(post.user_id)
       );
-      const postIds = visiblePosts.map((post: any) => post.id);
+      const visibleReviewRows = (reviewResult.data ?? []).filter(
+        (review: any) => !review.user_id || !blockedUserIds.has(review.user_id)
+      );
+      const visibleQuoteRows = (quoteResult.data ?? []).filter(
+        (quote: any) => !quote.user_id || !blockedUserIds.has(quote.user_id)
+      );
 
-      const [profileResult, likesResult, repostsResult, commentsResult, savedResult] = await Promise.all([
-        loadFeedProfiles(),
+      const postIds = visiblePostRows.map((post: any) => post.id);
+      const reviewIds = visibleReviewRows.map((review: any) => review.id);
+
+      const [
+        postLikesResult,
+        postRepostsResult,
+        postCommentsResult,
+        savedResult,
+        reviewLikesResult,
+        reviewRepostsResult,
+        reviewCommentsResult,
+      ] = await Promise.all([
         postIds.length
           ? supabase.from('post_likes').select('post_id, user_id').in('post_id', postIds)
           : Promise.resolve({ data: [], error: null } as any),
@@ -497,26 +557,25 @@ export default function HomeScreen() {
           ? supabase.from('post_reposts').select('post_id, user_id').in('post_id', postIds)
           : Promise.resolve({ data: [], error: null } as any),
         postIds.length
-          ? supabase
-              .from('post_comments')
-              .select('id, text, created_at, user_id, post_id')
-              .in('post_id', postIds)
-              .order('created_at', { ascending: true })
+          ? supabase.from('post_comments').select('id, text, created_at, user_id, post_id').in('post_id', postIds).order('created_at', { ascending: true })
           : Promise.resolve({ data: [], error: null } as any),
         userId && postIds.length
-          ? supabase
-              .from('saved_posts')
-              .select('post_id')
-              .eq('user_id', userId)
-              .in('post_id', postIds)
+          ? supabase.from('saved_posts').select('post_id').eq('user_id', userId).in('post_id', postIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        reviewIds.length
+          ? supabase.from('likes').select('review_id, user_id').in('review_id', reviewIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        reviewIds.length
+          ? supabase.from('reposts').select('review_id, user_id').in('review_id', reviewIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        reviewIds.length
+          ? supabase.from('comments').select('id, text, created_at, user_id, review_id').in('review_id', reviewIds).order('created_at', { ascending: true })
           : Promise.resolve({ data: [], error: null } as any),
       ]);
 
-      if (profileResult.error) console.error('Post profilleri alınamadı:', profileResult.error);
-      if (likesResult.error) console.error('Post beğenileri alınamadı:', likesResult.error);
-      if (repostsResult.error) console.error('Post repostları alınamadı:', repostsResult.error);
-      if (commentsResult.error) console.error('Post yorumları alınamadı:', commentsResult.error);
-      if (savedResult.error) console.error('Kaydedilen postlar alınamadı:', savedResult.error);
+      for (const result of [postLikesResult, postRepostsResult, postCommentsResult, savedResult, reviewLikesResult, reviewRepostsResult, reviewCommentsResult]) {
+        if (result.error) console.error('Feed ilişki verisi alınamadı:', result.error);
+      }
 
       const profilesByUserId = new Map(
         (profileResult.data ?? []).map((profile: any) => [profile.id, profile])
@@ -524,46 +583,45 @@ export default function HomeScreen() {
       const currentProfile = userId ? profilesByUserId.get(userId) : null;
       setStoryProfile({ userId, imageUrl: currentProfile?.profile_image?.trim() || null });
 
-      const likesByPost = new Map<string, any[]>();
-      const repostsByPost = new Map<string, any[]>();
-      const commentsByPost = new Map<string, any[]>();
+      const groupBy = (rows: any[], key: string) => {
+        const map = new Map<string, any[]>();
+        for (const row of rows) {
+          const value = String(row[key]);
+          const items = map.get(value) ?? [];
+          items.push(row);
+          map.set(value, items);
+        }
+        return map;
+      };
+
+      const postLikes = groupBy(postLikesResult.data ?? [], 'post_id');
+      const postReposts = groupBy(postRepostsResult.data ?? [], 'post_id');
+      const postComments = groupBy(postCommentsResult.data ?? [], 'post_id');
+      const reviewLikes = groupBy(reviewLikesResult.data ?? [], 'review_id');
+      const reviewReposts = groupBy(reviewRepostsResult.data ?? [], 'review_id');
+      const reviewComments = groupBy(reviewCommentsResult.data ?? [], 'review_id');
       const savedPostIds = new Set<string>((savedResult.data ?? []).map((item: any) => item.post_id));
 
-      for (const like of likesResult.data ?? []) {
-        const items = likesByPost.get(like.post_id) ?? [];
-        items.push(like);
-        likesByPost.set(like.post_id, items);
-      }
-      for (const repost of repostsResult.data ?? []) {
-        const items = repostsByPost.get(repost.post_id) ?? [];
-        items.push(repost);
-        repostsByPost.set(repost.post_id, items);
-      }
-      for (const comment of commentsResult.data ?? []) {
-        if (comment.user_id && blockedUserIds.has(comment.user_id)) continue;
-        const items = commentsByPost.get(comment.post_id) ?? [];
-        items.push(comment);
-        commentsByPost.set(comment.post_id, items);
-      }
-
-      const preparedPosts: Post[] = visiblePosts.map((post: any) => {
-        const postAuthor = post.user_id ? profilesByUserId.get(post.user_id) : null;
-        const postLikes = likesByPost.get(post.id) ?? [];
-        const postReposts = repostsByPost.get(post.id) ?? [];
-        const postComments = commentsByPost.get(post.id) ?? [];
+      const preparedPosts: Post[] = visiblePostRows.map((post: any) => {
+        const author = post.user_id ? profilesByUserId.get(post.user_id) : null;
+        const likes = postLikes.get(post.id) ?? [];
+        const reposts = postReposts.get(post.id) ?? [];
+        const comments = (postComments.get(post.id) ?? []).filter(
+          (comment: any) => !comment.user_id || !blockedUserIds.has(comment.user_id)
+        );
 
         return {
           ...post,
-          username: postAuthor?.username || post.username || CURRENT_USERNAME,
-          full_name: postAuthor?.full_name ?? null,
-          profile_image: postAuthor?.profile_image ?? null,
-          is_verified: postAuthor?.is_verified ?? false,
-          is_premium: postAuthor?.is_premium ?? false,
-          liked: !!userId && postLikes.some((item: any) => item.user_id === userId),
-          likes: postLikes.length,
-          reposted: !!userId && postReposts.some((item: any) => item.user_id === userId),
-          reposts: postReposts.length,
-          comments: postComments.map((comment: any) => ({
+          username: author?.username || post.username || CURRENT_USERNAME,
+          full_name: author?.full_name ?? null,
+          profile_image: author?.profile_image ?? null,
+          is_verified: author?.is_verified ?? false,
+          is_premium: author?.is_premium ?? false,
+          liked: !!userId && likes.some((item: any) => item.user_id === userId),
+          likes: likes.length,
+          reposted: !!userId && reposts.some((item: any) => item.user_id === userId),
+          reposts: reposts.length,
+          comments: comments.map((comment: any) => ({
             id: comment.id,
             user_id: comment.user_id,
             username: profilesByUserId.get(comment.user_id)?.username || CURRENT_USERNAME,
@@ -574,96 +632,150 @@ export default function HomeScreen() {
         } as Post;
       });
 
-      const [reviewResult, quoteResult] = await Promise.all([
-        supabase
-          .from('reviews')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(30),
-        supabase
-          .from('quotes')
-          .select('id,user_id,book_key,book_title,text,title,topic,page_number,note,card_template_key,created_at')
-          .order('created_at', { ascending: false })
-          .limit(30),
-      ]);
+      const preparedReviews: Review[] = visibleReviewRows.map((review: any) => {
+        const author = profilesByUserId.get(review.user_id);
+        const likes = reviewLikes.get(review.id) ?? [];
+        const reposts = reviewReposts.get(review.id) ?? [];
+        const comments = (reviewComments.get(review.id) ?? []).filter(
+          (comment: any) => !comment.user_id || !blockedUserIds.has(comment.user_id)
+        );
 
-      if (reviewResult.error) console.error('Ana sayfa incelemeleri alınamadı:', reviewResult.error);
-      if (quoteResult.error) throw quoteResult.error;
-
-      const reviewPosts: Post[] = (reviewResult.data ?? [])
-        .filter((review: any) => !review.user_id || !blockedUserIds.has(review.user_id))
-        .map((review: any) => ({
+        return {
           id: review.id,
-          user_id: review.user_id ?? null,
-          username: profilesByUserId.get(review.user_id)?.username || CURRENT_USERNAME,
-          full_name: profilesByUserId.get(review.user_id)?.full_name ?? null,
-          profile_image: profilesByUserId.get(review.user_id)?.profile_image ?? null,
-          text: review.text,
-          image_url: null,
-          reviewTitle: review.title ?? null,
-          reviewTopic: review.topic ?? null,
-          reviewTags: Array.isArray(review.tags) ? review.tags : [],
-          containsSpoiler: review.contains_spoiler === true,
+          user_id: review.user_id,
+          bookKey: review.book_key,
           coverUrl: review.coverUrl,
           cover_url: review.cover_url,
-          cover_i: review.cover_i,
-          covers: review.covers,
-          edition_key: review.edition_key,
           isbn: review.isbn,
           key: review.key,
           workKey: review.workKey,
-          book_key: review.book_key,
-          book_title: review.book_title,
-          rating: review.rating,
-          created_at: review.created_at,
-          saved: false,
-          likes: 0,
-          liked: false,
-          comments: [],
-          reposts: 0,
-          reposted: false,
-          isReview: true,
-        }));
+          cover_i: review.cover_i,
+          covers: review.covers,
+          edition_key: review.edition_key,
+          bookTitle: review.book_title,
+          rating: Number(review.rating) || 0,
+          text: review.text || '',
+          title: review.title ?? null,
+          topic: review.topic ?? null,
+          tags: Array.isArray(review.tags) ? review.tags : [],
+          containsSpoiler: review.contains_spoiler === true,
+          createdAt: review.created_at,
+          username: author?.username || CURRENT_USERNAME,
+          full_name: author?.full_name ?? null,
+          profile_image: author?.profile_image ?? null,
+          is_verified: author?.is_verified ?? false,
+          is_premium: author?.is_premium ?? false,
+          likes: likes.length,
+          liked: !!userId && likes.some((item: any) => item.user_id === userId),
+          comments: comments.map((comment: any) => ({
+            id: comment.id,
+            user_id: comment.user_id,
+            username: profilesByUserId.get(comment.user_id)?.username || CURRENT_USERNAME,
+            text: comment.text,
+            createdAt: comment.created_at,
+          })),
+          reposts: reposts.length,
+          reposted: !!userId && reposts.some((item: any) => item.user_id === userId),
+        };
+      });
 
-      const remoteQuotePosts: Post[] = (quoteResult.data ?? [])
-        .filter((quote: any) => !quote.user_id || !blockedUserIds.has(quote.user_id))
-        .map((quote: any) => ({
-          id: `quote-${quote.id}`,
-          user_id: quote.user_id,
-          username: profilesByUserId.get(quote.user_id)?.username || CURRENT_USERNAME,
-          full_name: profilesByUserId.get(quote.user_id)?.full_name,
-          profile_image: profilesByUserId.get(quote.user_id)?.profile_image,
-          text: quote.text,
-          image_url: null,
-          book_key: quote.book_key,
-          book_title: quote.book_title,
-          rating: 0,
-          created_at: quote.created_at,
-          quoteTitle: quote.title ?? null,
-          quoteTopic: quote.topic ?? null,
-          quotePageNumber: Number.isInteger(quote.page_number) ? quote.page_number : null,
-          quoteNote: quote.note ?? null,
-          card_template_key: normalizeQuoteCardTemplate(quote.card_template_key),
-          isQuote: true,
-        }));
+      const reviewPosts: Post[] = preparedReviews.map((review) => ({
+        id: review.id,
+        user_id: review.user_id ?? null,
+        username: review.username || CURRENT_USERNAME,
+        full_name: review.full_name ?? null,
+        profile_image: review.profile_image ?? null,
+        is_verified: review.is_verified,
+        is_premium: review.is_premium,
+        text: review.text,
+        image_url: null,
+        reviewTitle: review.title ?? null,
+        reviewTopic: review.topic ?? null,
+        reviewTags: review.tags ?? [],
+        containsSpoiler: review.containsSpoiler,
+        coverUrl: review.coverUrl,
+        cover_url: review.cover_url,
+        cover_i: review.cover_i,
+        covers: review.covers,
+        edition_key: review.edition_key,
+        isbn: review.isbn,
+        key: review.key,
+        workKey: review.workKey,
+        book_key: review.bookKey,
+        book_title: review.bookTitle,
+        rating: review.rating,
+        created_at: review.createdAt,
+        saved: false,
+        likes: review.likes,
+        liked: review.liked,
+        comments: review.comments,
+        reposts: review.reposts,
+        reposted: review.reposted,
+        isReview: true,
+      }));
 
-      const allFeedItems: Post[] = [
-        ...preparedPosts,
-        ...reviewPosts,
-        ...remoteQuotePosts,
-      ]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, feedLimit * 2);
+      const quotePosts: Post[] = visibleQuoteRows.map((quote: any) => ({
+        id: `quote-${quote.id}`,
+        user_id: quote.user_id,
+        username: profilesByUserId.get(quote.user_id)?.username || CURRENT_USERNAME,
+        full_name: profilesByUserId.get(quote.user_id)?.full_name,
+        profile_image: profilesByUserId.get(quote.user_id)?.profile_image,
+        text: quote.text,
+        image_url: null,
+        book_key: quote.book_key,
+        book_title: quote.book_title,
+        rating: 0,
+        created_at: quote.created_at,
+        quoteTitle: quote.title ?? null,
+        quoteTopic: quote.topic ?? null,
+        quotePageNumber: Number.isInteger(quote.page_number) ? quote.page_number : null,
+        quoteNote: quote.note ?? null,
+        card_template_key: normalizeQuoteCardTemplate(quote.card_template_key),
+        isQuote: true,
+      }));
 
-      setPosts(allFeedItems);
+      const pageItems = [...preparedPosts, ...reviewPosts, ...quotePosts]
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+
+      const sourceRows = [
+        ...(postResult.data ?? []),
+        ...(reviewResult.data ?? []),
+        ...(quoteResult.data ?? []),
+      ];
+      const oldest = sourceRows
+        .map((row: any) => row.created_at)
+        .filter(Boolean)
+        .sort((a: string, b: string) => Date.parse(a) - Date.parse(b))[0] ?? null;
+
+      const anyFullPage =
+        (postResult.data?.length ?? 0) === FEED_PAGE_SIZE ||
+        (reviewResult.data?.length ?? 0) === FEED_PAGE_SIZE ||
+        (quoteResult.data?.length ?? 0) === FEED_PAGE_SIZE;
+
+      feedCursorRef.current = oldest;
+      setHasMoreFeed(Boolean(oldest && anyFullPage));
+
+      setReviews((current) => {
+        if (reset) return preparedReviews;
+        const existing = new Set(current.map((item) => item.id));
+        return [...current, ...preparedReviews.filter((item) => !existing.has(item.id))];
+      });
+
+      setPosts((current) => {
+        if (reset) return pageItems;
+        const existing = new Set(current.map((item) => item.id));
+        return [...current, ...pageItems.filter((item) => !existing.has(item.id))]
+          .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+      });
     } catch (error) {
       console.error('Post yükleme hatası:', error);
       setFeedError('Akış yüklenirken bir sorun oluştu. Mevcut içerikler korunuyor; yeniden deneyebilirsin.');
     } finally {
+      loadingFeedRef.current = false;
       setLoadingPosts(false);
+      setLoadingMoreFeed(false);
     }
-  }, [feedLimit]);
-
+  }, []);
   const loadStories = useCallback(async () => {
     setLoadingStories(true);
 
@@ -782,12 +894,12 @@ export default function HomeScreen() {
         const user = await getCurrentUser();
         setCurrentUser(user);
         if (active) setCurrentUserId(userId);
-        await Promise.all([loadReviews(), loadPosts(), loadStories()]);
+        await Promise.all([loadPosts(true), loadStories()]);
         if (active) setLoading(false);
       }
       loadAll();
       return () => { active = false; };
-    }, [loadReviews, loadPosts, loadStories])
+    }, [loadPosts, loadStories])
   );
 
   async function pickPostImage() {
@@ -1376,7 +1488,7 @@ export default function HomeScreen() {
           <RetryNotice
             message={feedError}
             busy={loadingPosts}
-            onRetry={() => { void Promise.all([loadPosts(), loadReviews()]); }}
+            onRetry={() => { void loadPosts(true); }}
           />
         ) : null}
 
@@ -1505,7 +1617,7 @@ export default function HomeScreen() {
           })
         )}
 
-        {visiblePosts.length >= feedLimit ? (
+        {hasMoreFeed ? (
           <Pressable
             onPress={() => setFeedLimit((current) => current + 30)}
             style={styles.loadMoreButton}
