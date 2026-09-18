@@ -25,6 +25,9 @@ on public.reports(legacy_user_report_id)
 where legacy_user_report_id is not null;
 
 -- Preserve all legacy user_reports in the unified moderation table.
+-- The normal report insert guard requires auth.uid(); migrations run without
+-- an end-user auth context, so disable it only for this controlled backfill.
+alter table public.reports disable trigger reports_rate_limit_guard;
 -- At most one unresolved report may exist for the same reporter/target;
 -- older duplicates are retained as migrated historical duplicates.
 with legacy as (
@@ -87,6 +90,8 @@ where not exists (
   where r.legacy_user_report_id = l.id
 )
 on conflict do nothing;
+
+alter table public.reports enable trigger reports_rate_limit_guard;
 
 -- Compatibility bridge for older app builds that still submit to user_reports.
 create or replace function public.mirror_legacy_user_report()
