@@ -253,7 +253,9 @@ export default function MessagesScreen() {
         </View>
       ) : null}
 
-      {normalizedQuery ? (
+      {loadError && conversations.length === 0 ? (
+        <View style={styles.loadingContainer} />
+      ) : normalizedQuery ? (
         <ScrollView
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.searchContent}
