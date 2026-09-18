@@ -2033,6 +2033,8 @@ export type Database = {
         Row: {
           created_at: string
           expires_at: string
+          allow_likes: boolean
+          allow_replies: boolean
           id: string
           image_url: string | null
           storage_path: string | null
@@ -2043,6 +2045,8 @@ export type Database = {
         Insert: {
           created_at?: string
           expires_at: string
+          allow_likes?: boolean
+          allow_replies?: boolean
           id?: string
           image_url?: string | null
           storage_path?: string | null
@@ -2053,6 +2057,8 @@ export type Database = {
         Update: {
           created_at?: string
           expires_at?: string
+          allow_likes?: boolean
+          allow_replies?: boolean
           id?: string
           image_url?: string | null
           storage_path?: string | null
