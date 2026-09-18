@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Te
 import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
+import type { Json } from '@/lib/database.types';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 
@@ -26,7 +27,7 @@ export default function AdminSystemScreen(){
  const byKey=useMemo(()=>Object.fromEntries(settings.map(s=>[s.key,s])),[settings]);
  const quickKeys=['maintenance_mode','registration_enabled','community_creation_enabled','event_creation_enabled','force_update_enabled','follow_enabled'];
  const quickLabels:Record<string,string>={maintenance_mode:'Bakım modu',registration_enabled:'Yeni kayıtlar',community_creation_enabled:'Topluluk oluşturma',event_creation_enabled:'Etkinlik oluşturma',force_update_enabled:'Zorunlu güncelleme',follow_enabled:'Takip özelliği'};
- async function saveSetting(setting:Setting,nextValue:unknown){setSaving(setting.key);try{const{error}=await supabase.rpc('admin_set_system_setting',{p_key:setting.key,p_value:nextValue,p_description:setting.description,p_public_read:setting.public_read});if(error)throw error;setSettings(prev=>prev.map(s=>s.key===setting.key?{...s,value:nextValue}:s));setEditingSetting(null);setEditingText('')}catch(error:any){Alert.alert('Hata',error?.message??'Ayar kaydedilemedi.')}finally{setSaving(null)}}
+ async function saveSetting(setting:Setting,nextValue:unknown){setSaving(setting.key);try{const{error}=await supabase.rpc('admin_set_system_setting',{p_key:setting.key,p_value:nextValue as Json,p_description:setting.description,p_public_read:setting.public_read});if(error)throw error;setSettings(prev=>prev.map(s=>s.key===setting.key?{...s,value:nextValue}:s));setEditingSetting(null);setEditingText('')}catch(error:any){Alert.alert('Hata',error?.message??'Ayar kaydedilemedi.')}finally{setSaving(null)}}
  function editSetting(setting:Setting){setEditingSetting(setting);setEditingText(displayValue(setting.value))}
  async function saveEdited(){if(!editingSetting)return;try{await saveSetting(editingSetting,parseValue(editingText,editingSetting.value))}catch(error:any){Alert.alert('Hata',error?.message??'Geçersiz değer.')}}
  async function toggleFlag(flag:Flag){setSaving(`flag:${flag.key}`);try{const{error}=await supabase.rpc('admin_save_feature_flag',{p_key:flag.key,p_enabled:!flag.enabled,p_description:flag.description,p_allowed_roles:flag.allowed_roles,p_allowed_user_ids:flag.allowed_user_ids});if(error)throw error;setFlags(prev=>prev.map(f=>f.key===flag.key?{...f,enabled:!f.enabled}:f))}catch(error:any){Alert.alert('Hata',error?.message??'Feature flag güncellenemedi.')}finally{setSaving(null)}}
