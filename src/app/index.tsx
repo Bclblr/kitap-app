@@ -1354,155 +1354,8 @@ export default function HomeScreen() {
     )
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
-  return (
-    <View style={styles.container}>
-      <Modal visible={showAuthMenu} transparent animationType="fade" onRequestClose={() => setShowAuthMenu(false)}>
-        <View style={styles.drawerOverlay}>
-          <ScrollView style={{width:'86%',flexGrow:0}} contentContainerStyle={[styles.drawerPanel,{width:'100%',height:undefined,flexGrow:1,paddingTop:Math.max(insets.top,12),paddingBottom:insets.bottom}]}>
-            <View style={styles.drawerHeader}>
-              <Text style={styles.drawerBrand}>1000<Text style={styles.drawerBrandAccent}>Kitap</Text></Text>
-              <Pressable onPress={() => setShowAuthMenu(false)} style={styles.drawerCloseButton} accessibilityLabel="Menüyü kapat">
-                <Feather name="x" size={24} color={colors.text} />
-              </Pressable>
-            </View>
-            <View style={styles.drawerDivider} />
-            <View style={styles.drawerSection}>
-              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/saved'); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="bookmark" size={22} color={colors.text} /></View>
-                <Text style={styles.drawerItemText}>Kaydedilenler</Text>
-              </Pressable>
-              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/premium'); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="star" size={22} color={colors.primary} /></View>
-                <Text style={styles.drawerItemText}>Kitap Premium</Text>
-              </Pressable>
-              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/profile-settings'); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="settings" size={22} color={colors.text} /></View>
-                <Text style={styles.drawerItemText}>Profil ayarları</Text>
-              </Pressable>
-              <Pressable onPress={() => { setShowAuthMenu(false); void supabase.auth.signOut().then(({error})=>{if(error) Alert.alert('Hata','Çıkış yapılamadı.');}); }} style={styles.drawerItem}>
-                <View style={styles.drawerIconWrap}><Feather name="log-out" size={22} color={colors.text} /></View>
-                <Text style={styles.drawerItemText}>Çıkış yap</Text>
-              </Pressable>
-            </View>
-            <ThemePicker />
-            <View style={styles.drawerBottomArea}><Text style={styles.drawerBottomText}>Okuma dünyana hoş geldin.</Text></View>
-          </ScrollView>
-          <Pressable style={styles.drawerDismissArea} onPress={() => setShowAuthMenu(false)} />
-        </View>
-      </Modal>
 
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.homeHeader}>
-          <Pressable onPress={() => setShowAuthMenu(true)} style={styles.headerIconButton} accessibilityLabel="Menü">
-            <Feather name="menu" size={24} color={colors.text} />
-          </Pressable>
-          <Text style={styles.brandTitle}>1000<Text style={styles.brandAccent}>Kitap</Text></Text>
-          <View style={styles.headerRightActions}>
-            <Pressable onPress={() => router.push('/notifications')} style={styles.headerIconButton} accessibilityLabel="Bildirimler">
-              <Feather name="bell" size={22} color={colors.text} />
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.topTabs}>
-          <Pressable onPress={() => setFeedTab('following')} style={feedTab === 'following' ? styles.topTabActive : styles.topTab}><Text style={styles.topTabText}>Takip</Text></Pressable>
-          <Pressable onPress={() => setFeedTab('for-you')} style={feedTab === 'for-you' ? styles.topTabActive : styles.topTab}><Text style={styles.topTabText}>Senin İçin</Text></Pressable>
-        </View>
-        <View style={styles.headerDivider} />
-        <View style={styles.headerActions}></View>
-        <View style={styles.readerHighlights}></View>
-
-        <View style={styles.storySection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Hikâyeler</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyList}>
-            <Pressable onPress={() => router.push('/story-create')} style={styles.storyItem}>
-              <View style={styles.addStoryCircle}>
-                {storyProfileImage ? <Image source={{ uri: storyProfileImage }} style={styles.addStoryAvatar} resizeMode="cover" /> : <Feather name="user" size={28} color={colors.textSecondary} />}
-                <View style={styles.addStoryBadge}><Text style={styles.addStoryIcon}>+</Text></View>
-              </View>
-              <Text style={styles.storyName}>Hikâyen</Text>
-            </Pressable>
-            {loadingStories ? <ActivityIndicator /> : storyGroups.map((group, groupIndex) => {
-              const previewStory = group.stories[group.stories.length - 1];
-              return (
-                <Pressable key={group.key} onPress={() => openStoryGroup(groupIndex)} style={styles.storyItem}>
-                  <View style={[styles.storyRing, group.hasUnseen ? styles.storyRingUnseen : styles.storyRingSeen]}>
-                    {group.profile_image || previewStory?.image_url ? <Image source={{ uri: group.profile_image || previewStory?.image_url || '' }} style={styles.storyCircleInner} /> : <View style={[styles.storyCircleInner, styles.storyTextCircle]}><Text style={styles.storyFallbackIcon}>📖</Text></View>}
-                    {group.stories.length > 1 ? <View style={styles.storyCountBadge}><Text style={styles.storyCountText}>{group.stories.length}</Text></View> : null}
-                  </View>
-                  <Text numberOfLines={1} style={[styles.storyName, !group.hasUnseen && styles.storyNameSeen]}>{group.username}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {feedTab === 'following' && <Action label="Okurları keşfet" onPress={() => router.push('/readers')} />}
-
-        <View style={styles.createPostCard} onLayout={event => { composerY.current = event.nativeEvent.layout.y; }}>
-          <View style={styles.createPostHeader}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>👤</Text></View>
-            <Pressable onPress={() => setShowPostBox(!showPostBox)} style={styles.postPrompt}><Text style={styles.postPromptText}>Ne okuyorsun, ne düşünüyorsun?</Text></Pressable>
-          </View>
-          {showPostBox && (
-            <View style={styles.postCreateBox}>
-              {postImage && <View><Image localPreview source={{ uri: postImage }} style={styles.postPreview} /><Pressable onPress={() => setPostImage(null)} style={styles.removeImageButton}><Text style={styles.removeImageText}>✕</Text></Pressable></View>}
-              <TextInput value={postText} onChangeText={setPostText} placeholder="Bir şeyler paylaş..." placeholderTextColor="#999" multiline maxLength={2000} style={styles.postInput} />
-              <View style={styles.createActions}>
-                <Pressable onPress={pickPostImage} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>📷 Fotoğraf</Text></Pressable>
-                <Pressable onPress={createPost} disabled={posting} style={styles.primarySmallButton}><Text style={styles.primarySmallText}>{posting ? 'Paylaşılıyor...' : 'Paylaş'}</Text></Pressable>
-              </View>
-            </View>
-          )}
-        </View>
-
-        <Modal visible={!!selectedStory} transparent animationType="fade" onRequestClose={closeStory}>
-          <View style={[styles.storyModalOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-            <View style={styles.storyViewer} {...storyPanResponder.panHandlers}>
-              <View style={[styles.storyProgressRow, { opacity: 0 }]}>{(activeStoryGroup?.stories ?? []).map((story, index) => <View key={story.id} style={[styles.storyProgressTrack, index <= storyIndex && styles.storyProgressActive]} />)}</View>
-              <View style={styles.storyViewerHeader}>
-                <View style={styles.storyViewerIdentity}>
-                  {activeStoryGroup?.profile_image ? <Image source={{ uri: activeStoryGroup.profile_image }} style={styles.storyViewerAvatar} /> : <View style={styles.storyViewerAvatarFallback}><Text style={styles.storyViewerAvatarText}>{(selectedStory?.username || 'K').trim().charAt(0).toUpperCase()}</Text></View>}
-                  <View><Text style={styles.storyViewerUsername}>{selectedStory?.username}</Text><Text style={styles.storyViewerCounter}>{selectedStory ? storyAge(selectedStory.created_at) : ''} · {storyIndex + 1}/{activeStoryGroup?.stories.length ?? 1}</Text></View>
-                </View>
-                <Pressable onPress={closeStory} style={styles.storyCloseButton}><Text style={styles.storyCloseText}>×</Text></Pressable>
-              </View>
-              <View style={styles.storyMediaArea}>
-                <StoryTransition key={selectedStory?.id}>
-                  {selectedStory?.image_url ? <Image source={{ uri: selectedStory.image_url }} style={styles.storyViewerImage} resizeMode="contain" /> : <View style={styles.storyTextOnlyCard}><Text style={styles.storyTextOnlyIcon}>📚</Text></View>}
-                  {selectedStory?.text ? <View style={styles.storyTextOverlay}><Text style={styles.storyViewerText}>{selectedStory.text}</Text></View> : null}
-                </StoryTransition>
-              </View>
-              <View style={styles.storySwipeHint}><View style={styles.storySwipeHandle} /><Text style={styles.storySwipeText}>Aşağı kaydırarak kapat</Text></View>
-              {selectedStory && <StoryPlayback key={selectedStory.id} storyId={selectedStory.id} count={activeStoryGroup?.stories.length ?? 1} index={storyIndex} onNext={nextStory} onPrevious={previousStory} />}
-              {selectedStory && <StoryActions key={`actions-${selectedStory.id}`} storyId={selectedStory.id} ownerId={selectedStory.user_id} onClose={closeStory} onDeleted={() => { setStories(current => current.filter(item => item.id !== selectedStory.id)); closeStory(); }} />}
-            </View>
-          </View>
-        </Modal>
-
-        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Topluluk Akışı</Text></View>
-
-        {feedError ? (
-          <RetryNotice
-            message={feedError}
-            busy={loadingPosts}
-            onRetry={() => { void loadPosts(true); }}
-          />
-        ) : null}
-
-        {loadingPosts && visiblePosts.length === 0 ? (
-          <View style={styles.loadingBox}><ActivityIndicator /><Text style={styles.info}>Gönderiler yükleniyor...</Text></View>
-        ) : visiblePosts.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>📝</Text>
-            <Text style={styles.emptyTitle}>{social.error || (feedTab === 'following' ? 'Takip akışında henüz içerik yok' : 'Henüz gönderi yok')}</Text>
-            <Text style={styles.emptyText}>{feedTab === 'following' ? 'Okurları keşfet ve takip ederek akışını oluştur.' : 'İlk gönderiyi sen paylaş.'}</Text>
-            <Pressable onPress={() => setShowPostBox(true)} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Gönderi Paylaş</Text></Pressable>
-          </View>
-        ) : (
-          visiblePosts.map((post, feedIndex) => {
+  function renderFeedPost({ item: post, index: feedIndex }: { item: Post; index: number }) {
             const reviewForPost = post.isReview ? reviews.find((review) => review.id === post.id) : undefined;
             const feedComments = post.isReview ? reviewForPost?.comments : post.comments;
             const feedLiked = post.isReview ? reviewForPost?.liked : post.liked;
@@ -1614,95 +1467,189 @@ export default function HomeScreen() {
                 </View>
               </Fragment>
             );
-          })
-        )}
+  }
 
-        {hasMoreFeed ? (
-          <Pressable
-            onPress={() => setFeedLimit((current) => current + 30)}
-            style={styles.loadMoreButton}
-            accessibilityRole="button"
-            accessibilityLabel="Daha fazla içerik yükle"
-          >
-            <Text style={styles.loadMoreText}>Daha fazla göster</Text>
-          </Pressable>
-        ) : null}
+  return (
+    <View style={styles.container}>
+      <Modal visible={showAuthMenu} transparent animationType="fade" onRequestClose={() => setShowAuthMenu(false)}>
+        <View style={styles.drawerOverlay}>
+          <ScrollView style={{width:'86%',flexGrow:0}} contentContainerStyle={[styles.drawerPanel,{width:'100%',height:undefined,flexGrow:1,paddingTop:Math.max(insets.top,12),paddingBottom:insets.bottom}]}>
+            <View style={styles.drawerHeader}>
+              <Text style={styles.drawerBrand}>1000<Text style={styles.drawerBrandAccent}>Kitap</Text></Text>
+              <Pressable onPress={() => setShowAuthMenu(false)} style={styles.drawerCloseButton} accessibilityLabel="Menüyü kapat">
+                <Feather name="x" size={24} color={colors.text} />
+              </Pressable>
+            </View>
+            <View style={styles.drawerDivider} />
+            <View style={styles.drawerSection}>
+              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/saved'); }} style={styles.drawerItem}>
+                <View style={styles.drawerIconWrap}><Feather name="bookmark" size={22} color={colors.text} /></View>
+                <Text style={styles.drawerItemText}>Kaydedilenler</Text>
+              </Pressable>
+              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/premium'); }} style={styles.drawerItem}>
+                <View style={styles.drawerIconWrap}><Feather name="star" size={22} color={colors.primary} /></View>
+                <Text style={styles.drawerItemText}>Kitap Premium</Text>
+              </Pressable>
+              <Pressable onPress={() => { setShowAuthMenu(false); router.push('/profile-settings'); }} style={styles.drawerItem}>
+                <View style={styles.drawerIconWrap}><Feather name="settings" size={22} color={colors.text} /></View>
+                <Text style={styles.drawerItemText}>Profil ayarları</Text>
+              </Pressable>
+              <Pressable onPress={() => { setShowAuthMenu(false); void supabase.auth.signOut().then(({error})=>{if(error) Alert.alert('Hata','Çıkış yapılamadı.');}); }} style={styles.drawerItem}>
+                <View style={styles.drawerIconWrap}><Feather name="log-out" size={22} color={colors.text} /></View>
+                <Text style={styles.drawerItemText}>Çıkış yap</Text>
+              </Pressable>
+            </View>
+            <ThemePicker />
+            <View style={styles.drawerBottomArea}><Text style={styles.drawerBottomText}>Okuma dünyana hoş geldin.</Text></View>
+          </ScrollView>
+          <Pressable style={styles.drawerDismissArea} onPress={() => setShowAuthMenu(false)} />
+        </View>
+      </Modal>
 
-        {visiblePosts.length < 6 && <ReadersList limit={10} />}
-
-        {loading ? <Text style={styles.info}>Paylaşımlar yükleniyor...</Text> : reviews.length > 0 && posts.length === 0 && feedTab === 'for-you' && !social.error ? (
+      <FlatList
+        ref={scrollRef}
+        data={visiblePosts}
+        keyExtractor={(item) => item.isQuote ? item.id : `${item.isReview ? 'review' : 'post'}-${item.id}`}
+        renderItem={renderFeedPost}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
+        onEndReachedThreshold={0.45}
+        onEndReached={() => {
+          if (hasMoreFeed && !loadingMoreFeed && !loadingPosts) {
+            void loadPosts(false);
+          }
+        }}
+        ListHeaderComponent={
           <>
-            <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Kitap İncelemeleri</Text></View>
-            {reviews.filter(review => !social.blocked.includes(review.user_id ?? '')).map((review) => (
-              <View key={review.id} style={styles.reviewCard}>
-                <View style={styles.userRow}>
-                  <View style={styles.avatar}>{review.profile_image ? <Image source={{ uri: review.profile_image }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{(review.full_name || review.username || CURRENT_USERNAME).trim().charAt(0).toUpperCase()}</Text>}</View>
-                  <View style={styles.userInfo}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Text style={[styles.username, { flexShrink: 1 }]} numberOfLines={1}>{review.full_name?.trim() || review.username || CURRENT_USERNAME}</Text>{review.is_verified ? <VerifiedBadge size={16} /> : null}{review.is_premium ? <PremiumBadge size={16} /> : null}</View><Text style={styles.handle} numberOfLines={1}>@{review.username || CURRENT_USERNAME}</Text><Text style={styles.date}>{formatDate(review.createdAt)}</Text></View>
-                  <Text style={styles.moreButton}>•••</Text>
-                </View>
-                <Text style={styles.feedTypeLabel}>KİTAP İNCELEMESİ</Text>
-                <Pressable onPress={() => openBook(review.bookKey)} style={styles.bookAttachment}>
-                  <View style={styles.bookAttachmentIcon}><BookCover uri={existingBookCover(review) ?? bookCoverUrls[review.bookKey || review.key || review.workKey || ''] ?? null} style={styles.bookAttachmentCover}><Text style={styles.bookAttachmentEmoji}>▥</Text></BookCover></View>
-                  <View style={styles.bookAttachmentInfo}><Text style={styles.bookAttachmentLabel}>KİTAP</Text><Text style={styles.bookTitle} numberOfLines={2}>{review.bookTitle}</Text></View>
-                  <Text style={styles.bookAttachmentArrow}>›</Text>
-                </Pressable>
-                <View style={styles.rating}><Text style={styles.stars}>{'★'.repeat(review.rating)}{'☆'.repeat(Math.max(0, 5 - review.rating))}</Text><Text style={styles.ratingNumber}>{review.rating}/5</Text></View>
-                <ReviewSpoilerText
-                  text={review.text}
-                  containsSpoiler={review.containsSpoiler}
-                  title={review.title}
-                  topic={review.topic}
-                  tags={review.tags}
-                  textStyle={styles.reviewText}
-                />
 
-                <View style={styles.actions}>
-                  <Pressable onPress={() => toggleLike(review.id)} style={[styles.actionButton, review.liked && styles.postActionActive]} accessibilityLabel={review.liked ? 'Beğeniyi kaldır' : 'Beğen'}>
-                    <Feather name="heart" size={20} color={review.liked ? '#FF6B7A' : colors.textSecondary} />
-                    <Text style={[styles.count, review.liked && styles.likedAction]}>{review.likes ?? 0}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => openCommentBox(review.id)} style={styles.actionButton} accessibilityLabel="Yorumlar">
-                    <Feather name="message-circle" size={20} color={colors.textSecondary} />
-                    <Text style={styles.count}>{review.comments?.length ?? 0}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => toggleRepost(review.id)} style={[styles.actionButton, review.reposted && styles.postActionActive]} accessibilityLabel={review.reposted ? 'Repostu kaldır' : 'Repost'}>
-                    <Feather name="repeat" size={20} color={review.reposted ? '#66D19E' : colors.textSecondary} />
-                    <Text style={[styles.count, review.reposted && styles.repostedAction]}>{review.reposts ?? 0}</Text>
-                  </Pressable>
-                </View>
+        <View style={styles.homeHeader}>
+          <Pressable onPress={() => setShowAuthMenu(true)} style={styles.headerIconButton} accessibilityLabel="Menü">
+            <Feather name="menu" size={24} color={colors.text} />
+          </Pressable>
+          <Text style={styles.brandTitle}>1000<Text style={styles.brandAccent}>Kitap</Text></Text>
+          <View style={styles.headerRightActions}>
+            <Pressable onPress={() => router.push('/notifications')} style={styles.headerIconButton} accessibilityLabel="Bildirimler">
+              <Feather name="bell" size={22} color={colors.text} />
+            </Pressable>
+          </View>
+        </View>
 
-                {commentingReviewId === review.id && (
-                  <View style={styles.commentBox}>
-                    <TextInput value={commentText} onChangeText={setCommentText} placeholder="Yorumunu yaz..." placeholderTextColor="#999" multiline style={styles.commentInput} />
-                    <View style={styles.commentButtons}>
-                      <Pressable onPress={() => { setCommentingReviewId(null); setCommentText(''); }} style={styles.cancelButton}><Text style={styles.cancelText}>Vazgeç</Text></Pressable>
-                      <Pressable onPress={() => submitComment(review.id)} style={styles.sendButton}><Text style={styles.sendText}>Gönder</Text></Pressable>
-                    </View>
-                  </View>
-                )}
+        <View style={styles.topTabs}>
+          <Pressable onPress={() => setFeedTab('following')} style={feedTab === 'following' ? styles.topTabActive : styles.topTab}><Text style={styles.topTabText}>Takip</Text></Pressable>
+          <Pressable onPress={() => setFeedTab('for-you')} style={feedTab === 'for-you' ? styles.topTabActive : styles.topTab}><Text style={styles.topTabText}>Senin İçin</Text></Pressable>
+        </View>
+        <View style={styles.headerDivider} />
+        <View style={styles.headerActions}></View>
+        <View style={styles.readerHighlights}></View>
 
-                {(review.comments?.length ?? 0) > 0 && (
-                  <View style={styles.comments}>
-                    {review.comments?.map((comment) => {
-                      const isOwnComment = comment.user_id === currentUserId;
-                      return (
-                        <View key={comment.id} style={styles.comment}>
-                          <View style={styles.commentHeader}>
-                            <Text style={styles.commentUser}>{isOwnComment ? CURRENT_USERNAME : 'Kitap Okuru'}</Text>
-                            {isOwnComment && <Pressable onPress={() => deleteComment(review.id, comment.id)} accessibilityLabel="Yorumu sil"><Feather name="trash-2" size={16} color="#FF6B7A" /></Pressable>}
-                          </View>
-                          <Text style={styles.commentText}>{comment.text}</Text>
-                          <Text style={styles.commentDate}>{formatDate(comment.createdAt)}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
+        <View style={styles.storySection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Hikâyeler</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyList}>
+            <Pressable onPress={() => router.push('/story-create')} style={styles.storyItem}>
+              <View style={styles.addStoryCircle}>
+                {storyProfileImage ? <Image source={{ uri: storyProfileImage }} style={styles.addStoryAvatar} resizeMode="cover" /> : <Feather name="user" size={28} color={colors.textSecondary} />}
+                <View style={styles.addStoryBadge}><Text style={styles.addStoryIcon}>+</Text></View>
               </View>
-            ))}
-          </>
+              <Text style={styles.storyName}>Hikâyen</Text>
+            </Pressable>
+            {loadingStories ? <ActivityIndicator /> : storyGroups.map((group, groupIndex) => {
+              const previewStory = group.stories[group.stories.length - 1];
+              return (
+                <Pressable key={group.key} onPress={() => openStoryGroup(groupIndex)} style={styles.storyItem}>
+                  <View style={[styles.storyRing, group.hasUnseen ? styles.storyRingUnseen : styles.storyRingSeen]}>
+                    {group.profile_image || previewStory?.image_url ? <Image source={{ uri: group.profile_image || previewStory?.image_url || '' }} style={styles.storyCircleInner} /> : <View style={[styles.storyCircleInner, styles.storyTextCircle]}><Text style={styles.storyFallbackIcon}>📖</Text></View>}
+                    {group.stories.length > 1 ? <View style={styles.storyCountBadge}><Text style={styles.storyCountText}>{group.stories.length}</Text></View> : null}
+                  </View>
+                  <Text numberOfLines={1} style={[styles.storyName, !group.hasUnseen && styles.storyNameSeen]}>{group.username}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {feedTab === 'following' && <Action label="Okurları keşfet" onPress={() => router.push('/readers')} />}
+
+        <View style={styles.createPostCard} onLayout={event => { composerY.current = event.nativeEvent.layout.y; }}>
+          <View style={styles.createPostHeader}>
+            <View style={styles.avatar}><Text style={styles.avatarText}>👤</Text></View>
+            <Pressable onPress={() => setShowPostBox(!showPostBox)} style={styles.postPrompt}><Text style={styles.postPromptText}>Ne okuyorsun, ne düşünüyorsun?</Text></Pressable>
+          </View>
+          {showPostBox && (
+            <View style={styles.postCreateBox}>
+              {postImage && <View><Image localPreview source={{ uri: postImage }} style={styles.postPreview} /><Pressable onPress={() => setPostImage(null)} style={styles.removeImageButton}><Text style={styles.removeImageText}>✕</Text></Pressable></View>}
+              <TextInput value={postText} onChangeText={setPostText} placeholder="Bir şeyler paylaş..." placeholderTextColor="#999" multiline maxLength={2000} style={styles.postInput} />
+              <View style={styles.createActions}>
+                <Pressable onPress={pickPostImage} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>📷 Fotoğraf</Text></Pressable>
+                <Pressable onPress={createPost} disabled={posting} style={styles.primarySmallButton}><Text style={styles.primarySmallText}>{posting ? 'Paylaşılıyor...' : 'Paylaş'}</Text></Pressable>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <Modal visible={!!selectedStory} transparent animationType="fade" onRequestClose={closeStory}>
+          <View style={[styles.storyModalOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+            <View style={styles.storyViewer} {...storyPanResponder.panHandlers}>
+              <View style={[styles.storyProgressRow, { opacity: 0 }]}>{(activeStoryGroup?.stories ?? []).map((story, index) => <View key={story.id} style={[styles.storyProgressTrack, index <= storyIndex && styles.storyProgressActive]} />)}</View>
+              <View style={styles.storyViewerHeader}>
+                <View style={styles.storyViewerIdentity}>
+                  {activeStoryGroup?.profile_image ? <Image source={{ uri: activeStoryGroup.profile_image }} style={styles.storyViewerAvatar} /> : <View style={styles.storyViewerAvatarFallback}><Text style={styles.storyViewerAvatarText}>{(selectedStory?.username || 'K').trim().charAt(0).toUpperCase()}</Text></View>}
+                  <View><Text style={styles.storyViewerUsername}>{selectedStory?.username}</Text><Text style={styles.storyViewerCounter}>{selectedStory ? storyAge(selectedStory.created_at) : ''} · {storyIndex + 1}/{activeStoryGroup?.stories.length ?? 1}</Text></View>
+                </View>
+                <Pressable onPress={closeStory} style={styles.storyCloseButton}><Text style={styles.storyCloseText}>×</Text></Pressable>
+              </View>
+              <View style={styles.storyMediaArea}>
+                <StoryTransition key={selectedStory?.id}>
+                  {selectedStory?.image_url ? <Image source={{ uri: selectedStory.image_url }} style={styles.storyViewerImage} resizeMode="contain" /> : <View style={styles.storyTextOnlyCard}><Text style={styles.storyTextOnlyIcon}>📚</Text></View>}
+                  {selectedStory?.text ? <View style={styles.storyTextOverlay}><Text style={styles.storyViewerText}>{selectedStory.text}</Text></View> : null}
+                </StoryTransition>
+              </View>
+              <View style={styles.storySwipeHint}><View style={styles.storySwipeHandle} /><Text style={styles.storySwipeText}>Aşağı kaydırarak kapat</Text></View>
+              {selectedStory && <StoryPlayback key={selectedStory.id} storyId={selectedStory.id} count={activeStoryGroup?.stories.length ?? 1} index={storyIndex} onNext={nextStory} onPrevious={previousStory} />}
+              {selectedStory && <StoryActions key={`actions-${selectedStory.id}`} storyId={selectedStory.id} ownerId={selectedStory.user_id} onClose={closeStory} onDeleted={() => { setStories(current => current.filter(item => item.id !== selectedStory.id)); closeStory(); }} />}
+            </View>
+          </View>
+        </Modal>
+
+
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Topluluk Akışı</Text></View>
+
+        {feedError ? (
+          <RetryNotice
+            message={feedError}
+            busy={loadingPosts}
+            onRetry={() => { void loadPosts(true); }}
+          />
         ) : null}
-      </ScrollView>
+
+
+          </>
+        }
+        ListEmptyComponent={
+          loadingPosts ? (
+            <View style={styles.loadingBox}><ActivityIndicator /><Text style={styles.info}>Gönderiler yükleniyor...</Text></View>
+          ) : (
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>📝</Text>
+              <Text style={styles.emptyTitle}>{social.error || (feedTab === 'following' ? 'Takip akışında henüz içerik yok' : 'Henüz gönderi yok')}</Text>
+              <Text style={styles.emptyText}>{feedTab === 'following' ? 'Okurları keşfet ve takip ederek akışını oluştur.' : 'İlk gönderiyi sen paylaş.'}</Text>
+              <Pressable onPress={() => setShowPostBox(true)} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Gönderi Paylaş</Text></Pressable>
+            </View>
+          )
+        }
+        ListFooterComponent={
+          <>
+            {loadingMoreFeed ? <View style={styles.loadingBox}><ActivityIndicator /><Text style={styles.info}>Daha fazla içerik yükleniyor...</Text></View> : null}
+            {!hasMoreFeed && visiblePosts.length > 0 ? <Text style={styles.feedEndText}>Akışın sonuna geldin.</Text> : null}
+            {visiblePosts.length < 6 ? <ReadersList limit={10} /> : null}
+          </>
+        }
+      />
 
       <Pressable onPress={() => setCreateMenu(true)} style={styles.floatingCreateButton} accessibilityRole="button" accessibilityLabel="Yeni gönderi oluştur"><Text style={styles.floatingCreateIcon}>+</Text></Pressable>
       <BottomNav />
@@ -1710,7 +1657,7 @@ export default function HomeScreen() {
         <View style={{ flex: 1, backgroundColor: '#0009', justifyContent: 'flex-end' }}>
           <Pressable style={{ flex: 1 }} accessibilityLabel="Kapat" onPress={() => setCreateMenu(false)} />
           <View style={[ui.card, { padding: 24, paddingBottom: 40, maxHeight: '85%' }]}>
-            <Action label="Gönderi Oluştur" onPress={() => { setCreateMenu(false); setShowPostBox(true); requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: composerY.current, animated: true })); }} />
+            <Action label="Gönderi Oluştur" onPress={() => { setCreateMenu(false); setShowPostBox(true); requestAnimationFrame(() => scrollRef.current?.scrollToOffset({ offset: Math.max(0, composerY.current - 16), animated: true })); }} />
             <Action label="Kitap İncelemesi Yaz" onPress={() => { setCreateMenu(false); router.push('/review'); }} />
             <Action label="Alıntı Paylaş" onPress={() => { setCreateMenu(false); router.push('/quote-create'); }} />
             <Action label="Kitap Yaz / Yayınla" onPress={() => { setCreateMenu(false); router.push('/my-works'); }} />
@@ -1781,6 +1728,7 @@ const baseStyles = StyleSheet.create({
   storySwipeText: { color: '#66666F', fontSize: 9 },
   loadMoreButton: { alignSelf: 'center', marginTop: 8, marginBottom: 18, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: '#21182F', borderWidth: 1, borderColor: '#38284D' },
   loadMoreText: { color: '#A985FF', fontSize: 13, fontWeight: '800' },
+  feedEndText: { color: '#666B76', fontSize: 12, textAlign: 'center', paddingVertical: 18 },
   sectionHeader: { marginTop: 25, marginBottom: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', maxWidth: '100%', minWidth: 0 },
   sectionTitle: { fontSize: 19, fontWeight: '800', color: '#F2F3F5', letterSpacing: -0.2, flexShrink: 1, minWidth: 0 },
   storySection: { marginTop: 8 },
