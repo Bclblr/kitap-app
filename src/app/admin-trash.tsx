@@ -32,7 +32,7 @@ export default function AdminTrashScreen(){
     try{
       const access=await getCurrentAdminAccess();
       if(!access.canOpenAdmin){router.replace('/');return}
-      const{data,error}=await supabase.rpc('admin_list_trash',{p_target_type:filter==='all'?null:filter,p_limit:100,p_offset:0});
+      const{data,error}=await supabase.rpc('admin_list_trash',{...(filter==='all'?{}:{p_target_type:filter}),p_limit:100,p_offset:0});
       if(error)throw error;
       setRows((data??[]) as TrashRow[]);
     }catch(error:any){
