@@ -52,6 +52,15 @@ if (!callback.includes('exchangeCodeForSession')) {
 if (!callback.includes('createSessionFromUrl')) {
   errors.push('Auth callback token dönüşünü işlemiyor.');
 }
+if (!callback.includes("url.indexOf('#')") || !callback.includes('new URLSearchParams(fragment)')) {
+  errors.push('Auth callback query ve URL fragment parametrelerini ayrı ayrı işlemeli.');
+}
+if (!callback.includes('Linking.getInitialURL()')) {
+  errors.push('Auth callback cold-start deep link durumunda initial URL kontrol etmeli.');
+}
+if (!callback.includes("'error_description'") || !callback.includes("'error'")) {
+  errors.push('Auth callback provider hata parametrelerini işlemeli.');
+}
 
 if (!appleAuth.includes('AppleAuthentication.signInAsync')) {
   errors.push('Native Apple Sign In çağrısı eksik.');
