@@ -49,7 +49,7 @@ export default function QuoteCreate() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const metadata = session?.user?.user_metadata ?? {};
+  const metadata = useMemo(() => session?.user?.user_metadata ?? {}, [session?.user?.user_metadata]);
   const displayName = useMemo(
     () => metadata.full_name || metadata.name || metadata.username || session?.user?.email?.split('@')[0] || 'Kitap Okuru',
     [metadata, session?.user?.email]
