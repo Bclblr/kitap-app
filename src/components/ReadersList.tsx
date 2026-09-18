@@ -18,12 +18,12 @@ type Reader = {
   profile_image: string | null;
   is_private: boolean;
   request_pending: boolean;
+  is_following: boolean;
   is_verified: boolean;
   is_premium: boolean;
 };
 
 const DIRECTORY_PAGE_SIZE = 30;
-const DIRECTORY_FETCH_LIMIT = 100;
 
 export default function ReadersList({
   targetId,
@@ -39,7 +39,7 @@ export default function ReadersList({
   return !mode && !query ? (
     <ReaderSuggestions limit={limit} />
   ) : (
-    <ReaderDirectory targetId={targetId} mode={mode} query={query} limit={limit} />
+    <ReaderDirectory targetId={targetId} mode={mode} query={query} />
   );
 }
 
@@ -47,141 +47,88 @@ function ReaderDirectory({
   targetId,
   mode,
   query,
-  limit,
 }: {
   targetId?: string;
   mode?: 'followers' | 'following';
   query?: string;
-  limit: number;
 }) {
   const ui = useReaderStyles();
   const router = useRouter();
   const social = useReaderSocial();
   const [readers, setReaders] = useState<Reader[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
   const [pending, setPending] = useState<string | null>(null);
-  const [visibleLimit, setVisibleLimit] = useState(DIRECTORY_PAGE_SIZE);
   const lock = useRef(false);
 
   const followingSet = useMemo(() => new Set(social.following), [social.following]);
   const blockedSet = useMemo(() => new Set(social.blocked), [social.blocked]);
 
+  const loadPage = useCallback(async (reset: boolean) => {
+    const offset = reset ? 0 : readers.length;
+    if (!reset && (!hasMore || loadingMore)) return;
+
+    if (reset) {
+      setLoading(true);
+      setError('');
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      const term = query?.trim() ?? '';
+      const result = await supabase.rpc('get_reader_directory', {
+        p_target: targetId ?? null,
+        p_mode: mode ?? null,
+        p_query: term || null,
+        p_offset: offset,
+        p_limit: DIRECTORY_PAGE_SIZE,
+      });
+
+      if (result.error) throw result.error;
+
+      const baseReaders = (result.data ?? []) as Omit<Reader, 'is_verified' | 'is_premium'>[];
+      const readerIds = baseReaders.map((reader) => reader.id);
+      const [verifiedIds, premiumIds] = await Promise.all([
+        loadVerifiedUserIds(readerIds).catch(() => new Set<string>()),
+        loadPremiumUserIds(readerIds).catch(() => new Set<string>()),
+      ]);
+
+      const loadedReaders: Reader[] = baseReaders.map((reader) => ({
+        ...reader,
+        username: reader.username || 'Kitap Okuru',
+        full_name: reader.full_name ?? null,
+        profile_image: reader.profile_image ?? null,
+        is_private: reader.is_private === true,
+        request_pending: reader.request_pending === true,
+        is_following: reader.is_following === true,
+        is_verified: verifiedIds.has(reader.id),
+        is_premium: premiumIds.has(reader.id),
+      }));
+
+      setReaders((current) => {
+        if (reset) return loadedReaders;
+        const existing = new Set(current.map((reader) => reader.id));
+        return [...current, ...loadedReaders.filter((reader) => !existing.has(reader.id))];
+      });
+      setHasMore(loadedReaders.length === DIRECTORY_PAGE_SIZE);
+    } catch (loadError) {
+      console.error('Reader directory load error:', loadError);
+      setError('Okurlar yüklenemedi.');
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, mode, query, readers.length, targetId]);
+
   useFocusEffect(
     useCallback(() => {
-      let alive = true;
-
-      async function load() {
-        setLoading(true);
-        setError('');
-        setVisibleLimit(DIRECTORY_PAGE_SIZE);
-
-        try {
-          let ids: string[] | undefined;
-
-          if (targetId && mode) {
-            const rows = await supabase
-              .from('follows')
-              .select('follower_id,following_id')
-              .eq(mode === 'followers' ? 'following_id' : 'follower_id', targetId)
-              .limit(DIRECTORY_FETCH_LIMIT);
-
-            if (rows.error) throw rows.error;
-
-            ids = [
-              ...new Set(
-                (rows.data ?? [])
-                  .map((row) =>
-                    String(mode === 'followers' ? row.follower_id : row.following_id)
-                  )
-                  .filter(Boolean)
-              ),
-            ];
-
-            if (!ids.length) {
-              if (alive) setReaders([]);
-              return;
-            }
-          }
-
-          let request = supabase
-            .from('profiles')
-            .select('id,username,full_name,profile_image')
-            .order('username', { ascending: true })
-            .limit(DIRECTORY_FETCH_LIMIT);
-
-          if (ids) request = request.in('id', ids);
-
-          if (query?.trim()) {
-            const term = query.trim().replace(/[%_,().]/g, '');
-            if (!term) {
-              if (alive) setReaders([]);
-              return;
-            }
-            request = request.or(`username.ilike.%${term}%,full_name.ilike.%${term}%`);
-          }
-
-          const result = await request;
-          if (result.error) throw result.error;
-
-          const baseReaders = (result.data ?? []) as Omit<Reader, 'is_private' | 'request_pending' | 'is_verified' | 'is_premium'>[];
-          const readerIds = baseReaders.map((reader) => reader.id);
-          const [verifiedIds, premiumIds] = await Promise.all([
-            loadVerifiedUserIds(readerIds).catch(() => new Set<string>()),
-            loadPremiumUserIds(readerIds).catch(() => new Set<string>()),
-          ]);
-          const relationshipEntries = await Promise.all(
-            baseReaders.map(async (reader) => {
-              if (!social.userId || reader.id === social.userId) {
-                return [reader.id, { is_private: false, request_pending: false }] as const;
-              }
-
-              const relation = await supabase.rpc('get_follow_relationship', {
-                p_target: reader.id,
-              });
-
-              if (relation.error) {
-                console.error('Reader relationship load error:', relation.error);
-                return [reader.id, { is_private: false, request_pending: false }] as const;
-              }
-
-              const row = Array.isArray(relation.data) ? relation.data[0] : relation.data;
-              return [
-                reader.id,
-                {
-                  is_private: row?.is_private === true,
-                  request_pending: row?.request_pending === true,
-                },
-              ] as const;
-            })
-          );
-
-          const relationshipMap = new Map(relationshipEntries);
-          const loadedReaders: Reader[] = baseReaders.map((reader) => {
-            const relationship = relationshipMap.get(reader.id);
-            return {
-              ...reader,
-              is_private: relationship?.is_private ?? false,
-              request_pending: relationship?.request_pending ?? false,
-              is_verified: verifiedIds.has(reader.id),
-              is_premium: premiumIds.has(reader.id),
-            };
-          });
-
-          if (alive) setReaders(loadedReaders);
-        } catch (loadError) {
-          console.error('Reader directory load error:', loadError);
-          if (alive) setError('Okurlar yüklenemedi.');
-        } finally {
-          if (alive) setLoading(false);
-        }
-      }
-
-      const timer = setTimeout(() => void load(), query ? 300 : 0);
-      return () => {
-        alive = false;
-        clearTimeout(timer);
-      };
+      setReaders([]);
+      setHasMore(true);
+      const timer = setTimeout(() => void loadPage(true), query ? 300 : 0);
+      return () => clearTimeout(timer);
     }, [targetId, mode, query, social.userId])
   );
 
@@ -196,7 +143,7 @@ function ReaderDirectory({
     setPending(reader.id);
     setError('');
 
-    const wasFollowing = followingSet.has(reader.id);
+    const wasFollowing = followingSet.has(reader.id) || reader.is_following;
     const requestWasPending = reader.request_pending;
 
     try {
@@ -209,6 +156,11 @@ function ReaderDirectory({
 
         if (result.error) throw result.error;
         social.setFollowing((current) => current.filter((id) => id !== reader.id));
+        setReaders((current) =>
+          current.map((item) =>
+            item.id === reader.id ? { ...item, is_following: false } : item
+          )
+        );
         notifySocialChanged();
         return;
       }
@@ -243,7 +195,9 @@ function ReaderDirectory({
         );
         setReaders((current) =>
           current.map((item) =>
-            item.id === reader.id ? { ...item, request_pending: false } : item
+            item.id === reader.id
+              ? { ...item, request_pending: false, is_following: true }
+              : item
           )
         );
         notifySocialChanged();
@@ -257,17 +211,13 @@ function ReaderDirectory({
     }
   }
 
-  const filteredReaders = useMemo(
+  const visible = useMemo(
     () =>
       readers.filter(
         (reader) => !blockedSet.has(reader.id) && (mode || reader.id !== social.userId)
       ),
     [readers, blockedSet, mode, social.userId]
   );
-
-  const maxVisible = mode || query ? visibleLimit : limit;
-  const visible = filteredReaders.slice(0, maxVisible);
-  const hasMore = (mode || query) && visible.length < filteredReaders.length;
 
   return (
     <View style={{ gap: 10 }}>
@@ -291,7 +241,7 @@ function ReaderDirectory({
             {!visible.length && <Text style={ui.muted}>Gösterilecek okur bulunamadı.</Text>}
 
             {visible.map((reader) => {
-              const isFollowing = followingSet.has(reader.id);
+              const isFollowing = followingSet.has(reader.id) || reader.is_following;
               return (
                 <View
                   key={reader.id}
@@ -354,12 +304,9 @@ function ReaderDirectory({
 
             {hasMore ? (
               <Action
-                label="Daha fazla göster"
-                onPress={() =>
-                  setVisibleLimit((current) =>
-                    Math.min(current + DIRECTORY_PAGE_SIZE, filteredReaders.length)
-                  )
-                }
+                disabled={loadingMore}
+                label={loadingMore ? 'Yükleniyor…' : 'Daha fazla göster'}
+                onPress={() => void loadPage(false)}
               />
             ) : null}
           </>
