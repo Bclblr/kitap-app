@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -67,7 +68,7 @@ export default function AdminVerificationHistoryScreen() {
   const [loading, setLoading] = useState(true);
 
   const goBackSafely = useCallback(() => {
-    if (router.canGoBack()) router.back();
+    if (router.canGoBack()) safeBack(router, '/admin');
     else router.replace('/admin');
   }, [router]);
 
