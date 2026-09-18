@@ -1,3 +1,4 @@
+import ReviewSpoilerText from '@/components/ReviewSpoilerText';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { permanentImageUrl } from '@/lib/image-policy';
 import * as ImagePicker from 'expo-image-picker';
@@ -31,6 +32,10 @@ type Comment = {
   id: string;
   username: string;
   text: string;
+  title?: string | null;
+  topic?: string | null;
+  tags?: string[];
+  containsSpoiler?: boolean;
   createdAt: string;
 };
 
@@ -471,7 +476,7 @@ export default function ProfileScreen() {
     } = await supabase
       .from('reviews')
       .select(
-        'id, user_id, book_key, book_title, rating, text, created_at'
+        'id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at'
       )
       .eq(
         'user_id',
@@ -1088,6 +1093,11 @@ export default function ProfileScreen() {
                 item.text ||
                   ''
               ),
+
+            title: item.title ? String(item.title) : null,
+            topic: item.topic ? String(item.topic) : null,
+            tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
+            containsSpoiler: item.contains_spoiler === true,
 
             createdAt:
               item.created_at ||
@@ -2514,15 +2524,14 @@ export default function ProfileScreen() {
                         </Text>
                       </View>
 
-                      <Text
-                        style={
-                          styles.feedText
-                        }
-                      >
-                        {
-                          review.text
-                        }
-                      </Text>
+                      <ReviewSpoilerText
+                        text={review.text}
+                        containsSpoiler={review.containsSpoiler}
+                        title={review.title}
+                        topic={review.topic}
+                        tags={review.tags}
+                        textStyle={styles.feedText}
+                      />
                     </Pressable>
                   );
                 }
@@ -2914,15 +2923,14 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
 
-                <Text
-                  style={
-                    styles.modalReviewText
-                  }
-                >
-                  {
-                    selectedReview.text
-                  }
-                </Text>
+                <ReviewSpoilerText
+                  text={selectedReview.text}
+                  containsSpoiler={selectedReview.containsSpoiler}
+                  title={selectedReview.title}
+                  topic={selectedReview.topic}
+                  tags={selectedReview.tags}
+                  textStyle={styles.modalReviewText}
+                />
 
                 <Text
                   style={
