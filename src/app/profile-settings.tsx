@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearAccountLocalState } from '@/lib/account-local-state';
 import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { getCurrentAdminAccess } from '@/lib/admin';
@@ -195,6 +195,9 @@ export default function ProfileSettingsScreen() {
   }
 
   async function handleLogout() {
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData.user?.id ?? null;
+
     const { error } = await supabase.auth.signOut();
 
     if (error) {
@@ -202,6 +205,7 @@ export default function ProfileSettingsScreen() {
       return;
     }
 
+    await clearAccountLocalState(userId);
     router.replace('/login');
   }
 
@@ -239,7 +243,7 @@ export default function ProfileSettingsScreen() {
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData.user) {
-        await AsyncStorage.clear();
+        await clearAccountLocalState();
         router.replace('/login');
         return;
       }
@@ -263,7 +267,7 @@ export default function ProfileSettingsScreen() {
         // Auth user has already been deleted server-side; local cleanup below is authoritative.
       }
 
-      await AsyncStorage.clear();
+      await clearAccountLocalState(authData.user.id);
       router.replace('/login');
       Alert.alert('Hesap silindi', 'Hesabın ve hesabına bağlı veriler kalıcı olarak silindi.');
     } catch (error) {
