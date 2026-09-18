@@ -138,13 +138,13 @@ export default function AdminAnnouncementsScreen() {
       }
 
       const { error } = await supabase.rpc('admin_save_announcement', {
-        p_id: editingId,
+        ...(editingId ? { p_id: editingId } : {}),
         p_title: title.trim(),
         p_body: body.trim(),
         p_kind: kind,
-        p_action_route: route.trim() || null,
-        p_starts_at: start,
-        p_ends_at: end,
+        ...(route.trim() ? { p_action_route: route.trim() } : {}),
+        ...(start ? { p_starts_at: start } : {}),
+        ...(end ? { p_ends_at: end } : {}),
         p_active: active,
       });
       if (error) throw error;
@@ -183,9 +183,9 @@ export default function AdminAnnouncementsScreen() {
       p_title: item.title,
       p_body: item.body,
       p_kind: item.kind,
-      p_action_route: item.action_route,
+      ...(item.action_route ? { p_action_route: item.action_route } : {}),
       p_starts_at: item.starts_at,
-      p_ends_at: item.ends_at,
+      ...(item.ends_at ? { p_ends_at: item.ends_at } : {}),
       p_active: !item.active,
     });
     if (error) {
