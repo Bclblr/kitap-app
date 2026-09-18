@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import { BookCoverData, existingBookCover } from '@/lib/open-library-cover';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -571,7 +572,7 @@ export default function ReadScreen() {
       >
         <View style={styles.header}>
           <View style={styles.headerTopRow}>
-            <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={10}>
+            <Pressable onPress={() => safeBack(router, '/shelves')} style={styles.backButton} hitSlop={10}>
               <Text style={styles.backButtonText}>‹</Text>
             </Pressable>
             <View style={styles.headerTextWrap}>
