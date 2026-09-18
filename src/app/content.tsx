@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
+import ReviewSpoilerText from '@/components/ReviewSpoilerText';
 import HashtagText from '@/components/HashtagText';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -19,6 +20,10 @@ type ContentRow = {
   book_key?: string | null;
   book_title?: string | null;
   rating?: number | null;
+  title?: string | null;
+  topic?: string | null;
+  tags?: string[] | null;
+  contains_spoiler?: boolean;
   created_at: string;
   username?: string | null;
   full_name?: string | null;
@@ -123,6 +128,10 @@ export default function ContentScreen() {
         book_key: data.book_key ?? null,
         book_title: data.book_title ?? null,
         rating: Number(data.rating ?? 0),
+        title: data.title ?? null,
+        topic: data.topic ?? null,
+        tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
+        contains_spoiler: data.contains_spoiler === true,
         created_at: String(data.created_at ?? ''),
         username: profile?.username ?? data.username ?? 'Kitap Okuru',
         full_name: profile?.full_name ?? null,
@@ -208,7 +217,20 @@ export default function ContentScreen() {
               </Pressable>
             ) : null}
 
-            {content.text ? <HashtagText text={content.text} style={styles.bodyText} /> : null}
+            {content.text ? (
+              params.type === 'review' ? (
+                <ReviewSpoilerText
+                  text={content.text}
+                  containsSpoiler={content.contains_spoiler}
+                  title={content.title}
+                  topic={content.topic}
+                  tags={content.tags}
+                  textStyle={styles.bodyText}
+                />
+              ) : (
+                <HashtagText text={content.text} style={styles.bodyText} />
+              )
+            ) : null}
             {content.image_url ? <Image source={{ uri: content.image_url }} style={styles.image} /> : null}
           </View>
         </ScrollView>
