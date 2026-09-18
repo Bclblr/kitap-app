@@ -129,7 +129,7 @@ function ReaderDirectory({
       setHasMore(true);
       const timer = setTimeout(() => void loadPage(true), query ? 300 : 0);
       return () => clearTimeout(timer);
-    }, [loadPage, mode, query, social.userId, targetId])
+    }, [loadPage, query])
   );
 
   async function follow(reader: Reader) {
