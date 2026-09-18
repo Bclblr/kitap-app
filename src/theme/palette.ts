@@ -22,6 +22,7 @@ export type AppColors = {
   danger: string;
   error: string;
   overlay: string;
+  focusRing: string;
 };
 
 /** Original purple theme, restored. */
@@ -48,6 +49,7 @@ export const palette: Record<'dark' | 'light', AppColors> = {
     danger: '#FFB2B2',
     error: '#FFB2B2',
     overlay: 'rgba(0,0,0,0.72)',
+    focusRing: '#C8B5FF',
   },
   light: {
     background: '#F6F5FA',
@@ -71,5 +73,6 @@ export const palette: Record<'dark' | 'light', AppColors> = {
     danger: '#B32638',
     error: '#B32638',
     overlay: 'rgba(22,16,35,0.58)',
+    focusRing: '#6C3CC5',
   },
 };
