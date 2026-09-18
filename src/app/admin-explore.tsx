@@ -97,8 +97,8 @@ export default function AdminExploreScreen() {
       const { error } = await supabase.rpc('admin_upsert_explore_item', {
         p_target_type: targetType,
         p_target_id: targetId.trim(),
-        p_title: title.trim() || null,
-        p_subtitle: subtitle.trim() || null,
+        ...(title.trim() ? { p_title: title.trim() } : {}),
+        ...(subtitle.trim() ? { p_subtitle: subtitle.trim() } : {}),
         p_priority: Number(priority) || 0,
         p_active: true,
       });
@@ -122,8 +122,8 @@ export default function AdminExploreScreen() {
     const { error } = await supabase.rpc('admin_upsert_explore_item', {
       p_target_type: item.target_type,
       p_target_id: item.target_id,
-      p_title: item.title,
-      p_subtitle: item.subtitle,
+      ...(item.title ? { p_title: item.title } : {}),
+      ...(item.subtitle ? { p_subtitle: item.subtitle } : {}),
       p_priority: item.priority,
       p_active: !item.active,
     });
