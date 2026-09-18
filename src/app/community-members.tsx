@@ -112,9 +112,11 @@ export default function CommunityMembersScreen() {
 
   useEffect(() => {
     if (!isAdmin || inviteQuery.trim().length < 2) {
-      setInviteResults([]);
-      setInviteSearching(false);
-      return;
+      const resetTimer = setTimeout(() => {
+        setInviteResults([]);
+        setInviteSearching(false);
+      }, 0);
+      return () => clearTimeout(resetTimer);
     }
 
     let active = true;
