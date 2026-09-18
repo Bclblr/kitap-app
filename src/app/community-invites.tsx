@@ -41,7 +41,8 @@ export default function CommunityInvitesScreen() {
   }, []);
 
   useEffect(() => {
-    void loadInvites();
+    const timer = setTimeout(() => void loadInvites(), 0);
+    return () => clearTimeout(timer);
   }, [loadInvites]);
 
   async function respond(invite: CommunityInvite, accept: boolean) {
