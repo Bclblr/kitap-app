@@ -73,7 +73,9 @@
     "audit:signed-image-cache": "node scripts/audit-signed-image-cache.cjs",
     "audit:account-cleanup": "node scripts/audit-account-cleanup.cjs",
     "audit:reader-request-race": "node scripts/audit-reader-request-race.cjs",
-    "audit:storage-cleanup-worker": "node scripts/audit-storage-cleanup-worker.cjs"
+    "audit:storage-cleanup-worker": "node scripts/audit-storage-cleanup-worker.cjs",
+    "audit:backend-health-monitoring": "node scripts/audit-backend-health-monitoring.cjs",
+    "audit:profile-pagination": "node scripts/audit-profile-pagination.cjs"
   },
   "private": true,
   "overrides": {
