@@ -52,7 +52,7 @@ app should only contain RevenueCat public SDK keys.
 After the production variables are configured:
 
 ```powershell
-eas env:exec --environment production "npm run audit:production-env"
+eas env:exec --environment production "npm run release:preflight"
 ```
 
 Then create the release candidates:
