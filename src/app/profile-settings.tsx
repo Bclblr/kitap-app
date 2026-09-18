@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { permanentImageUrl } from '@/lib/image-policy';
@@ -275,7 +276,7 @@ export default function ProfileSettingsScreen() {
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Pressable onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/'); }} style={styles.backButton}>
+          <Pressable onPress={() => { if (router.canGoBack()) safeBack(router, '/profile'); else router.replace('/'); }} style={styles.backButton}>
             <Text style={styles.backText}>‹</Text>
           </Pressable>
           <Text style={styles.title}>Profil Ayarları</Text>
