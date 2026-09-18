@@ -29,6 +29,7 @@ const AUTHENTICATED_ROUTES = [
   'review',
   'appearance-settings',
   'blocked-users',
+  'author',
   'book',
   'chat',
   'community',
