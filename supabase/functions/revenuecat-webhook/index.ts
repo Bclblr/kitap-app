@@ -7,6 +7,8 @@ type RevenueCatWebhook = {
     id?: string;
     type?: string;
     app_user_id?: string;
+    original_app_user_id?: string;
+    aliases?: string[] | null;
     product_id?: string | null;
     entitlement_ids?: string[] | null;
     purchased_at_ms?: number | null;
@@ -41,6 +43,18 @@ function toIso(ms: number | null | undefined) {
 
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function revenueCatUserCandidates(event: NonNullable<RevenueCatWebhook['event']>) {
+  return [
+    event.app_user_id,
+    event.original_app_user_id,
+    ...(event.aliases ?? []),
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(isUuid)
+    .filter((value, index, values) => values.indexOf(value) === index);
 }
 
 function mapSource(store: string | null | undefined): 'apple' | 'google' | null {
@@ -200,14 +214,6 @@ Deno.serve(async (request) => {
     return jsonResponse(400, { error: 'invalid_environment' });
   }
 
-  if (!event.app_user_id) {
-    return jsonResponse(400, { error: 'missing_app_user_id' });
-  }
-
-  if (!isUuid(event.app_user_id)) {
-    return jsonResponse(400, { error: 'invalid_app_user_id' });
-  }
-
   const source = mapSource(event.store);
   if (!source) {
     return jsonResponse(200, { ok: true, ignored: 'unsupported_store' });
@@ -227,6 +233,46 @@ Deno.serve(async (request) => {
 
   if (!sourceReference) {
     return jsonResponse(400, { error: 'missing_source_reference' });
+  }
+
+  const userCandidates = revenueCatUserCandidates(event);
+  if (userCandidates.length === 0) {
+    return jsonResponse(400, { error: 'missing_valid_app_user_id' });
+  }
+
+  const { data: matchingProfiles, error: profileLookupError } = await admin
+    .from('profiles')
+    .select('id')
+    .in('id', userCandidates);
+
+  if (profileLookupError) {
+    console.error('revenuecat-webhook: subscriber identity lookup failed', {
+      eventId: event.id,
+      error: profileLookupError,
+    });
+    return jsonResponse(500, { error: 'subscriber_identity_lookup_failed' });
+  }
+
+  const matchedUserIds = (matchingProfiles ?? []).map((profile) => profile.id);
+
+  let resolvedUserId: string | null = null;
+  if (
+    event.app_user_id &&
+    isUuid(event.app_user_id) &&
+    matchedUserIds.includes(event.app_user_id)
+  ) {
+    resolvedUserId = event.app_user_id;
+  } else if (matchedUserIds.length === 1) {
+    resolvedUserId = matchedUserIds[0];
+  }
+
+  if (!resolvedUserId) {
+    return jsonResponse(409, {
+      error:
+        matchedUserIds.length > 1
+          ? 'ambiguous_subscriber_identity'
+          : 'unknown_subscriber_identity',
+    });
   }
 
   const startedAt = toIso(event.purchased_at_ms) ?? providerEventAt;
@@ -249,7 +295,7 @@ Deno.serve(async (request) => {
   const { data, error } = await admin.rpc('process_revenuecat_premium_event', {
     p_event_id: event.id,
     p_event_type: event.type,
-    p_user_id: event.app_user_id,
+    p_user_id: resolvedUserId,
     p_source: source,
     p_product_id: event.product_id ?? null,
     p_source_reference: sourceReference,
