@@ -555,6 +555,7 @@ export default function ProfileScreen() {
     try {
       let newItems: FeedItem[] = [];
       let pageLength = 0;
+      let pageCursorRows: { id?: string | null; created_at?: string | null }[] = [];
 
       if (profileTab === 'review') {
         let query = supabase
@@ -581,6 +582,7 @@ export default function ProfileScreen() {
           createdAt: item.created_at || new Date().toISOString(),
         }));
         pageLength = page.length;
+        pageCursorRows = (data ?? []) as { id?: string | null; created_at?: string | null }[];
         setReviews((current) => [...current, ...page]);
         newItems = page.map((review) => ({
           id: `review-${review.id}`,
@@ -612,6 +614,7 @@ export default function ProfileScreen() {
           createdAt: item.created_at || new Date().toISOString(),
         }));
         pageLength = page.length;
+        pageCursorRows = (data ?? []) as { id?: string | null; created_at?: string | null }[];
         setQuotes((current) => [...current, ...page]);
         newItems = page.map((quote) => ({
           id: `quote-${quote.id}`,
@@ -642,6 +645,7 @@ export default function ProfileScreen() {
           createdAt: item.created_at || new Date().toISOString(),
         }));
         pageLength = page.length;
+        pageCursorRows = (data ?? []) as { id?: string | null; created_at?: string | null }[];
         setPosts((current) => [...current, ...page]);
         newItems = page.map((post) => ({
           id: `post-${post.id}`,
@@ -662,6 +666,7 @@ export default function ProfileScreen() {
         if (error) throw error;
 
         pageLength = repostRows?.length ?? 0;
+        pageCursorRows = (repostRows ?? []) as { id?: string | null; created_at?: string | null }[];
         const postIds = (repostRows ?? []).map((row: any) => row.post_id);
         if (postIds.length) {
           const { data: repostPosts, error: postsError } = await supabase
@@ -700,14 +705,10 @@ export default function ProfileScreen() {
         }
       }
 
-      if (newItems.length > 0) {
-        const rawCursorRows = newItems.map((item) => ({
-          id: item.id.replace(/^(review|quote|post|repost)-/, ''),
-          created_at: item.repostedAt ?? item.createdAt,
-        }));
+      if (pageCursorRows.length > 0) {
         profileCursorRef.current = {
           ...profileCursorRef.current,
-          [profileTab]: nextFeedCursor(rawCursorRows) ?? cursor,
+          [profileTab]: nextFeedCursor(pageCursorRows) ?? cursor,
         };
       }
 
