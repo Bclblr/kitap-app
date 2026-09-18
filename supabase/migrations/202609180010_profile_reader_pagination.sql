@@ -125,7 +125,7 @@ language sql
 stable
 security invoker
 set search_path = ''
-as $
+as $$
   select
     count(*) filter (where status = 'want')::bigint,
     count(*) filter (where status = 'reading')::bigint,
@@ -133,7 +133,7 @@ as $
     count(*)::bigint
   from public.user_book_status
   where user_id = (select auth.uid());
-$;
+$$;
 
 revoke all on function public.get_my_shelf_counts() from public, anon;
 grant execute on function public.get_my_shelf_counts() to authenticated;
