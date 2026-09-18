@@ -63,7 +63,8 @@
     "audit:premium-free-core": "node scripts/audit-premium-free-core.cjs",
     "audit:premium-lifecycle": "node scripts/audit-premium-lifecycle.cjs",
     "audit:ads": "node scripts/audit-ads-config.cjs",
-    "test:product-rules": "node scripts/test-product-rules.cjs"
+    "test:product-rules": "node scripts/test-product-rules.cjs",
+    "audit:edge-functions": "node scripts/audit-edge-functions.cjs"
   },
   "private": true
 }
