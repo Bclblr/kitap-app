@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import AppErrorState from '@/components/AppErrorState';
 import AppLoadingState from '@/components/AppLoadingState';
 import Image from '@/components/SafeImage';
@@ -59,7 +60,7 @@ export default function EventAttendeesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => safeBack(router, '/explore')}
           style={styles.backButton}
           accessibilityRole="button"
           accessibilityLabel="Geri dön"
