@@ -16,6 +16,7 @@ import {
 
 import { trackProductEvent } from '@/lib/product-analytics';
 import { supabase } from '@/lib/supabase';
+import type { TablesInsert } from '@/lib/database.types';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 
@@ -98,7 +99,7 @@ export default function OnboardingScreen() {
         return;
       }
 
-      const profilePayload: Record<string, unknown> = {
+      const profilePayload: TablesInsert<'profiles'> = {
         id: user.id,
         username: cleanUsername,
       };
