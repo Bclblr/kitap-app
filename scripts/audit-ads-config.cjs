@@ -4,6 +4,8 @@ const requiredFiles = [
   'app.config.js',
   'eas.json',
   'src/components/AdSlot.native.tsx',
+  'src/lib/ads.native.ts',
+  'src/components/AdPrivacyPreferences.native.tsx',
 ];
 
 for (const file of requiredFiles) {
@@ -15,6 +17,8 @@ for (const file of requiredFiles) {
 
 const appConfig = fs.readFileSync('app.config.js', 'utf8');
 const adSlot = fs.readFileSync('src/components/AdSlot.native.tsx', 'utf8');
+const adsLifecycle = fs.readFileSync('src/lib/ads.native.ts', 'utf8');
+const adPrivacyPreferences = fs.readFileSync('src/components/AdPrivacyPreferences.native.tsx', 'utf8');
 const eas = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
 
 const checks = [
@@ -27,8 +31,10 @@ const checks = [
   ['UMP ProGuard rule', appConfig.includes('com.google.android.gms.internal.consent_sdk')],
   ['production AdMob gate', eas?.build?.production?.env?.ADMOB_REQUIRE_PRODUCTION === 'true'],
   ['production EAS environment', eas?.build?.production?.environment === 'production'],
-  ['consent gathering', adSlot.includes('AdsConsent.gatherConsent()')],
-  ['consent check before ads', adSlot.includes('consentInfo.canRequestAds')],
+  ['consent gathering', adsLifecycle.includes('AdsConsent.gatherConsent()')],
+  ['consent check before ads', adsLifecycle.includes('consentInfo.canRequestAds')],
+  ['privacy options outside ad slot', adPrivacyPreferences.includes('showAdPrivacyOptions')],
+  ['ad init retry reset', adSlot.includes('resetAdsInitialization()')],
   ['platform-specific banner ID', adSlot.includes("Platform.OS === 'android'")],
   ['development test banner', adSlot.includes('sdk.TestIds.BANNER')],
 ];
