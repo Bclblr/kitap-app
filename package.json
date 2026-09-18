@@ -68,7 +68,9 @@
     "test:product-rules": "node scripts/test-product-rules.cjs",
     "audit:edge-functions": "node scripts/audit-edge-functions.cjs",
     "audit:admin-analytics": "node scripts/audit-admin-analytics.cjs",
-    "test:feed-pagination": "node scripts/test-feed-pagination.cjs"
+    "test:feed-pagination": "node scripts/test-feed-pagination.cjs",
+    "test:async-key-lock": "node scripts/test-async-key-lock.mjs",
+    "audit:signed-image-cache": "node scripts/audit-signed-image-cache.cjs"
   },
   "private": true,
   "overrides": {
