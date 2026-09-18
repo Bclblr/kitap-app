@@ -103,16 +103,6 @@ $$;
 revoke all on function public.media_owner_visible(uuid) from public;
 grant execute on function public.media_owner_visible(uuid) to anon, authenticated;
 
--- Remove legacy permissive policies with common names if they exist.
-drop policy if exists "Public Access" on storage.objects;
-drop policy if exists "Give users access to own folder 1oj01k_0" on storage.objects;
-drop policy if exists "Give users access to own folder 1oj01k_1" on storage.objects;
-drop policy if exists "Give users access to own folder 1oj01k_2" on storage.objects;
-drop policy if exists post_images_public_read on storage.objects;
-drop policy if exists story_images_public_read on storage.objects;
-drop policy if exists avatars_public_read on storage.objects;
-drop policy if exists event_images_public_read on storage.objects;
-
 -- Post media: object must still be referenced by a post, and profile visibility
 -- plus blocking rules must permit the requester.
 drop policy if exists private_post_media_read on storage.objects;
@@ -182,6 +172,109 @@ using (
       where e.image_url is not null
         and position(name in e.image_url) > 0
     )
+  )
+);
+
+-- Restrictive guards ensure legacy permissive Storage policies cannot bypass
+-- privacy/blocking rules for these buckets.
+drop policy if exists private_media_read_guard on storage.objects;
+create policy private_media_read_guard
+on storage.objects
+as restrictive
+for select
+to public
+using (
+  bucket_id not in ('post-images','story-images','avatars','event-images')
+  or (
+    bucket_id = 'post-images'
+    and public.media_owner_visible(public.storage_object_owner(name))
+    and exists (
+      select 1
+      from public.posts p
+      where p.user_id = public.storage_object_owner(name)
+        and p.image_url is not null
+        and position(name in p.image_url) > 0
+    )
+  )
+  or (
+    bucket_id = 'story-images'
+    and public.media_owner_visible(public.storage_object_owner(name))
+    and (
+      auth.uid() = public.storage_object_owner(name)
+      or exists (
+        select 1
+        from public.stories s
+        where s.user_id = public.storage_object_owner(name)
+          and s.expires_at > now()
+          and s.image_url is not null
+          and position(name in s.image_url) > 0
+      )
+    )
+  )
+  or (
+    bucket_id = 'avatars'
+    and public.media_owner_visible(public.storage_object_owner(name))
+  )
+  or (
+    bucket_id = 'event-images'
+    and (
+      auth.uid() = public.storage_object_owner(name)
+      or exists (
+        select 1
+        from public.events e
+        where e.image_url is not null
+          and position(name in e.image_url) > 0
+      )
+    )
+  )
+);
+
+drop policy if exists private_media_insert_guard on storage.objects;
+create policy private_media_insert_guard
+on storage.objects
+as restrictive
+for insert
+to public
+with check (
+  bucket_id not in ('post-images','story-images','avatars','event-images')
+  or (
+    auth.uid() is not null
+    and public.storage_object_owner(name) = auth.uid()
+  )
+);
+
+drop policy if exists private_media_update_guard on storage.objects;
+create policy private_media_update_guard
+on storage.objects
+as restrictive
+for update
+to public
+using (
+  bucket_id not in ('post-images','story-images','avatars','event-images')
+  or (
+    auth.uid() is not null
+    and public.storage_object_owner(name) = auth.uid()
+  )
+)
+with check (
+  bucket_id not in ('post-images','story-images','avatars','event-images')
+  or (
+    auth.uid() is not null
+    and public.storage_object_owner(name) = auth.uid()
+  )
+);
+
+drop policy if exists private_media_delete_guard on storage.objects;
+create policy private_media_delete_guard
+on storage.objects
+as restrictive
+for delete
+to public
+using (
+  bucket_id not in ('post-images','story-images','avatars','event-images')
+  or (
+    auth.uid() is not null
+    and public.storage_object_owner(name) = auth.uid()
   )
 );
 
