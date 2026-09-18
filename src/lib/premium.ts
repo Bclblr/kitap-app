@@ -30,7 +30,7 @@ export type PremiumAccess = {
   isPremium: boolean;
   hasPaidPremium: boolean;
   hasAdminPremium: boolean;
-  paidSources: Array<'apple' | 'google'>;
+  paidSources: ('apple' | 'google')[];
   activeEntitlements: PremiumEntitlement[];
   allEntitlements: PremiumEntitlement[];
   nextExpirationAt: string | null;
