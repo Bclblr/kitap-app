@@ -30,12 +30,12 @@ type PremiumUserRow = {
   isPremium: boolean;
   hasPaidPremium: boolean;
   hasAdminPremium: boolean;
-  paidSources: Array<'apple' | 'google'>;
+  paidSources: ('apple' | 'google')[];
   nextExpirationAt: string | null;
   entitlements: PremiumEntitlement[];
 };
 
-const DURATIONS: Array<{ value: GrantDuration; label: string }> = [
+const DURATIONS: { value: GrantDuration; label: string }[] = [
   { value: '7_days', label: '7 Gün' },
   { value: '30_days', label: '30 Gün' },
   { value: '1_year', label: '1 Yıl' },
@@ -319,7 +319,7 @@ export default function AdminPremiumScreen() {
                     accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısının admin Premium hakkını geri al`}
                   >
                     {updating ? <ActivityIndicator size="small" color="#FFB4BC" /> : <Feather name="x-circle" size={17} color="#FFB4BC" />}
-                    <Text style={styles.revokeButtonText}>Admin Premium'u Geri Al</Text>
+                    <Text style={styles.revokeButtonText}>Admin Premium’u Geri Al</Text>
                   </Pressable>
                 ) : (
                   <>
