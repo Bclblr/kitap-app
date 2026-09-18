@@ -43,7 +43,7 @@ export default function ShelvesScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [serverCounts, setServerCounts] = useState({ want: 0, reading: 0, read: 0, total: 0 });
 
-  const loadBooks = useCallback(async (reset = true) => {
+  const loadBooks = useCallback(async (reset = true, offset = 0) => {
     if (reset) {
       setLoading(true);
       setHasMore(true);
@@ -88,7 +88,6 @@ export default function ShelvesScreen() {
         }
       }
 
-      const offset = reset ? 0 : books.length;
       let request = supabase
         .from('user_book_status')
         .select('book_key, book_title, status')
@@ -122,7 +121,7 @@ export default function ShelvesScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [books.length, filter, premium.isPremium, premium.ready]);
+  }, [filter, premium.isPremium, premium.ready]);
 
   useFocusEffect(
     useCallback(() => {
@@ -574,7 +573,7 @@ export default function ShelvesScreen() {
 
             {hasMore ? (
               <Pressable
-                onPress={() => void loadBooks(false)}
+                onPress={() => void loadBooks(false, books.length)}
                 disabled={loadingMore}
                 style={styles.loadMoreButton}
               >
