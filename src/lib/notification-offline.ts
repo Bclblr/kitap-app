@@ -17,6 +17,35 @@ function queueKey(userId: string) {
   return `offline:v1:${userId}:notification-read-queue`;
 }
 
+const queueMutationLocks = new Map<string, Promise<void>>();
+
+async function withQueueMutationLock<T>(
+  userId: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  const previous = queueMutationLocks.get(userId) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  queueMutationLocks.set(
+    userId,
+    previous.catch(() => undefined).then(() => current)
+  );
+
+  await previous.catch(() => undefined);
+
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (queueMutationLocks.get(userId) === current) {
+      queueMutationLocks.delete(userId);
+    }
+  }
+}
+
 export async function loadNotificationCache<T>(userId: string): Promise<T[]> {
   try {
     const raw = await AsyncStorage.getItem(cacheKey(userId));
@@ -39,26 +68,28 @@ export async function queueNotificationRead(
   userId: string,
   target: OfflineNotificationReadTarget
 ) {
-  const key = queueKey(userId);
-  const raw = await AsyncStorage.getItem(key);
-  let current: OfflineNotificationReadTarget[] = [];
+  return withQueueMutationLock(userId, async () => {
+    const key = queueKey(userId);
+    const raw = await AsyncStorage.getItem(key);
+    let current: OfflineNotificationReadTarget[] = [];
 
-  try {
-    const parsed = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(parsed)) current = parsed;
-  } catch {
-    current = [];
-  }
+    try {
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) current = parsed;
+    } catch {
+      current = [];
+    }
 
-  const dedupeKey = `${target.source}:${target.id}`;
-  const next = [
-    ...current.filter(
-      (item) => `${item.source}:${item.id}` !== dedupeKey
-    ),
-    target,
-  ];
+    const dedupeKey = `${target.source}:${target.id}`;
+    const next = [
+      ...current.filter(
+        (item) => `${item.source}:${item.id}` !== dedupeKey
+      ),
+      target,
+    ];
 
-  await AsyncStorage.setItem(key, JSON.stringify(next));
+    await AsyncStorage.setItem(key, JSON.stringify(next));
+  });
 }
 
 async function applyReadTarget(target: OfflineNotificationReadTarget) {
@@ -80,40 +111,42 @@ async function applyReadTarget(target: OfflineNotificationReadTarget) {
 }
 
 export async function flushNotificationReadQueue(userId: string) {
-  const key = queueKey(userId);
-  const raw = await AsyncStorage.getItem(key);
-  if (!raw) return 0;
+  return withQueueMutationLock(userId, async () => {
+    const key = queueKey(userId);
+    const raw = await AsyncStorage.getItem(key);
+    if (!raw) return 0;
 
-  let queued: OfflineNotificationReadTarget[] = [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) queued = parsed;
-  } catch {
-    await AsyncStorage.removeItem(key);
-    return 0;
-  }
-
-  const remaining: OfflineNotificationReadTarget[] = [];
-  let flushed = 0;
-
-  for (const target of queued) {
+    let queued: OfflineNotificationReadTarget[] = [];
     try {
-      const result = await applyReadTarget(target);
-      if (result.error) {
-        remaining.push(target);
-      } else {
-        flushed += 1;
-      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) queued = parsed;
     } catch {
-      remaining.push(target);
+      await AsyncStorage.removeItem(key);
+      return 0;
     }
-  }
 
-  if (remaining.length) {
-    await AsyncStorage.setItem(key, JSON.stringify(remaining));
-  } else {
-    await AsyncStorage.removeItem(key);
-  }
+    const remaining: OfflineNotificationReadTarget[] = [];
+    let flushed = 0;
 
-  return flushed;
+    for (const target of queued) {
+      try {
+        const result = await applyReadTarget(target);
+        if (result.error) {
+          remaining.push(target);
+        } else {
+          flushed += 1;
+        }
+      } catch {
+        remaining.push(target);
+      }
+    }
+
+    if (remaining.length) {
+      await AsyncStorage.setItem(key, JSON.stringify(remaining));
+    } else {
+      await AsyncStorage.removeItem(key);
+    }
+
+    return flushed;
+  });
 }
