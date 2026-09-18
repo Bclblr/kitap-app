@@ -12,6 +12,7 @@ import {
   Pressable,
 } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -127,7 +128,7 @@ export default function NotificationSettingsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button">
+        <Pressable onPress={() => safeBack(router, '/profile-settings')} style={styles.backButton} accessibilityRole="button">
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <Text style={styles.title}>Bildirim Ayarları</Text>
