@@ -96,6 +96,8 @@ type FeedItem = {
   repostedAt?: string;
 };
 
+const PROFILE_PAGE_SIZE = 20;
+
 const DEFAULT_PROFILE: ProfileData = {
   id: '',
   username: 'Kitap Okuru',
@@ -147,6 +149,8 @@ export default function ProfileScreen() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [profileLoadingMore, setProfileLoadingMore] = useState(false);
+  const [profileHasMore, setProfileHasMore] = useState({ post: true, review: true, quote: true, repost: true });
   const visibleFeed = canViewProfileContent
     ? feed.filter(item => profileTab === 'repost' ? item.reposted : !item.reposted && item.type === profileTab)
     : [];
@@ -956,6 +960,165 @@ export default function ProfileScreen() {
     setFeed(items);
   }
 
+  async function loadMoreProfileContent() {
+    if (profileLoadingMore || !profileHasMore[profileTab]) return;
+
+    const loggedInUserId = await getCurrentUserId();
+    const targetUserId = typeof userId === 'string' && userId ? userId : loggedInUserId;
+    if (!targetUserId) return;
+
+    setProfileLoadingMore(true);
+    try {
+      let newItems: FeedItem[] = [];
+      let pageLength = 0;
+
+      if (profileTab === 'review') {
+        const { data, error } = await supabase
+          .from('reviews')
+          .select('id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at')
+          .eq('user_id', targetUserId)
+          .order('created_at', { ascending: false })
+          .range(reviews.length, reviews.length + PROFILE_PAGE_SIZE - 1);
+        if (error) throw error;
+        const page: Review[] = (data ?? []).map((item: any) => ({
+          id: String(item.id),
+          userId: String(item.user_id),
+          bookKey: String(item.book_key || ''),
+          bookTitle: String(item.book_title || ''),
+          rating: Number(item.rating) || 0,
+          text: String(item.text || ''),
+          title: item.title ? String(item.title) : null,
+          topic: item.topic ? String(item.topic) : null,
+          tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
+          containsSpoiler: item.contains_spoiler === true,
+          createdAt: item.created_at || new Date().toISOString(),
+        }));
+        pageLength = page.length;
+        setReviews((current) => [...current, ...page]);
+        newItems = page.map((review) => ({
+          id: `review-${review.id}`,
+          type: 'review',
+          createdAt: review.createdAt,
+          review,
+        }));
+      } else if (profileTab === 'quote') {
+        const { data, error } = await supabase
+          .from('quotes')
+          .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at')
+          .eq('user_id', targetUserId)
+          .order('created_at', { ascending: false })
+          .range(quotes.length, quotes.length + PROFILE_PAGE_SIZE - 1);
+        if (error) throw error;
+        const page: Quote[] = (data ?? []).map((item: any) => ({
+          id: String(item.id),
+          userId: String(item.user_id),
+          bookKey: String(item.book_key || ''),
+          bookTitle: String(item.book_title || ''),
+          text: String(item.text || ''),
+          title: item.title ? String(item.title) : null,
+          topic: item.topic ? String(item.topic) : null,
+          pageNumber: Number.isInteger(item.page_number) ? item.page_number : null,
+          note: item.note ? String(item.note) : null,
+          createdAt: item.created_at || new Date().toISOString(),
+        }));
+        pageLength = page.length;
+        setQuotes((current) => [...current, ...page]);
+        newItems = page.map((quote) => ({
+          id: `quote-${quote.id}`,
+          type: 'quote',
+          createdAt: quote.createdAt,
+          quote,
+        }));
+      } else if (profileTab === 'post') {
+        const { data, error } = await supabase
+          .from('posts')
+          .select('id, username, text, image_url, book_key, book_title, rating, created_at, user_id')
+          .eq('user_id', targetUserId)
+          .order('created_at', { ascending: false })
+          .range(posts.length, posts.length + PROFILE_PAGE_SIZE - 1);
+        if (error) throw error;
+        const page: Post[] = (data ?? []).map((item: any) => ({
+          id: String(item.id),
+          userId: String(item.user_id),
+          username: item.username || profile.username,
+          text: item.text || '',
+          imageUrl: item.image_url || null,
+          bookKey: item.book_key || null,
+          bookTitle: item.book_title || null,
+          rating: Number(item.rating) || 0,
+          createdAt: item.created_at || new Date().toISOString(),
+        }));
+        pageLength = page.length;
+        setPosts((current) => [...current, ...page]);
+        newItems = page.map((post) => ({
+          id: `post-${post.id}`,
+          type: 'post',
+          createdAt: post.createdAt,
+          post,
+        }));
+      } else {
+        const repostOffset = feed.filter((item) => item.reposted).length;
+        const { data: repostRows, error } = await supabase
+          .from('post_reposts')
+          .select('id, post_id, user_id, created_at')
+          .eq('user_id', targetUserId)
+          .order('created_at', { ascending: false })
+          .range(repostOffset, repostOffset + PROFILE_PAGE_SIZE - 1);
+        if (error) throw error;
+
+        pageLength = repostRows?.length ?? 0;
+        const postIds = (repostRows ?? []).map((row: any) => row.post_id);
+        if (postIds.length) {
+          const { data: repostPosts, error: postsError } = await supabase
+            .from('posts')
+            .select('id, username, text, image_url, book_key, book_title, rating, created_at, user_id')
+            .in('id', postIds);
+          if (postsError) throw postsError;
+
+          const postMap = new Map<string, Post>();
+          for (const item of repostPosts ?? []) {
+            postMap.set(String(item.id), {
+              id: String(item.id),
+              userId: String(item.user_id),
+              username: item.username || 'Kitap Okuru',
+              text: item.text || '',
+              imageUrl: item.image_url || null,
+              bookKey: item.book_key || null,
+              bookTitle: item.book_title || null,
+              rating: Number(item.rating) || 0,
+              createdAt: item.created_at || new Date().toISOString(),
+            });
+          }
+
+          newItems = (repostRows ?? []).flatMap((repost: any) => {
+            const post = postMap.get(String(repost.post_id));
+            return post ? [{
+              id: `repost-${repost.id}`,
+              type: 'post' as const,
+              createdAt: repost.created_at,
+              post,
+              reposted: true,
+              repostedByUsername: profile.username,
+              repostedAt: repost.created_at,
+            }] : [];
+          });
+        }
+      }
+
+      setFeed((current) => [...current, ...newItems].sort(
+        (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)
+      ));
+      setProfileHasMore((current) => ({
+        ...current,
+        [profileTab]: pageLength === PROFILE_PAGE_SIZE,
+      }));
+    } catch (error) {
+      console.error('Profil içeriğinin devamı yüklenemedi:', error);
+    } finally {
+      setProfileLoadingMore(false);
+    }
+  }
+
   /*
    * ============================================================
    * İSTATİSTİKLER
@@ -995,6 +1158,7 @@ export default function ProfileScreen() {
         quotesResult,
         postsResult,
         repostResult,
+        statsResult,
       ] = await Promise.all([
         supabase
           .from('reviews')
@@ -1010,7 +1174,8 @@ export default function ProfileScreen() {
             {
               ascending: false,
             }
-          ),
+          )
+          .limit(PROFILE_PAGE_SIZE),
 
         supabase
           .from('quotes')
@@ -1026,7 +1191,8 @@ export default function ProfileScreen() {
             {
               ascending: false,
             }
-          ),
+          )
+          .limit(PROFILE_PAGE_SIZE),
 
         supabase
           .from('posts')
@@ -1042,7 +1208,8 @@ export default function ProfileScreen() {
             {
               ascending: false,
             }
-          ),
+          )
+          .limit(PROFILE_PAGE_SIZE),
 
         supabase
           .from('post_reposts')
@@ -1058,7 +1225,12 @@ export default function ProfileScreen() {
             {
               ascending: false,
             }
-          ),
+          )
+          .limit(PROFILE_PAGE_SIZE),
+
+        supabase.rpc('get_profile_content_stats', {
+          p_target: targetUserId,
+        }),
       ]);
 
       /*
@@ -1377,60 +1549,17 @@ export default function ProfileScreen() {
         loadedPosts
       );
 
-      setReviewCount(
-        loadedReviews.length
-      );
+      const statsRow = Array.isArray(statsResult.data) ? statsResult.data[0] : statsResult.data;
+      setReviewCount(Number(statsRow?.review_count) || 0);
+      setQuoteCount(Number(statsRow?.quote_count) || 0);
+      setBookCount(Number(statsRow?.book_count) || 0);
 
-      setQuoteCount(
-        loadedQuotes.length
-      );
-
-      /*
-       * Benzersiz kitap sayısı
-       */
-
-      const bookKeys =
-        new Set<string>();
-
-      loadedReviews.forEach(
-        (review) => {
-          if (
-            review.bookKey
-          ) {
-            bookKeys.add(
-              review.bookKey
-            );
-          }
-        }
-      );
-
-      loadedQuotes.forEach(
-        (quote) => {
-          if (
-            quote.bookKey
-          ) {
-            bookKeys.add(
-              quote.bookKey
-            );
-          }
-        }
-      );
-
-      loadedPosts.forEach(
-        (post) => {
-          if (
-            post.bookKey
-          ) {
-            bookKeys.add(
-              post.bookKey
-            );
-          }
-        }
-      );
-
-      setBookCount(
-        bookKeys.size
-      );
+      setProfileHasMore({
+        review: (reviewsResult.data?.length ?? 0) === PROFILE_PAGE_SIZE,
+        quote: (quotesResult.data?.length ?? 0) === PROFILE_PAGE_SIZE,
+        post: (postsResult.data?.length ?? 0) === PROFILE_PAGE_SIZE,
+        repost: (repostResult.data?.length ?? 0) === PROFILE_PAGE_SIZE,
+      });
 
       /*
        * TEK AKIŞ
@@ -2842,6 +2971,18 @@ export default function ProfileScreen() {
               }
             )
           )}
+
+          {canViewProfileContent && visibleFeed.length > 0 && profileHasMore[profileTab] ? (
+            <Pressable
+              onPress={() => void loadMoreProfileContent()}
+              disabled={profileLoadingMore}
+              style={styles.loadMoreButton}
+            >
+              <Text style={styles.loadMoreText}>
+                {profileLoadingMore ? 'Yükleniyor…' : 'Daha fazla göster'}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
         <View style={{ padding: 16, gap: 12 }}>
           <ReadersList limit={6} />
@@ -3330,6 +3471,8 @@ const baseStyles = StyleSheet.create({
     marginHorizontal: 20,
   },
 
+  loadMoreButton: { alignSelf: 'center', marginTop: 14, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: '#21182F', borderWidth: 1, borderColor: '#38284D' },
+  loadMoreText: { color: '#A985FF', fontSize: 13, fontWeight: '800' },
   sectionTitle: {
     fontSize: 21,
     fontWeight: '700',
