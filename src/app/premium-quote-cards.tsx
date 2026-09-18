@@ -9,6 +9,7 @@ import {
   QuoteCardTemplate,
   quoteCardPalette,
 } from '@/lib/quote-card';
+import { safeBack } from '@/lib/navigation';
 import { usePremium } from '@/providers/PremiumProvider';
 import { useAppTheme } from '@/providers/ThemeProvider';
 
@@ -43,7 +44,7 @@ export default function PremiumQuoteCardsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Geri dön" onPress={() => (router.canGoBack() ? router.back() : router.replace('/premium'))} style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Geri dön" onPress={() => (router.canGoBack() ? safeBack(router, '/premium') : router.replace('/premium'))} style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Feather name="chevron-left" size={22} color={colors.text} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Alıntı Kartları</Text>
