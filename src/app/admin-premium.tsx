@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { resolvePremiumAccess, type PremiumEntitlement } from '@/lib/premium';
@@ -75,7 +76,7 @@ export default function AdminPremiumScreen() {
   const [durationByUser, setDurationByUser] = useState<Record<string, GrantDuration>>({});
 
   const goBackSafely = useCallback(() => {
-    if (router.canGoBack()) router.back();
+    if (router.canGoBack()) safeBack(router, '/admin');
     else router.replace('/admin');
   }, [router]);
 
