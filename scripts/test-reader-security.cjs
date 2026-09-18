@@ -30,16 +30,7 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
   create table public.conversations(id uuid primary key default gen_random_uuid(),user1_id uuid references auth.users(id),user2_id uuid references auth.users(id),updated_at timestamptz default now(),created_at timestamptz default now());
  create table public.messages(id uuid primary key default gen_random_uuid(),conversation_id uuid references public.conversations(id),sender_id uuid references auth.users(id),content text,created_at timestamptz default now(),is_read boolean default false);
  create table public.stories(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id),username text not null default 'Kitap Okuru',text text,image_url text,created_at timestamptz default now(),expires_at timestamptz default now()+interval '1 day');
- create table public.community_posts(id uuid primary key default gen_random_uuid(),community_id uuid,user_id uuid,text text);
- create table public.community_post_comments(id uuid primary key default gen_random_uuid(),post_id uuid,user_id uuid,text text);
- create table public.community_post_likes(id uuid primary key default gen_random_uuid(),post_id uuid,user_id uuid);
- grant select,insert,update,delete on all tables in schema public to authenticated;
- create policy legacy_conversations on public.conversations for all using(true) with check(true);
- create policy legacy_messages on public.messages for all using(true) with check(true);
- create policy legacy_stories on public.stories for all using(true) with check(true);
- create policy legacy_posts on public.community_posts for all using(true) with check(true);
- create policy legacy_comments on public.community_post_comments for all using(true) with check(true);
- create policy legacy_likes on public.community_post_likes for all using(true) with check(true);`);
+ grant select,insert,update,delete on all tables in schema public to authenticated;`);
  const files=fs.readdirSync('supabase/migrations').filter(name=>name.endsWith('.sql')).sort();
  function pgliteCompatibleMigration(sql) {
   return sql
