@@ -22,6 +22,7 @@ type Book = BookCoverData & {
 };
 
 type Filter = 'all' | 'reading' | 'read' | 'want';
+const SHELF_PAGE_SIZE = 30;
 
 type UserBookStatusRow = {
   book_key: string;
@@ -37,9 +38,19 @@ export default function ShelvesScreen() {
 
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
+  const [serverCounts, setServerCounts] = useState({ want: 0, reading: 0, read: 0, total: 0 });
 
-  const loadBooks = useCallback(async () => {
+  const loadBooks = useCallback(async (reset = true) => {
+    if (reset) {
+      setLoading(true);
+      setHasMore(true);
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
       const {
         data: { user },
@@ -53,22 +64,43 @@ export default function ShelvesScreen() {
       if (!user) {
         setBooks([]);
         setShelfCustomization(null);
+        setServerCounts({ want: 0, reading: 0, read: 0, total: 0 });
         return;
       }
 
-      if (premium.ready && premium.isPremium) {
-        const customization = await loadOwnShelfCustomization(user.id).catch(() => null);
-        setShelfCustomization(customization);
-      } else {
-        setShelfCustomization(null);
+      if (reset) {
+        if (premium.ready && premium.isPremium) {
+          const customization = await loadOwnShelfCustomization(user.id).catch(() => null);
+          setShelfCustomization(customization);
+        } else {
+          setShelfCustomization(null);
+        }
+
+        const countsResult = await supabase.rpc('get_my_shelf_counts');
+        if (!countsResult.error) {
+          const row = Array.isArray(countsResult.data) ? countsResult.data[0] : countsResult.data;
+          setServerCounts({
+            want: Number(row?.want_count) || 0,
+            reading: Number(row?.reading_count) || 0,
+            read: Number(row?.read_count) || 0,
+            total: Number(row?.total_count) || 0,
+          });
+        }
       }
 
-      const { data, error } = await supabase
+      const offset = reset ? 0 : books.length;
+      let request = supabase
         .from('user_book_status')
         .select('book_key, book_title, status')
         .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + SHELF_PAGE_SIZE - 1);
 
+      if (filter !== 'all') {
+        request = request.eq('status', filter);
+      }
+
+      const { data, error } = await request;
       if (error) throw error;
 
       const serverBooks = ((data ?? []) as UserBookStatusRow[]).map((row) => ({
@@ -77,19 +109,25 @@ export default function ShelvesScreen() {
         status: row.status,
       }));
 
-      setBooks(serverBooks);
+      setBooks((current) => {
+        if (reset) return serverBooks;
+        const existing = new Set(current.map((book) => book.key));
+        return [...current, ...serverBooks.filter((book) => !existing.has(book.key))];
+      });
+      setHasMore(serverBooks.length === SHELF_PAGE_SIZE);
     } catch (error) {
       console.error('Raflar yüklenemedi:', error);
-      setBooks([]);
+      if (reset) setBooks([]);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [premium.isPremium, premium.ready]);
+  }, [books.length, filter, premium.isPremium, premium.ready]);
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      void loadBooks();
+      void loadBooks(true);
     }, [loadBooks])
   );
 
@@ -189,18 +227,16 @@ export default function ShelvesScreen() {
     read: activeCustomization?.read_label ?? DEFAULT_PREMIUM_SHELF_CUSTOMIZATION.read_label,
   };
   const shelfAccent = SHELF_ACCENTS[activeCustomization?.accent_key ?? 'purple'];
-  const shelfCounts = {
-    want: books.filter((book) => book.status === 'want').length,
-    reading: books.filter((book) => book.status === 'reading').length,
-    read: books.filter((book) => book.status === 'read').length,
-  };
-
-  const filteredBooks =
+  const shelfCounts = serverCounts;
+  const filteredBooks = books;
+  const activeShelfCount =
     filter === 'all'
-      ? books
-      : books.filter(
-          (book) => book.status === filter
-        );
+      ? serverCounts.total
+      : filter === 'reading'
+        ? serverCounts.reading
+        : filter === 'read'
+          ? serverCounts.read
+          : serverCounts.want;
 
   return (
     <View style={styles.container}>
@@ -359,7 +395,7 @@ export default function ShelvesScreen() {
         ) : (
           <>
             <Text style={styles.count}>
-              {filteredBooks.length} kitap
+              {activeShelfCount} kitap
             </Text>
 
             {filteredBooks.map((book, index) => {
@@ -535,6 +571,18 @@ export default function ShelvesScreen() {
                 </View>
               );
             })}
+
+            {hasMore ? (
+              <Pressable
+                onPress={() => void loadBooks(false)}
+                disabled={loadingMore}
+                style={styles.loadMoreButton}
+              >
+                <Text style={styles.loadMoreText}>
+                  {loadingMore ? 'Yükleniyor…' : 'Daha fazla göster'}
+                </Text>
+              </Pressable>
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -601,6 +649,24 @@ const baseStyles = StyleSheet.create({
     marginTop: 40,
     textAlign: 'center',
     color: '#9A9AA4',
+  },
+
+  loadMoreButton: {
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: '#21182F',
+    borderWidth: 1,
+    borderColor: '#38284D',
+  },
+
+  loadMoreText: {
+    color: '#A985FF',
+    fontSize: 13,
+    fontWeight: '800',
   },
 
   count: {
