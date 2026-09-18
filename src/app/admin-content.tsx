@@ -22,7 +22,7 @@ type ContentKind = 'post' | 'review' | 'quote' | 'post_comment' | 'comment';
 type ContentTab = {
   key: ContentKind;
   label: string;
-  table: string;
+  table: 'posts' | 'reviews' | 'quotes' | 'post_comments' | 'comments';
   icon: keyof typeof Feather.glyphMap;
 };
 
