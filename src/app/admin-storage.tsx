@@ -70,7 +70,7 @@ export default function AdminStorageScreen() {
       const [{ data: bucketData, error: bucketError }, { data: objectData, error: objectError }] = await Promise.all([
         supabase.rpc('admin_storage_bucket_stats'),
         supabase.rpc('admin_list_storage_objects', {
-          p_bucket: selectedBucket || null,
+          ...(selectedBucket ? { p_bucket: selectedBucket } : {}),
           p_search: search.trim(),
           p_limit: 300,
         }),
