@@ -32,10 +32,6 @@ type Comment = {
   id: string;
   username: string;
   text: string;
-  title?: string | null;
-  topic?: string | null;
-  tags?: string[];
-  containsSpoiler?: boolean;
   createdAt: string;
 };
 
@@ -55,6 +51,10 @@ type Review = {
   bookTitle: string;
   rating: number;
   text: string;
+  title?: string | null;
+  topic?: string | null;
+  tags?: string[];
+  containsSpoiler?: boolean;
   createdAt: string;
 };
 
