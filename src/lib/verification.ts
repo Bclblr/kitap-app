@@ -40,12 +40,7 @@ export async function loadVerifiedUserIds(userIds: string[]): Promise<Set<string
 }
 
 export async function loadVerifiedAccounts(): Promise<VerifiedAccount[]> {
-  const { data, error } = await supabase
-    .from('verified_accounts')
-    .select(
-      'user_id, is_verified, verified_at, verified_by, revoked_at, revoked_by, reason, created_at, updated_at'
-    )
-    .order('updated_at', { ascending: false });
+  const { data, error } = await supabase.rpc('admin_list_verified_accounts');
 
   if (error) throw error;
   return (data ?? []) as VerifiedAccount[];
