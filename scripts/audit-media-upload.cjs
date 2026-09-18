@@ -41,8 +41,8 @@ if (!pickerEntry) {
   if (typeof options.photosPermission !== 'string' || !options.photosPermission.trim()) {
     errors.push('iOS photosPermission açıklaması tanımlı olmalı.');
   }
-  if (options.cameraPermission !== false) {
-    errors.push('Kamera kullanılmıyorsa cameraPermission=false olmalı.');
+  if (typeof options.cameraPermission !== 'string' || !options.cameraPermission.trim()) {
+    errors.push('Kamera kullanıldığı için image-picker cameraPermission açıklaması tanımlı olmalı.');
   }
   if (options.microphonePermission !== false) {
     errors.push('Mikrofon kullanılmıyorsa microphonePermission=false olmalı.');
