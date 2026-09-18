@@ -32,6 +32,10 @@ jobs:
         run: npm run test:feed-pagination
       - name: Offline queue concurrency regression
         run: npm run test:async-key-lock
+      - name: Account cleanup race audit
+        run: npm run audit:account-cleanup
+      - name: Reader request race audit
+        run: npm run audit:reader-request-race
       - name: Admin analytics scope audit
         run: npm run audit:admin-analytics
       - name: Premium free-core audit
@@ -52,6 +56,8 @@ jobs:
         run: npm run audit:media-upload
       - name: Signed image cache audit
         run: npm run audit:signed-image-cache
+      - name: Storage cleanup worker audit
+        run: npm run audit:storage-cleanup-worker
       - name: Web bundle smoke build
         env:
           EXPO_PUBLIC_ADS_ENABLED: 'false'
