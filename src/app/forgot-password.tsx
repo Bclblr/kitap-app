@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -66,7 +67,7 @@ export default function ForgotPasswordScreen() {
   }
 
   function goBackSafely() {
-    if (router.canGoBack()) router.back();
+    if (router.canGoBack()) safeBack(router, '/login');
     else router.replace('/login');
   }
 
