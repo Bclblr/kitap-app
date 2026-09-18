@@ -622,6 +622,7 @@ export default function ChatScreen() {
       }
 
       setText(current => current === text ? '' : current);
+      requestAnimationFrame(() => list.current?.scrollToEnd({ animated: true }));
 
       /*
        * Konuşmanın güncellenme zamanını yenile.
@@ -856,7 +857,7 @@ export default function ChatScreen() {
             }
           }}
           onScroll={({ nativeEvent }) => {
-            if (nativeEvent.contentOffset.y <= 120) {
+            if (initialScrollDoneRef.current && nativeEvent.contentOffset.y <= 120) {
               void loadOlderMessages();
             }
           }}
