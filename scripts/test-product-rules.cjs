@@ -85,7 +85,8 @@ assert.ok(/<Stack\.Screen name="auth\/callback" \/>/.test(layoutSource));
 console.log('PASS: public, authenticated and admin route guard contract is complete');
 
 const explore=fs.readFileSync('src/app/explore.tsx','utf8');
-assert.ok(!/import .*?(ReadersList|ReaderSuggestions|WorksList)/.test(explore));
+assert.ok(!/import .*?(ReadersList|WorksList)/.test(explore));
+assert.ok(/import ReaderSuggestions/.test(explore));
 for(const file of ['book','shelves','read']) assert.ok(!fs.readFileSync(`src/app/${file}.tsx`,'utf8').includes("from('works')"));
 for(const width of [320,360,390,430]) assert.ok(Math.min(188,width-64)+32<=width);
-console.log('PASS: work/book separation and recommendation card width budget at 320/360/390/430 dp');
+console.log('PASS: explore keeps lightweight reader suggestions, work/book separation, and recommendation width budget');
