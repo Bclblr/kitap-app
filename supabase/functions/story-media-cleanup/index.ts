@@ -6,6 +6,20 @@ type ExpiredStory = {
   media_path: string | null;
 };
 
+type StorageCleanupCandidate = {
+  id: string;
+  bucket_id: string;
+  object_name: string;
+};
+
+const AUTO_CLEANUP_BUCKETS = new Set([
+  'post-images',
+  'story-images',
+  'avatars',
+  'event-images',
+  'work-covers',
+]);
+
 function jsonResponse(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
@@ -138,11 +152,87 @@ Deno.serve(async (request) => {
     deletedMedia += chunk.length;
   }
 
+  let queuedCleanupDeleted = 0;
+  let queuedCleanupFailed = 0;
+
+  const { data: cleanupRows, error: cleanupLoadError } = await admin.rpc(
+    'get_automatic_storage_cleanup_candidates',
+    { p_limit: 200 }
+  );
+
+  if (cleanupLoadError) {
+    console.error('story-media-cleanup: cleanup queue load failed', cleanupLoadError);
+    return jsonResponse(500, { error: 'cleanup_queue_load_failed' });
+  }
+
+  const cleanupCandidates = (cleanupRows ?? []) as StorageCleanupCandidate[];
+  const groupedCleanup = new Map<string, StorageCleanupCandidate[]>();
+
+  for (const candidate of cleanupCandidates) {
+    if (
+      !candidate?.id ||
+      !candidate.bucket_id ||
+      !candidate.object_name ||
+      !AUTO_CLEANUP_BUCKETS.has(candidate.bucket_id) ||
+      candidate.object_name.includes('..')
+    ) {
+      continue;
+    }
+
+    const group = groupedCleanup.get(candidate.bucket_id) ?? [];
+    group.push(candidate);
+    groupedCleanup.set(candidate.bucket_id, group);
+  }
+
+  for (const [bucketId, candidates] of groupedCleanup) {
+    for (let index = 0; index < candidates.length; index += 100) {
+      const chunk = candidates.slice(index, index + 100);
+      const ids = chunk.map((candidate) => candidate.id);
+      const paths = chunk.map((candidate) => candidate.object_name);
+
+      const { error: removeError } = await admin.storage
+        .from(bucketId)
+        .remove(paths);
+
+      const { error: recordError } = await admin.rpc(
+        'record_automatic_storage_cleanup_result',
+        {
+          p_ids: ids,
+          p_success: !removeError,
+          p_error: removeError?.message ?? null,
+        }
+      );
+
+      if (recordError) {
+        console.error('story-media-cleanup: cleanup queue result update failed', {
+          bucketId,
+          count: chunk.length,
+          error: recordError,
+        });
+        return jsonResponse(500, { error: 'cleanup_queue_result_update_failed' });
+      }
+
+      if (removeError) {
+        queuedCleanupFailed += chunk.length;
+        console.error('story-media-cleanup: queued storage cleanup failed', {
+          bucketId,
+          count: chunk.length,
+          error: removeError,
+        });
+      } else {
+        queuedCleanupDeleted += chunk.length;
+        deletedMedia += chunk.length;
+      }
+    }
+  }
+
   return jsonResponse(200, {
     ok: true,
     deleted_stories: deletedStories,
     deleted_media: deletedMedia,
     deleted_orphans: orphanPaths.length,
     skipped_unsafe_media: skippedUnsafeMedia,
+    queued_cleanup_deleted: queuedCleanupDeleted,
+    queued_cleanup_failed: queuedCleanupFailed,
   });
 });
