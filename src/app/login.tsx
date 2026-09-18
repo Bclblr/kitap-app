@@ -269,7 +269,7 @@ const baseStyles = StyleSheet.create({
   buttonPressed: { opacity: 0.84 },
   disabledButton: { opacity: 0.38 },
   disabledButtonText: { color: '#5F5668' },
-  buttonText: { color: '#0B0710', fontSize: 15, fontWeight: '800' },
+  buttonText: { color: '#A985FF', fontSize: 15, fontWeight: '800' },
   switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 21 },
   switchText: { color: '#85858F', fontSize: 14 },
   switchLink: { color: '#A985FF', fontSize: 14, fontWeight: '800' },
