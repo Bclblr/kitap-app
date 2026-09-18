@@ -402,7 +402,7 @@ export default function ProfileScreen() {
     const submitReport = async (category: string) => {
       try {
         setSafetyLoading(true);
-        const { error } = await supabase.from('user_reports').insert({ reporter_id: loggedInUserId, reported_id: targetUserId, category, description: '' });
+        const { error } = await supabase.from('reports').insert({ reporter_id: loggedInUserId, target_type: 'user', target_id: targetUserId, category, description: '' });
         if (error) throw error;
         Alert.alert('Şikâyet alındı', 'Bildirimin inceleme için gönderildi.');
       } catch (error) {
