@@ -3,6 +3,7 @@ import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { permanentImageUrl } from '@/lib/image-policy';
+import { clearSignedImageUrlCache } from '@/lib/image-cache';
 import { supabase } from '@/lib/supabase';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import * as ImagePicker from 'expo-image-picker';
@@ -153,6 +154,7 @@ export default function ProfileSettingsScreen() {
       return null;
     }
 
+    clearSignedImageUrlCache('avatars', filePath);
     const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
     return permanentImageUrl(`${data.publicUrl}?v=${Date.now()}`);
   }
