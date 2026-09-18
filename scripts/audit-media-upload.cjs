@@ -14,9 +14,26 @@ const errors = [];
 if (!packageJson.dependencies?.['expo-image-picker']) {
   errors.push('expo-image-picker bağımlılığı eksik.');
 }
+if (!packageJson.dependencies?.['expo-camera']) {
+  errors.push('expo-camera bağımlılığı eksik.');
+}
 
 const plugins = appJson.expo?.plugins ?? [];
 const pickerEntry = plugins.find((item) => Array.isArray(item) && item[0] === 'expo-image-picker');
+const cameraEntry = plugins.find((item) => Array.isArray(item) && item[0] === 'expo-camera');
+
+if (!cameraEntry) {
+  errors.push('app.json içinde expo-camera config plugin eksik.');
+} else {
+  const options = cameraEntry[1] ?? {};
+  if (typeof options.cameraPermission !== 'string' || !options.cameraPermission.trim()) {
+    errors.push('iOS NSCameraUsageDescription için cameraPermission açıklaması tanımlı olmalı.');
+  }
+  if (options.recordAudioAndroid !== false) {
+    errors.push('Video/ses kaydı kullanılmıyorsa Android RECORD_AUDIO izni kapalı olmalı.');
+  }
+}
+
 if (!pickerEntry) {
   errors.push('app.json içinde expo-image-picker config plugin eksik.');
 } else {
@@ -77,4 +94,4 @@ if (errors.length) {
 }
 
 console.log('Media upload preflight başarılı.');
-console.log('Native galeri izinleri ve temel upload güvenlik kontrolleri statik olarak doğrulandı.');
+console.log('Native kamera/galeri izinleri ve temel upload güvenlik kontrolleri statik olarak doğrulandı.');
