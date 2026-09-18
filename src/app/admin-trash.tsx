@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -64,7 +65,7 @@ export default function AdminTrashScreen(){
 
   return <View style={styles.container}>
     <View style={styles.header}>
-      <Pressable onPress={()=>router.back()} style={styles.headerButton}><Feather name="chevron-left" size={24} color={colors.textPrimary}/></Pressable>
+      <Pressable onPress={()=>safeBack(router, '/admin')} style={styles.headerButton}><Feather name="chevron-left" size={24} color={colors.textPrimary}/></Pressable>
       <View style={styles.headerCopy}><Text style={styles.eyebrow}>YÖNETİM</Text><Text style={styles.title}>Çöp Kutusu</Text></View>
       <Pressable onPress={()=>void loadTrash()} style={styles.headerButton}><Feather name="refresh-cw" size={19} color={colors.textSecondary}/></Pressable>
     </View>
