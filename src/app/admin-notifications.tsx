@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -59,7 +60,7 @@ export default function AdminNotificationsScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.iconButton}><Feather name="chevron-left" size={24} color={colors.textPrimary} /></Pressable>
+          <Pressable onPress={() => safeBack(router, '/admin')} style={styles.iconButton}><Feather name="chevron-left" size={24} color={colors.textPrimary} /></Pressable>
           <View style={styles.headerCopy}><Text style={styles.eyebrow}>YÖNETİM</Text><Text style={styles.title}>Bildirimler</Text></View>
         </View>
 
