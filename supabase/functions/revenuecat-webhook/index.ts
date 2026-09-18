@@ -173,16 +173,72 @@ Deno.serve(async (request) => {
       return jsonResponse(400, { error: 'invalid_environment' });
     }
 
-    const transferredFrom = (event.transferred_from ?? []).filter(isUuid);
-    const transferredTo = (event.transferred_to ?? []).filter(isUuid);
+    const transferredFromCandidates = [
+      ...new Set(
+        (event.transferred_from ?? [])
+          .filter((value): value is string => typeof value === 'string')
+          .map((value) => value.trim())
+          .filter(isUuid)
+      ),
+    ];
+    const transferredToCandidates = [
+      ...new Set(
+        (event.transferred_to ?? [])
+          .filter((value): value is string => typeof value === 'string')
+          .map((value) => value.trim())
+          .filter(isUuid)
+      ),
+    ];
 
     if (
-      transferredFrom.length !== (event.transferred_from ?? []).length ||
-      transferredTo.length !== (event.transferred_to ?? []).length ||
-      transferredFrom.length === 0 ||
-      transferredTo.length === 0
+      transferredFromCandidates.length === 0 ||
+      transferredToCandidates.length === 0
     ) {
-      return jsonResponse(400, { error: 'invalid_transfer_users' });
+      return jsonResponse(409, { error: 'unknown_transfer_identity' });
+    }
+
+    const [sourceProfiles, destinationProfiles] = await Promise.all([
+      admin
+        .from('profiles')
+        .select('id')
+        .in('id', transferredFromCandidates),
+      admin
+        .from('profiles')
+        .select('id')
+        .in('id', transferredToCandidates),
+    ]);
+
+    if (sourceProfiles.error || destinationProfiles.error) {
+      console.error('revenuecat-webhook: transfer identity lookup failed', {
+        eventId: event.id,
+        sourceError: sourceProfiles.error,
+        destinationError: destinationProfiles.error,
+      });
+      return jsonResponse(500, { error: 'transfer_identity_lookup_failed' });
+    }
+
+    const transferredFrom = [
+      ...new Set((sourceProfiles.data ?? []).map((profile) => profile.id)),
+    ];
+    const transferredTo = [
+      ...new Set((destinationProfiles.data ?? []).map((profile) => profile.id)),
+    ];
+
+    if (transferredFrom.length === 0) {
+      return jsonResponse(409, { error: 'unknown_transfer_source' });
+    }
+
+    if (transferredTo.length !== 1) {
+      return jsonResponse(409, {
+        error:
+          transferredTo.length > 1
+            ? 'ambiguous_transfer_destination'
+            : 'unknown_transfer_destination',
+      });
+    }
+
+    if (transferredFrom.includes(transferredTo[0])) {
+      return jsonResponse(409, { error: 'transfer_destination_is_source' });
     }
 
     const { data, error } = await admin.rpc('process_revenuecat_transfer_event', {
