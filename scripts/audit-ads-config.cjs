@@ -24,6 +24,7 @@ const checks = [
   ['production iOS banner ID', appConfig.includes('EXPO_PUBLIC_ADMOB_IOS_BANNER_ID')],
   ['delayed app measurement', appConfig.includes('delayAppMeasurementInit: true')],
   ['iOS tracking description', appConfig.includes('userTrackingUsageDescription')],
+  ['UMP ProGuard rule', appConfig.includes('com.google.android.gms.internal.consent_sdk')],
   ['production AdMob gate', eas?.build?.production?.env?.ADMOB_REQUIRE_PRODUCTION === 'true'],
   ['production EAS environment', eas?.build?.production?.environment === 'production'],
   ['consent gathering', adSlot.includes('AdsConsent.gatherConsent()')],
