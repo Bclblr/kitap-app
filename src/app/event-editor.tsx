@@ -75,7 +75,8 @@ export default function EventEditorScreen() {
       if (upload.error) throw new Error('Etkinlik görseli yüklenemedi. Lütfen yeniden dene.');
 
       const publicUrl = supabase.storage.from('event-images').getPublicUrl(path).data.publicUrl;
-      setForm((current) => ({ ...current, image_url: requirePermanentImage(publicUrl) ?? '' }));
+      const authenticatedUrl = publicUrl.replace('/object/public/', '/object/authenticated/');
+      setForm((current) => ({ ...current, image_url: requirePermanentImage(authenticatedUrl) ?? '' }));
     } catch (e) {
       console.error('Event image upload error:', e);
       setError(e instanceof Error && e.message ? e.message : 'Etkinlik görseli yüklenemedi.');
