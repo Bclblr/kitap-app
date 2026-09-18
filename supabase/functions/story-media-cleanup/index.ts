@@ -114,11 +114,12 @@ Deno.serve(async (request) => {
     return jsonResponse(500, { error: 'orphan_inventory_failed' });
   }
 
-  const orphanPaths = Array.from(
-    new Set(
-      (orphanResult.data ?? [])
-        .map((row: { storage_path?: string | null }) => row.storage_path)
-        .filter((path: string | null | undefined): path is string => !!path)
+  const orphanRows = (orphanResult.data ?? []) as { storage_path?: string | null }[];
+  const orphanPaths: string[] = Array.from(
+    new Set<string>(
+      orphanRows
+        .map((row) => row.storage_path)
+        .filter((path): path is string => typeof path === 'string' && path.length > 0)
     )
   );
 
