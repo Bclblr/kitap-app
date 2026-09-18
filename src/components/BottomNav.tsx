@@ -1,6 +1,7 @@
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -27,6 +28,7 @@ function NavItem({ href, pathname, icon, onPress }: NavItemProps) {
   const styles = useThemedStyles(baseStyles);
   const active = pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
   const { colors } = useAppTheme();
+  const [focused, setFocused] = useState(false);
   const label = NAV_LABELS[href];
 
   return (
@@ -37,9 +39,12 @@ function NavItem({ href, pathname, icon, onPress }: NavItemProps) {
       accessibilityState={{ selected: active }}
       onPress={onPress}
       focusable
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       style={({ pressed }) => [
         styles.tab,
         active && { backgroundColor: colors.primarySoft },
+        focused && { borderColor: colors.focusRing, borderWidth: 2 },
         pressed && styles.pressedTab,
       ]}
       hitSlop={6}
@@ -106,6 +111,7 @@ const baseStyles = StyleSheet.create({
     height: 62,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 14,
   },
   pressedTab: {
     opacity: 0.65,
