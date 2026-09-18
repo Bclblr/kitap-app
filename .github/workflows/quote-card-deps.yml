@@ -1,0 +1,32 @@
+name: Quote card dependencies
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/quote-card-deps.yml
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx expo install react-native-view-shot expo-sharing
+      - name: Commit dependency updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- package.json package-lock.json; then
+            exit 0
+          fi
+          git add package.json package-lock.json
+          git commit -m "Install quote card image export dependencies"
+          git push
