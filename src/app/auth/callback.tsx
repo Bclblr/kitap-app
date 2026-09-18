@@ -9,9 +9,26 @@ import { createSessionFromUrl } from '@/lib/google-auth';
 import { supabase } from '@/lib/supabase';
 
 function getParam(url: string, key: string) {
-  const normalized = url.replace('#', '?');
-  const query = normalized.split('?')[1] ?? '';
-  return new URLSearchParams(query).get(key);
+  const queryStart = url.indexOf('?');
+  const hashStart = url.indexOf('#');
+
+  const query =
+    queryStart >= 0
+      ? url.slice(
+          queryStart + 1,
+          hashStart > queryStart ? hashStart : undefined
+        )
+      : '';
+
+  const fragment =
+    hashStart >= 0
+      ? url.slice(hashStart + 1)
+      : '';
+
+  return (
+    new URLSearchParams(query).get(key) ??
+    new URLSearchParams(fragment).get(key)
+  );
 }
 
 export default function AuthCallback() {
@@ -26,23 +43,40 @@ export default function AuthCallback() {
     WebBrowser.maybeCompleteAuthSession();
 
     async function complete() {
-      if (!url) {
-        const timer = setTimeout(() => {
-          if (alive) setFinished(true);
-        }, 5000);
-        return () => clearTimeout(timer);
-      }
-
       try {
-        const code = getParam(url, 'code');
-        const accessToken = getParam(url, 'access_token');
-        const next = getParam(url, 'next');
+        const callbackUrl = url ?? await Linking.getInitialURL();
+
+        if (!callbackUrl) {
+          const { data } = await supabase.auth.getSession();
+          const activeSession = data.session;
+
+          if (activeSession) {
+            const onboardingPending =
+              activeSession.user.user_metadata?.onboarding_pending === true;
+            setDestination(onboardingPending ? '/onboarding' : '/');
+          } else {
+            setDestination('/login');
+          }
+          return;
+        }
+
+        const callbackError =
+          getParam(callbackUrl, 'error_description') ??
+          getParam(callbackUrl, 'error');
+
+        if (callbackError) {
+          throw new Error(callbackError);
+        }
+
+        const code = getParam(callbackUrl, 'code');
+        const accessToken = getParam(callbackUrl, 'access_token');
+        const next = getParam(callbackUrl, 'next');
 
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
         } else if (accessToken) {
-          await createSessionFromUrl(url);
+          await createSessionFromUrl(callbackUrl);
         }
 
         const { data } = await supabase.auth.getSession();
@@ -61,17 +95,12 @@ export default function AuthCallback() {
         if (alive) setFinished(true);
       }
 
-      return undefined;
     }
 
-    let cleanup: undefined | (() => void);
-    void complete().then((fn) => {
-      cleanup = fn;
-    });
+    void complete();
 
     return () => {
       alive = false;
-      cleanup?.();
     };
   }, [url]);
 
