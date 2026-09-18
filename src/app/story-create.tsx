@@ -25,16 +25,80 @@ export default function StoryCreateScreen() {
   async function takePhoto() { if (!(await ensureCamera())) { Alert.alert('Kamera izni gerekli', 'Hikâye çekebilmek için kamera izni vermelisin.'); return; } const photo = await cameraRef.current?.takePictureAsync({ quality: 0.82 }); if (photo?.uri) setCapturedUri(photo.uri); }
   async function pickFromLibrary() { const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [9, 16], quality: 0.85 }); if (!result.canceled && result.assets[0]?.uri) setCapturedUri(result.assets[0].uri); }
   async function publish() {
-    const cleanText = storyText.trim(); if (!capturedUri && !cleanText) return;
-    const { data: { user } } = await supabase.auth.getUser(); if (!user) { Alert.alert('Giriş gerekli', 'Hikâye paylaşmak için önce giriş yapmalısın.'); return; }
+    const cleanText = storyText.trim();
+    if (!capturedUri && !cleanText) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('Giriş gerekli', 'Hikâye paylaşmak için önce giriş yapmalısın.');
+      return;
+    }
+
     setBusy(true);
+    let uploadedPath: string | null = null;
+
     try {
       let imageUrl: string | null = null;
-      if (capturedUri) { const response = await fetch(capturedUri); if (!response.ok) throw new Error('Hikâye görseli okunamadı.'); const bytes = await response.arrayBuffer(); const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`; const path = `${user.id}/${fileName}`; const upload = await supabase.storage.from('story-images').upload(path, bytes, { contentType: 'image/jpeg', upsert: false }); if (upload.error) throw upload.error; imageUrl = supabase.storage.from('story-images').getPublicUrl(path).data.publicUrl; }
-      const { data: profile } = await supabase.from('profiles').select('username').eq('id', user.id).maybeSingle();
-      const result = await supabase.from('stories').insert({ user_id: user.id, username: profile?.username || 'Kitap Okuru', text: cleanText || null, image_url: requirePermanentImage(imageUrl), expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() });
-      if (result.error) throw result.error; router.replace('/');
-    } catch (error) { console.error('Hikâye paylaşma hatası:', error); Alert.alert('Hikâye paylaşılamadı', error instanceof Error ? error.message : 'Tekrar dene.'); } finally { setBusy(false); }
+
+      if (capturedUri) {
+        const response = await fetch(capturedUri);
+        if (!response.ok) throw new Error('Hikâye görseli okunamadı.');
+
+        const bytes = await response.arrayBuffer();
+        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+        uploadedPath = `${user.id}/${fileName}`;
+
+        const upload = await supabase.storage
+          .from('story-images')
+          .upload(uploadedPath, bytes, { contentType: 'image/jpeg', upsert: false });
+
+        if (upload.error) throw upload.error;
+
+        imageUrl = supabase.storage
+          .from('story-images')
+          .getPublicUrl(uploadedPath).data.publicUrl;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      const result = await supabase.from('stories').insert({
+        user_id: user.id,
+        username: profile?.username || 'Kitap Okuru',
+        text: cleanText || null,
+        image_url: requirePermanentImage(imageUrl),
+        storage_path: uploadedPath,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      });
+
+      if (result.error) throw result.error;
+
+      uploadedPath = null;
+      router.replace('/');
+    } catch (error) {
+      if (uploadedPath) {
+        const { error: rollbackError } = await supabase.storage
+          .from('story-images')
+          .remove([uploadedPath]);
+
+        if (rollbackError) {
+          console.error('Hikâye medya rollback hatası:', rollbackError);
+        }
+      }
+
+      console.error('Hikâye paylaşma hatası:', error);
+      Alert.alert(
+        'Hikâye paylaşılamadı',
+        error instanceof Error ? error.message : 'Tekrar dene.'
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   const readyToShare = !!capturedUri || !!storyText.trim();
   return <View style={styles.root}>
