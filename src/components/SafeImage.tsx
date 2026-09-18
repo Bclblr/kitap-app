@@ -73,7 +73,9 @@ function SafeImage({
       : undefined;
 
   const privateRef = parsePrivateStorageUrl(uri);
-  const privateKey = privateRef ? `${privateRef.bucket}/${privateRef.path}` : null;
+  const privateBucket = privateRef?.bucket ?? null;
+  const privatePath = privateRef?.path ?? null;
+  const privateKey = privateBucket && privatePath ? `${privateBucket}/${privatePath}` : null;
 
   const [signed, setSigned] = useState<{
     original: string;
@@ -83,13 +85,13 @@ function SafeImage({
   const [failed, setFailed] = useState<string | undefined>();
 
   useEffect(() => {
-    if (!privateRef || !uri || !privateKey) return;
+    if (!privateBucket || !privatePath || !uri || !privateKey) return;
 
     let alive = true;
 
     void supabase.storage
-      .from(privateRef.bucket)
-      .createSignedUrl(privateRef.path, 3600)
+      .from(privateBucket)
+      .createSignedUrl(privatePath, 3600)
       .then(({ data, error }) => {
         if (!alive) return;
 
@@ -111,7 +113,7 @@ function SafeImage({
     return () => {
       alive = false;
     };
-  }, [uri, privateKey]);
+  }, [privateBucket, privateKey, privatePath, uri]);
 
   const waitingForSigned =
     !!privateRef && (!signed || signed.original !== uri || signed.key !== privateKey);
