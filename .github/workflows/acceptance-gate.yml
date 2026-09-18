@@ -28,6 +28,8 @@ jobs:
         run: npm run audit:routes
       - name: Reader security tests
         run: npm run test:security
+      - name: Feed pagination regression
+        run: npm run test:feed-pagination
       - name: Admin analytics scope audit
         run: npm run audit:admin-analytics
       - name: Premium free-core audit
