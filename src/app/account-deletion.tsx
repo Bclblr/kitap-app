@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -12,6 +12,8 @@ export default function AccountDeletionScreen() {
   const [loading, setLoading] = useState(true);
   const [signedIn, setSignedIn] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -34,13 +36,24 @@ export default function AccountDeletionScreen() {
         return;
       }
 
-      const { error } = await supabase.functions.invoke('delete-account', { body: {} });
+      const { data: result, error } = await supabase.functions.invoke('delete-account', { body: {} });
       if (error) throw error;
 
       try { await supabase.auth.signOut(); } catch {}
       await AsyncStorage.clear();
       setSignedIn(false);
-      Alert.alert('Hesap silindi', 'Hesabın ve hesabına bağlı veriler kalıcı olarak silindi.');
+      setConfirming(false);
+      setConfirmText('');
+
+      if (result?.storage_cleanup_warning) {
+        Alert.alert(
+          'Hesap silindi',
+          'Hesabın silindi. Bazı medya dosyalarının sunucu temizliği ayrıca tamamlanacak.'
+        );
+      } else {
+        Alert.alert('Hesap silindi', 'Hesabın ve hesabına bağlı veriler kalıcı olarak silindi.');
+      }
+
       router.replace('/login');
     } catch (error) {
       console.error('Web hesap silme hatası:', error);
@@ -51,14 +64,8 @@ export default function AccountDeletionScreen() {
   }
 
   function confirmDelete() {
-    Alert.alert(
-      'Hesabı kalıcı olarak sil',
-      'Profilin, içeriklerin ve hesabına bağlı veriler kalıcı olarak silinir. Bu işlem geri alınamaz.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Kalıcı Olarak Sil', style: 'destructive', onPress: () => void deleteAccount() },
-      ]
-    );
+    setConfirmText('');
+    setConfirming(true);
   }
 
   if (loading) {
@@ -87,6 +94,57 @@ export default function AccountDeletionScreen() {
           </>
         )}
       </View>
+      <Modal
+        visible={confirming}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!deleting) setConfirming(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Hesabı kalıcı olarak sil</Text>
+            <Text style={styles.confirmText}>
+              Profilin, içeriklerin ve hesabına bağlı veriler kalıcı olarak silinir. Bu işlem geri alınamaz.
+            </Text>
+            <Text style={styles.confirmLabel}>Devam etmek için SİL yaz.</Text>
+            <TextInput
+              value={confirmText}
+              onChangeText={setConfirmText}
+              editable={!deleting}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder="SİL"
+              placeholderTextColor="#6F6F7B"
+              style={styles.confirmInput}
+            />
+            <View style={styles.confirmActions}>
+              <Pressable
+                disabled={deleting}
+                onPress={() => {
+                  setConfirming(false);
+                  setConfirmText('');
+                }}
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelText}>Vazgeç</Text>
+              </Pressable>
+              <Pressable
+                disabled={deleting || confirmText.trim().toLocaleUpperCase('tr-TR') !== 'SİL'}
+                onPress={() => void deleteAccount()}
+                style={[
+                  styles.dangerButton,
+                  styles.confirmDangerButton,
+                  (deleting || confirmText.trim().toLocaleUpperCase('tr-TR') !== 'SİL') && styles.disabled,
+                ]}
+              >
+                <Text style={styles.dangerText}>{deleting ? 'Siliniyor…' : 'Kalıcı Olarak Sil'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -102,4 +160,14 @@ const baseStyles = StyleSheet.create({
   dangerButton: { marginTop: 20, minHeight: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7F1D1D' },
   dangerText: { color: '#FFFFFF', fontWeight: '900' },
   disabled: { opacity: 0.55 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  confirmCard: { width: '100%', maxWidth: 520, borderRadius: 20, borderWidth: 1, borderColor: '#3A2A2A', backgroundColor: '#111116', padding: 22 },
+  confirmTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
+  confirmText: { marginTop: 10, color: '#C4C4CC', fontSize: 14, lineHeight: 21 },
+  confirmLabel: { marginTop: 18, color: '#F0B9B9', fontSize: 13, fontWeight: '800' },
+  confirmInput: { marginTop: 9, minHeight: 50, borderRadius: 13, borderWidth: 1, borderColor: '#563535', backgroundColor: '#0B0B0F', color: '#FFFFFF', paddingHorizontal: 14, fontSize: 16, fontWeight: '800' },
+  confirmActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  cancelButton: { flex: 1, minHeight: 50, borderRadius: 14, borderWidth: 1, borderColor: '#34343D', backgroundColor: '#1A1A20', alignItems: 'center', justifyContent: 'center' },
+  cancelText: { color: '#D0D0D7', fontWeight: '800' },
+  confirmDangerButton: { flex: 1, marginTop: 0 },
 });
