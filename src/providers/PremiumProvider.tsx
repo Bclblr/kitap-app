@@ -54,6 +54,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
   const [error, setError] = useState<string | null>(null);
   const previousUserIdRef = useRef<string | null>(null);
   const activeUserIdRef = useRef<string | null>(null);
+  const accessRef = useRef<PremiumAccess>(EMPTY_ACCESS);
   const reloadSequenceRef = useRef(0);
 
   const reload = useCallback(async (): Promise<PremiumAccess> => {
@@ -75,7 +76,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
 
     if (!isOnline) {
       setReady(true);
-      return access;
+      return accessRef.current;
     }
 
     setRefreshing(true);
@@ -98,6 +99,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
         return nextAccess;
       }
 
+      accessRef.current = nextAccess;
       setAccess(nextAccess);
       setRevenueCat(revenueCatResult);
       setError(null);
@@ -121,7 +123,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
         setReady(true);
       }
     }
-  }, [access, authLoading, isOnline, session?.user?.id]);
+  }, [authLoading, isOnline, session?.user?.id]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -141,7 +143,9 @@ export function PremiumProvider({ children }: PropsWithChildren) {
         });
       }
 
-      setAccess(resolvePremiumAccess([]));
+      const empty = resolvePremiumAccess([]);
+      accessRef.current = empty;
+      setAccess(empty);
       setRevenueCat(emptyRevenueCatSnapshot());
       setError(null);
       setRefreshing(false);
@@ -151,7 +155,9 @@ export function PremiumProvider({ children }: PropsWithChildren) {
 
     // Do not render the previous user's Premium state while the new account loads.
     if (previousUserId !== currentUserId) {
-      setAccess(resolvePremiumAccess([]));
+      const empty = resolvePremiumAccess([]);
+      accessRef.current = empty;
+      setAccess(empty);
       setRevenueCat(emptyRevenueCatSnapshot());
       setError(null);
     }
@@ -191,20 +197,37 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     const expirationMs = Date.parse(access.nextExpirationAt);
     if (!Number.isFinite(expirationMs)) return;
 
-    const remainingMs = expirationMs - Date.now();
-    const delay = Math.max(0, Math.min(remainingMs + 250, 2_147_000_000));
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
 
-    const timeout = setTimeout(() => {
-      // Recompute locally first so an expired entitlement never remains active
-      // just because the app has stayed open for a long time.
-      setAccess((current) => resolvePremiumAccess(current.allEntitlements));
+    const schedule = () => {
+      if (cancelled) return;
 
-      if (isOnline) {
-        void reload().catch(() => undefined);
+      const remainingMs = expirationMs - Date.now();
+
+      if (remainingMs <= 0) {
+        const next = resolvePremiumAccess(accessRef.current.allEntitlements);
+        accessRef.current = next;
+        setAccess(next);
+
+        if (isOnline) {
+          void reload().catch(() => undefined);
+        }
+        return;
       }
-    }, delay);
 
-    return () => clearTimeout(timeout);
+      timeout = setTimeout(
+        schedule,
+        Math.min(remainingMs + 250, 2_147_000_000)
+      );
+    };
+
+    schedule();
+
+    return () => {
+      cancelled = true;
+      if (timeout) clearTimeout(timeout);
+    };
   }, [access.nextExpirationAt, isOnline, reload]);
 
   const value = useMemo(
