@@ -1,3 +1,4 @@
+import { safeBack } from '@/lib/navigation';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import HashtagText from '@/components/HashtagText';
 import { Feather } from '@expo/vector-icons';
@@ -771,7 +772,7 @@ export default function HashtagScreen() {
 
   function goBack() {
     if (router.canGoBack()) {
-      router.back();
+      safeBack(router, '/explore');
     } else {
       router.replace('/explore');
     }
