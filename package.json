@@ -77,7 +77,8 @@
     "audit:backend-health-monitoring": "node scripts/audit-backend-health-monitoring.cjs",
     "audit:profile-pagination": "node scripts/audit-profile-pagination.cjs",
     "audit:production-env": "node scripts/audit-production-env.cjs",
-    "eas-build-pre-install": "node scripts/audit-production-env.cjs"
+    "eas-build-pre-install": "node scripts/audit-production-env.cjs",
+    "audit:native-release-preflight": "node scripts/audit-native-release-preflight.cjs"
   },
   "private": true,
   "overrides": {
