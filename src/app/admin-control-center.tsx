@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -60,7 +61,7 @@ export default function AdminControlCenter() {
   const tabs:[Tab,string,keyof typeof Feather.glyphMap][]=[['security','Güvenlik','shield'],['sanctions','Yaptırımlar','slash'],['profiles','Doğrulama','check-circle'],['search','Arama','search'],['messages','Mesaj Raporları','message-circle']];
   if(loading)return <View style={styles.center}><ActivityIndicator color={colors.primary}/><Text style={styles.muted}>Kontrol merkezi yükleniyor...</Text></View>;
 
-  return <View style={styles.container}><View style={styles.header}><Pressable onPress={()=>router.back()} style={styles.iconButton}><Feather name="chevron-left" size={23} color={colors.textPrimary}/></Pressable><View style={{flex:1}}><Text style={styles.eyebrow}>YÖNETİM</Text><Text style={styles.title}>Kontrol Merkezi</Text></View><Pressable onPress={()=>void load()} style={styles.iconButton}><Feather name="refresh-cw" size={18} color={colors.textSecondary}/></Pressable></View>
+  return <View style={styles.container}><View style={styles.header}><Pressable onPress={()=>safeBack(router, '/admin')} style={styles.iconButton}><Feather name="chevron-left" size={23} color={colors.textPrimary}/></Pressable><View style={{flex:1}}><Text style={styles.eyebrow}>YÖNETİM</Text><Text style={styles.title}>Kontrol Merkezi</Text></View><Pressable onPress={()=>void load()} style={styles.iconButton}><Feather name="refresh-cw" size={18} color={colors.textSecondary}/></Pressable></View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>{tabs.map(([key,label,icon])=><Pressable key={key} onPress={()=>setTab(key)} style={[styles.tab,tab===key&&styles.tabActive]}><Feather name={icon} size={15} color={tab===key?'#F5F5F8':'#8E8E9D'}/><Text style={[styles.tabText,tab===key&&styles.tabTextActive]}>{label}</Text></Pressable>)}</ScrollView>
     <ScrollView contentContainerStyle={styles.content}>
       {tab==='security'&&<><Text style={styles.sectionTitle}>Güvenlik ve DB Sağlığı</Text><View style={styles.grid}>{Object.entries(health).map(([k,v])=><View key={k} style={styles.metric}><Text style={styles.metricValue}>{typeof v==='number'?v.toLocaleString('tr-TR'):String(v??'—')}</Text><Text style={styles.muted}>{k.replaceAll('_',' ')}</Text></View>)}</View><Text style={styles.note}>Bu ekran veritabanı boyutu, bekleyen raporlar, aktif yaptırımlar ve yönetici sayılarını izler. Tam fiziksel veritabanı yedeği Supabase platform yedeklemesi üzerinden yapılır; burada güvenli yapılandırma snapshotı alınır.</Text>{superAdmin&&<Pressable onPress={()=>void createSnapshot()} style={styles.primary}><Text style={styles.primaryText}>Yapılandırma Snapshotı Oluştur</Text></Pressable>}</>}
