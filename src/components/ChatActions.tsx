@@ -35,10 +35,10 @@ export default function ChatActions({ conversationId, onBlocked }: { conversatio
     return () => { alive = false; void supabase.removeChannel(channel); };
   }, [conversationId, onBlocked, mine]);
   async function perform(action: 'block' | 'hide' | 'report') {
-    if (lock.current || !userId || !otherId) return;
+    if (lock.current || !userId || !otherId || (action === 'hide' && !conversationId)) return;
     lock.current = true; setBusy(true);
     try {
-      const result = action === 'block' ? mine ? await supabase.from('user_blocks').delete().eq('blocker_id', userId).eq('blocked_id', otherId) : await supabase.from('user_blocks').insert({ blocker_id: userId, blocked_id: otherId }) : action === 'hide' ? await supabase.from('conversation_hidden').upsert({ user_id: userId, conversation_id: conversationId, hidden_at: new Date().toISOString() }) : await supabase.from('reports').insert({ reporter_id: userId, target_type: 'user', target_id: otherId, category, description });
+      const result = action === 'block' ? mine ? await supabase.from('user_blocks').delete().eq('blocker_id', userId).eq('blocked_id', otherId) : await supabase.from('user_blocks').insert({ blocker_id: userId, blocked_id: otherId }) : action === 'hide' ? await supabase.from('conversation_hidden').upsert({ user_id: userId, conversation_id: conversationId!, hidden_at: new Date().toISOString() }) : await supabase.from('reports').insert({ reporter_id: userId, target_type: 'user', target_id: otherId, category, description });
       if (result.error) throw result.error;
       if (action === 'block') { setMine(!mine); onBlocked(true); notifySocialChanged(); }
       if (action === 'hide') router.replace('/messages');
