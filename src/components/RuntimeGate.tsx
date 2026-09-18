@@ -55,7 +55,8 @@ export default function RuntimeGate({ children }: PropsWithChildren) {
   }, [reload]);
 
   useEffect(() => {
-    void reload(true);
+    const timer = setTimeout(() => void reload(true), 0);
+    return () => clearTimeout(timer);
   }, [reload, session?.user?.id]);
 
   useEffect(() => {
