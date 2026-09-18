@@ -121,46 +121,61 @@ type FeedProfile = {
 
 type FeedProfileResult = { data: FeedProfile[]; error: any };
 
-let feedProfilesCache: { data: FeedProfile[]; expiresAt: number } | null = null;
-let feedProfilesRequest: Promise<FeedProfileResult> | null = null;
+const feedProfilesCache = new Map<
+  string,
+  { profile: FeedProfile; expiresAt: number }
+>();
 
-async function loadFeedProfiles(): Promise<FeedProfileResult> {
+async function loadFeedProfiles(userIds: string[]): Promise<FeedProfileResult> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (!ids.length) return { data: [], error: null };
+
   const now = Date.now();
-  if (feedProfilesCache && feedProfilesCache.expiresAt > now) {
-    return { data: feedProfilesCache.data, error: null };
+  const cachedProfiles: FeedProfile[] = [];
+  const missingIds: string[] = [];
+
+  for (const id of ids) {
+    const cached = feedProfilesCache.get(id);
+    if (cached && cached.expiresAt > now) {
+      cachedProfiles.push(cached.profile);
+    } else {
+      if (cached) feedProfilesCache.delete(id);
+      missingIds.push(id);
+    }
   }
 
-  if (feedProfilesRequest) return feedProfilesRequest;
+  if (!missingIds.length) {
+    return { data: cachedProfiles, error: null };
+  }
 
-  const request: Promise<FeedProfileResult> = (async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, profile_image');
-      const baseProfiles = (data ?? []) as Omit<FeedProfile, 'is_verified'>[];
-      const profileIds = baseProfiles.map((profile) => profile.id);
-      const [verifiedIds, premiumIds] = !error
-        ? await Promise.all([
-            loadVerifiedUserIds(profileIds).catch(() => new Set<string>()),
-            loadPremiumUserIds(profileIds).catch(() => new Set<string>()),
-          ])
-        : [new Set<string>(), new Set<string>()];
-      const profiles: FeedProfile[] = baseProfiles.map((profile) => ({
-        ...profile,
-        is_verified: verifiedIds.has(profile.id),
-        is_premium: premiumIds.has(profile.id),
-      }));
-      if (!error) {
-        feedProfilesCache = { data: profiles, expiresAt: Date.now() + 30_000 };
-      }
-      return { data: profiles, error };
-    } finally {
-      feedProfilesRequest = null;
-    }
-  })();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, username, profile_image')
+    .in('id', missingIds);
 
-  feedProfilesRequest = request;
-  return request;
+  if (error) {
+    return { data: cachedProfiles, error };
+  }
+
+  const baseProfiles = (data ?? []) as Omit<FeedProfile, 'is_verified' | 'is_premium'>[];
+  const profileIds = baseProfiles.map((profile) => profile.id);
+  const [verifiedIds, premiumIds] = await Promise.all([
+    loadVerifiedUserIds(profileIds).catch(() => new Set<string>()),
+    loadPremiumUserIds(profileIds).catch(() => new Set<string>()),
+  ]);
+
+  const loadedProfiles: FeedProfile[] = baseProfiles.map((profile) => ({
+    ...profile,
+    is_verified: verifiedIds.has(profile.id),
+    is_premium: premiumIds.has(profile.id),
+  }));
+
+  const expiresAt = Date.now() + 30_000;
+  for (const profile of loadedProfiles) {
+    feedProfilesCache.set(profile.id, { profile, expiresAt });
+  }
+
+  return { data: [...cachedProfiles, ...loadedProfiles], error: null };
 }
 
 function isValidUUID(value: string) {
@@ -367,17 +382,15 @@ export default function HomeScreen() {
         return query;
       };
 
-      const [postResult, reviewResult, quoteResult, profileResult] = await Promise.all([
+      const [postResult, reviewResult, quoteResult] = await Promise.all([
         buildPostQuery(),
         buildReviewQuery(),
         buildQuoteQuery(),
-        loadFeedProfiles(),
       ]);
 
       if (postResult.error) throw postResult.error;
       if (reviewResult.error) throw reviewResult.error;
       if (quoteResult.error) throw quoteResult.error;
-      if (profileResult.error) console.error('Feed profilleri alınamadı:', profileResult.error);
 
       const visiblePostRows = (postResult.data ?? []).filter(
         (post: any) => !post.user_id || !blockedUserIds.has(post.user_id)
@@ -426,6 +439,20 @@ export default function HomeScreen() {
 
       for (const result of [postLikesResult, postRepostsResult, postCommentsResult, savedResult, reviewLikesResult, reviewRepostsResult, reviewCommentsResult]) {
         if (result.error) console.error('Feed ilişki verisi alınamadı:', result.error);
+      }
+
+      const feedUserIds = [
+        userId,
+        ...visiblePostRows.map((post: any) => post.user_id),
+        ...visibleReviewRows.map((review: any) => review.user_id),
+        ...visibleQuoteRows.map((quote: any) => quote.user_id),
+        ...(postCommentsResult.data ?? []).map((comment: any) => comment.user_id),
+        ...(reviewCommentsResult.data ?? []).map((comment: any) => comment.user_id),
+      ].filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+      const profileResult = await loadFeedProfiles(feedUserIds);
+      if (profileResult.error) {
+        console.error('Feed profilleri alınamadı:', profileResult.error);
       }
 
       const profilesByUserId = new Map(
