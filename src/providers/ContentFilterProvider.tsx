@@ -58,8 +58,11 @@ export function ContentFilterProvider({ children }: PropsWithChildren) {
   }, [authLoading, isOnline]);
 
   useEffect(() => {
-    setReady(false);
-    void reload();
+    const timer = setTimeout(() => {
+      setReady(false);
+      void reload();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [reload, retrySignal, session?.user?.id]);
 
   useEffect(() => {
