@@ -302,12 +302,14 @@ export default function CommunityScreen() {
   );
 
   useEffect(() => {
-    setCommunityPosts([]);
-    setCommunityPostsOffset(0);
-    setCommunityPostsHasMore(true);
-    const timer = setTimeout(() => void loadCommunityPosts(true), 0);
+    const timer = setTimeout(() => {
+      setCommunityPosts([]);
+      setCommunityPostsOffset(0);
+      setCommunityPostsHasMore(true);
+      void loadCommunityPosts(true);
+    }, 0);
     return () => clearTimeout(timer);
-  }, [communityId]);
+  }, [communityId, loadCommunityPosts]);
 
   async function toggleCommunityPostLike(post: CommunityPost) {
     if (!currentUserId || !post.id || pendingLikePostIds.has(post.id)) return;
