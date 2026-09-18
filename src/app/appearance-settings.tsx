@@ -6,12 +6,12 @@ import { safeBack } from '@/lib/navigation';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { ThemeMode } from '@/theme/palette';
 
-const OPTIONS: Array<{
+const OPTIONS: {
   value: ThemeMode;
   title: string;
   description: string;
   icon: keyof typeof Feather.glyphMap;
-}> = [
+}[] = [
   {
     value: 'system',
     title: 'Sistem ayarını kullan',
