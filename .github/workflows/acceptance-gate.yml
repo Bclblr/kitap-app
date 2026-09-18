@@ -28,6 +28,8 @@ jobs:
         run: npm run audit:routes
       - name: Reader security tests
         run: npm run test:security
+      - name: Admin analytics scope audit
+        run: npm run audit:admin-analytics
       - name: Premium free-core audit
         run: npm run audit:premium-free-core
       - name: Premium lifecycle preflight
