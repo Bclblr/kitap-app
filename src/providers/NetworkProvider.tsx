@@ -1,6 +1,7 @@
 import { PropsWithChildren, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { flushQueuedAppErrors } from '@/lib/error-monitoring';
 import { SUPABASE_URL } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 
@@ -35,12 +36,14 @@ async function canReachBackend() {
   const timeout = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS);
 
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
       method: 'HEAD',
       cache: 'no-store',
       signal: controller.signal,
     });
-    return true;
+
+    // 4xx still proves that the backend is reachable; 5xx does not.
+    return response.status < 500;
   } catch {
     return false;
   } finally {
@@ -77,6 +80,10 @@ export function NetworkProvider({ children }: PropsWithChildren) {
     backendWasUnavailableRef.current = !nextBackendReachable;
     setBackendReachable(nextBackendReachable);
     setChecking(false);
+
+    if (nextBackendReachable) {
+      void flushQueuedAppErrors().catch(() => undefined);
+    }
 
     if (reconnected) {
       setRetrySignal((value) => value + 1);
