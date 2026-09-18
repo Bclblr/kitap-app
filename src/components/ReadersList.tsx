@@ -81,9 +81,9 @@ function ReaderDirectory({
     try {
       const term = query?.trim() ?? '';
       const result = await supabase.rpc('get_reader_directory', {
-        p_target: targetId ?? null,
-        p_mode: mode ?? null,
-        p_query: term || null,
+        ...(targetId ? { p_target: targetId } : {}),
+        ...(mode ? { p_mode: mode } : {}),
+        ...(term ? { p_query: term } : {}),
         p_offset: offset,
         p_limit: DIRECTORY_PAGE_SIZE,
       });
