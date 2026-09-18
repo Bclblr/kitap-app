@@ -1751,7 +1751,7 @@ export default function ProfileScreen() {
         return null;
       }
 
-      return permanentImageUrl(`${data.publicUrl}?v=${Date.now()}`);
+      return permanentImageUrl(`${data.publicUrl.replace('/object/public/', '/object/authenticated/')}?v=${Date.now()}`);
     } catch (error) {
       console.error(
         'Fotoğraf yükleme hatası:',
