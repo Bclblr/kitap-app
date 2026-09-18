@@ -22,6 +22,18 @@ export default function AdSlot() {
   const supported = Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
   const canShowAds = premium.ready && !premium.isPremium && enabled && supported;
 
+  function scheduleRetry() {
+    if (retryCountRef.current >= 3 || retryTimerRef.current) return;
+
+    retryCountRef.current += 1;
+    const delay = retryCountRef.current * 5000;
+    retryTimerRef.current = setTimeout(() => {
+      retryTimerRef.current = null;
+      resetAdsInitialization();
+      setRetrySignal((value) => value + 1);
+    }, delay);
+  }
+
   useEffect(() => {
     return subscribeAdsConsentChanged(() => {
       retryCountRef.current = 0;
@@ -49,14 +61,7 @@ export default function AdSlot() {
 
       // Initialization can fail because of a temporary SDK/network issue.
       // Retry with a bounded backoff instead of permanently caching null.
-      if (retryCountRef.current < 3) {
-        retryCountRef.current += 1;
-        const delay = retryCountRef.current * 5000;
-        retryTimerRef.current = setTimeout(() => {
-          resetAdsInitialization();
-          setRetrySignal((value) => value + 1);
-        }, delay);
-      }
+      scheduleRetry();
     });
 
     return () => {
@@ -100,7 +105,7 @@ export default function AdSlot() {
           onAdFailedToLoad={() => {
             setSdk(null);
             resetAdsInitialization();
-            setRetrySignal((value) => value + 1);
+            scheduleRetry();
           }}
         />
       ) : null}
