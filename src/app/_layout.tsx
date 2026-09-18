@@ -119,6 +119,7 @@ function GuardedLayout() {
   const [adminReady, setAdminReady] = useState(false);
   const [canOpenAdmin, setCanOpenAdmin] = useState(false);
   const onboardingPending = session?.user?.user_metadata?.onboarding_pending === true;
+  const sessionUserId = session?.user?.id ?? null;
 
   useEffect(() => {
     const userId = session?.user?.id ?? null;
@@ -140,32 +141,32 @@ function GuardedLayout() {
 
   useEffect(() => {
     let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!sessionUserId) {
+        setCanOpenAdmin(false);
+        setAdminReady(true);
+        return;
+      }
 
-    if (!session) {
-      setCanOpenAdmin(false);
-      setAdminReady(true);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setAdminReady(false);
-    void getCurrentAdminAccess()
-      .then((access) => {
-        if (!cancelled) setCanOpenAdmin(access.canOpenAdmin);
-      })
-      .catch((error) => {
-        console.warn('Admin route guard yüklenemedi:', error);
-        if (!cancelled) setCanOpenAdmin(false);
-      })
-      .finally(() => {
-        if (!cancelled) setAdminReady(true);
-      });
+      setAdminReady(false);
+      void getCurrentAdminAccess()
+        .then((access) => {
+          if (!cancelled) setCanOpenAdmin(access.canOpenAdmin);
+        })
+        .catch((error) => {
+          console.warn('Admin route guard yüklenemedi:', error);
+          if (!cancelled) setCanOpenAdmin(false);
+        })
+        .finally(() => {
+          if (!cancelled) setAdminReady(true);
+        });
+    }, 0);
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [session?.user?.id]);
+  }, [sessionUserId]);
 
 
   useEffect(() => {
