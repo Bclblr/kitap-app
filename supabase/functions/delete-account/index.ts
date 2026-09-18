@@ -71,25 +71,58 @@ Deno.serve(async (request) => {
     grouped.set(row.bucket_id, names);
   }
 
-  for (const [bucketId, names] of grouped) {
-    for (let index = 0; index < names.length; index += 100) {
-      const chunk = names.slice(index, index + 100);
-      const { error: removeError } = await admin.storage.from(bucketId).remove(chunk);
-      if (removeError) {
-        console.error('delete-account: storage cleanup failed', {
-          bucketId,
-          count: chunk.length,
-          error: removeError,
-        });
-        return jsonResponse(500, { error: 'storage_cleanup_failed' });
-      }
-    }
-  }
-
+  // Delete the Auth identity first. Until this succeeds, no user media is
+  // removed, so a failed account deletion cannot leave an active account
+  // whose files have already disappeared.
   const { error: deleteError } = await admin.auth.admin.deleteUser(user.id, false);
   if (deleteError) {
     console.error('delete-account: auth user deletion failed', deleteError);
     return jsonResponse(500, { error: 'account_delete_failed' });
+  }
+
+  const cleanupFailures: Array<{ bucketId: string; count: number }> = [];
+
+  for (const [bucketId, names] of grouped) {
+    for (let index = 0; index < names.length; index += 100) {
+      const chunk = names.slice(index, index + 100);
+      let cleaned = false;
+
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const { error: removeError } = await admin.storage.from(bucketId).remove(chunk);
+
+        if (!removeError) {
+          cleaned = true;
+          break;
+        }
+
+        console.error('delete-account: storage cleanup attempt failed', {
+          bucketId,
+          count: chunk.length,
+          attempt,
+          error: removeError,
+        });
+
+        if (attempt < 3) {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 250));
+        }
+      }
+
+      if (!cleaned) {
+        cleanupFailures.push({ bucketId, count: chunk.length });
+      }
+    }
+  }
+
+  if (cleanupFailures.length > 0) {
+    // The account is already deleted, so return success and surface the
+    // cleanup warning instead of telling a user to retry an account that no
+    // longer exists. Failures remain visible in function logs for operator
+    // cleanup.
+    return jsonResponse(200, {
+      ok: true,
+      storage_cleanup_warning: true,
+      failed_chunks: cleanupFailures.length,
+    });
   }
 
   return jsonResponse(200, { ok: true });
