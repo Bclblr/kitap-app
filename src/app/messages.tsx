@@ -17,6 +17,7 @@ import Image from '@/components/SafeImage';
 
 import BottomNav from '@/components/BottomNav';
 import ReadersList from '@/components/ReadersList';
+import RetryNotice from '@/components/RetryNotice';
 import { supabase } from '@/lib/supabase';
 
 type InboxSummaryRow = {
@@ -44,10 +45,12 @@ export default function MessagesScreen() {
   const [query, setQuery] = useState('');
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadConversations = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
 
       const {
         data: { user },
@@ -64,9 +67,7 @@ export default function MessagesScreen() {
       });
 
       if (inboxResult.error) {
-        console.error('Inbox özeti yüklenemedi:', inboxResult.error);
-        Alert.alert('Hata', 'Mesajlar yüklenemedi.');
-        return;
+        throw inboxResult.error;
       }
 
       const rows = (inboxResult.data ?? []) as InboxSummaryRow[];
@@ -113,7 +114,7 @@ export default function MessagesScreen() {
       setConversations(items);
     } catch (error) {
       console.error('Konuşmalar yüklenirken hata:', error);
-      Alert.alert('Hata', 'Mesajlar yüklenemedi. Tekrar deneyebilirsin.');
+      setLoadError('Mesajlar şu anda yenilenemedi. Mevcut konuşmaların korunuyor.');
     } finally {
       setLoading(false);
     }
@@ -242,6 +243,16 @@ export default function MessagesScreen() {
         style={styles.searchInput}
       />
 
+      {loadError ? (
+        <View style={styles.noticeWrap}>
+          <RetryNotice
+            message={loadError}
+            busy={loading}
+            onRetry={loadConversations}
+          />
+        </View>
+      ) : null}
+
       {normalizedQuery ? (
         <ScrollView
           keyboardShouldPersistTaps="handled"
@@ -338,6 +349,9 @@ const baseStyles = StyleSheet.create({
     padding: 14,
     gap: 12,
     paddingBottom: 110,
+  },
+  noticeWrap: {
+    paddingHorizontal: 14,
   },
   loadingContainer: {
     flex: 1,
