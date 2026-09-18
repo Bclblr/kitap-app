@@ -27,6 +27,8 @@ jobs:
         run: npm run test:security
       - name: Premium free-core audit
         run: npm run audit:premium-free-core
+      - name: Premium lifecycle preflight
+        run: npm run audit:premium-lifecycle
       - name: Release security audit
         run: npm run audit:release-security
       - name: Mobile auth preflight
