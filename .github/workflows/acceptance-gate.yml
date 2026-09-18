@@ -54,6 +54,8 @@ jobs:
         run: deno check supabase/functions/*/index.ts
       - name: Release security audit
         run: npm run audit:release-security
+      - name: Native release structural preflight
+        run: npm run audit:native-release-preflight
       - name: Mobile auth preflight
         run: npm run audit:mobile-auth
       - name: Media upload preflight
