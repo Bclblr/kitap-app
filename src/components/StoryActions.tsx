@@ -5,7 +5,21 @@ import { supabase } from '@/lib/supabase';
 import { deleteStoryWithMedia } from '@/lib/story-media';
 import { Action, useReaderStyles } from './ReaderUI';
 
-export default function StoryActions({ storyId, ownerId, onDeleted, onClose }: { storyId: string; ownerId?: string | null; onDeleted: () => void; onClose: () => void }) {
+export default function StoryActions({
+  storyId,
+  ownerId,
+  allowLikes = true,
+  allowReplies = true,
+  onDeleted,
+  onClose,
+}: {
+  storyId: string;
+  ownerId?: string | null;
+  allowLikes?: boolean;
+  allowReplies?: boolean;
+  onDeleted: () => void;
+  onClose: () => void;
+}) {
   const ui = useReaderStyles();
   const router = useRouter();
   const lock = useRef(false);
@@ -79,13 +93,13 @@ export default function StoryActions({ storyId, ownerId, onDeleted, onClose }: {
   return (
     <View style={{ padding: 10, gap: 4 }}>
       <View style={ui.row}>
-        {!!userId && (
+        {!!userId && allowLikes && (
           <Action disabled={busy} label={liked ? '♥ Beğenildi' : '♡ Beğen'} onPress={() => void act()} />
         )}
         {userId && userId === ownerId ? (
           <Action disabled={busy} label="Hikâyemi sil" onPress={() => void act(true)} />
         ) : (
-          ownerId && (
+          ownerId && allowReplies && (
             <Action
               label="Yanıtla"
               onPress={() => {
