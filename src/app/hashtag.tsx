@@ -321,7 +321,7 @@ export default function HashtagScreen() {
           {
             p_hashtag: normalizedTag,
             p_limit: PAGE_SIZE,
-            p_before: null,
+            
           }
         );
 
