@@ -5,6 +5,7 @@ import Image from '@/components/SafeImage';
 import { supabase } from '@/lib/supabase';
 import { notifySocialChanged, useReaderSocial } from '@/hooks/use-reader-social';
 import { Action, Busy, useReaderStyles } from './ReaderUI';
+import RetryNotice from './RetryNotice';
 import ReaderSuggestions from './ReaderSuggestions';
 import VerifiedBadge from './VerifiedBadge';
 import PremiumBadge from './PremiumBadge';
@@ -125,7 +126,6 @@ function ReaderDirectory({
 
   useFocusEffect(
     useCallback(() => {
-      setReaders([]);
       setHasMore(true);
       const timer = setTimeout(() => void loadPage(true), query ? 300 : 0);
       return () => clearTimeout(timer);
@@ -231,7 +231,14 @@ function ReaderDirectory({
               : 'Keşfedilecek Okurlar'}
       </Text>
 
-      {!!(error || social.error) && <Text style={ui.error}>{error || social.error}</Text>}
+      {error ? (
+        <RetryNotice
+          message={error}
+          busy={loading || loadingMore}
+          onRetry={() => loadPage(true)}
+        />
+      ) : null}
+      {!!social.error && <Text style={ui.error}>{social.error}</Text>}
 
       {loading || social.loading ? (
         <Busy />
