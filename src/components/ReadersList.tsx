@@ -245,7 +245,7 @@ function ReaderDirectory({
       ) : (
         !social.error && (
           <>
-            {!visible.length && <Text style={ui.muted}>Gösterilecek okur bulunamadı.</Text>}
+            {!error && !visible.length && <Text style={ui.muted}>Gösterilecek okur bulunamadı.</Text>}
 
             {visible.map((reader) => {
               const isFollowing = followingSet.has(reader.id) || reader.is_following;
