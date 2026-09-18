@@ -5,7 +5,7 @@ const A='00000000-0000-4000-8000-000000000001', B='00000000-0000-4000-8000-00000
 (async () => {
  const db = new PGlite();
  try {
- await db.exec(`create role authenticated; create role anon; create schema auth;
+ await db.exec(`create role authenticated; create role anon; create role service_role bypassrls; create schema auth;
  create table auth.users(id uuid primary key, created_at timestamptz not null default now());
  create schema storage;
  create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
