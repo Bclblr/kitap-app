@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import Image from '@/components/SafeImage';
@@ -68,7 +68,10 @@ function ReaderDirectory({
   const pageLoadingRef = useRef(false);
   const scopeKey = `${targetId ?? ''}|${mode ?? ''}|${query?.trim() ?? ''}`;
   const scopeKeyRef = useRef(scopeKey);
-  scopeKeyRef.current = scopeKey;
+
+  useEffect(() => {
+    scopeKeyRef.current = scopeKey;
+  }, [scopeKey]);
 
   const followingSet = useMemo(() => new Set(social.following), [social.following]);
   const blockedSet = useMemo(() => new Set(social.blocked), [social.blocked]);
