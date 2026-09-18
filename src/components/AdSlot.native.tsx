@@ -1,6 +1,6 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 
 import { usePremium } from '@/providers/PremiumProvider';
 import { Action } from './ReaderUI';
@@ -12,9 +12,21 @@ function initialize() {
   initialization ??= (async () => {
     try {
       const sdk = await import('react-native-google-mobile-ads');
-      const consent = await sdk.AdsConsent.gatherConsent();
-      if (!consent.canRequestAds) return null;
-      await sdk.default().setRequestConfiguration({ testDeviceIdentifiers: ['EMULATOR'] });
+      try {
+        await sdk.AdsConsent.gatherConsent();
+      } catch (error) {
+        if (__DEV__) console.warn('Ad consent gathering failed:', error);
+      }
+
+      const consentInfo = await sdk.AdsConsent.getConsentInfo();
+      if (!consentInfo.canRequestAds) return null;
+
+      if (__DEV__) {
+        await sdk.default().setRequestConfiguration({
+          testDeviceIdentifiers: ['EMULATOR'],
+        });
+      }
+
       await sdk.default().initialize();
       return sdk;
     } catch {
@@ -47,9 +59,15 @@ export default function AdSlot() {
   // prevents a brief ad flash while a paid/admin entitlement is loading.
   if (!canShowAds || !sdk) return null;
 
-  const productionBannerId = process.env.EXPO_PUBLIC_ADMOB_BANNER_ID?.trim();
+  const productionBannerId =
+    Platform.OS === 'android'
+      ? process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID?.trim()
+      : process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID?.trim();
   const unitId = __DEV__ ? sdk.TestIds.BANNER : productionBannerId;
-  if (!unitId) return null;
+  if (!unitId) {
+    if (__DEV__) console.warn('AdMob banner unit ID is missing for this platform.');
+    return null;
+  }
 
   const Banner = sdk.BannerAd;
 
