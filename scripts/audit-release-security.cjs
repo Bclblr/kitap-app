@@ -65,6 +65,50 @@ if (fs.existsSync(adsNative) && fs.existsSync(adsLifecycle)) {
   }
 }
 
+const rlsCleanupMigration = fs.readFileSync(
+  path.join(root, 'supabase/migrations/20260918173500_remove_legacy_permissive_core_policies.sql'),
+  'utf8'
+);
+for (const policyName of [
+  'authenticated users can create posts',
+  'authenticated users can view saved posts',
+  'authenticated users can save posts',
+]) {
+  if (!rlsCleanupMigration.includes(`drop policy if exists "${policyName}"`)) {
+    failures.push(`Legacy permissive RLS policy cleanup missing: ${policyName}`);
+  }
+}
+
+const rpcExposureMigration = fs.readFileSync(
+  path.join(root, 'supabase/migrations/20260918173000_release_rpc_exposure_hardening.sql'),
+  'utf8'
+);
+if (
+  !rpcExposureMigration.includes(
+    'revoke all on function public.get_event_attendees(uuid)'
+  )
+) {
+  failures.push('Anonymous event attendee RPC exposure is not hardened.');
+}
+if (
+  !rpcExposureMigration.includes(
+    'revoke all on function public.should_deliver_notification(uuid, text)'
+  )
+) {
+  failures.push('Notification preference helper RPC exposure is not hardened.');
+}
+
+const productionEnvAudit = fs.readFileSync(
+  path.join(root, 'scripts/audit-production-env.cjs'),
+  'utf8'
+);
+if (!productionEnvAudit.includes('EAS_BUILD_PROFILE')) {
+  failures.push('Production EAS environment gate is missing.');
+}
+if (!productionEnvAudit.includes('TEST_ADMOB_PREFIX')) {
+  failures.push('Production environment audit does not reject sample AdMob IDs.');
+}
+
 const supabaseClient = fs.readFileSync(path.join(root, 'src/lib/supabase.ts'), 'utf8');
 if (!supabaseClient.includes('process.env.EXPO_PUBLIC_SUPABASE_URL')) {
   failures.push('Supabase URL must come from EXPO_PUBLIC_SUPABASE_URL.');
