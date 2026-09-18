@@ -66,5 +66,13 @@
     "test:product-rules": "node scripts/test-product-rules.cjs",
     "audit:edge-functions": "node scripts/audit-edge-functions.cjs"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "query-string": {
+      "decode-uri-component": "0.5.0"
+    },
+    "xcode": {
+      "uuid": "11.1.1"
+    }
+  }
 }
