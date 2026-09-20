@@ -52,6 +52,7 @@ const AUTHENTICATED_ROUTES = [
   'premium-reading-goals',
   'premium-reading-stats',
   'premium-year-report',
+  'post-create',
   'privacy-data',
   'privacy-settings',
   'profile-settings',
