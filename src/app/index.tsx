@@ -1251,23 +1251,6 @@ export default function HomeScreen() {
 
         {feedTab === 'following' && <Action label="Okurları keşfet" onPress={() => router.push('/readers')} />}
 
-        <View style={styles.createPostCard} onLayout={event => { composerY.current = event.nativeEvent.layout.y; }}>
-          <View style={styles.createPostHeader}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>👤</Text></View>
-            <Pressable onPress={() => setShowPostBox(!showPostBox)} style={styles.postPrompt}><Text style={styles.postPromptText}>Ne okuyorsun, ne düşünüyorsun?</Text></Pressable>
-          </View>
-          {showPostBox && (
-            <View style={styles.postCreateBox}>
-              {postImage && <View><Image localPreview source={{ uri: postImage }} style={styles.postPreview} /><Pressable onPress={() => setPostImage(null)} style={styles.removeImageButton}><Text style={styles.removeImageText}>✕</Text></Pressable></View>}
-              <TextInput value={postText} onChangeText={setPostText} placeholder="Bir şeyler paylaş..." placeholderTextColor="#999" multiline maxLength={2000} style={styles.postInput} />
-              <View style={styles.createActions}>
-                <Pressable onPress={pickPostImage} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>📷 Fotoğraf</Text></Pressable>
-                <Pressable onPress={createPost} disabled={posting} style={styles.primarySmallButton}><Text style={styles.primarySmallText}>{posting ? 'Paylaşılıyor...' : 'Paylaş'}</Text></Pressable>
-              </View>
-            </View>
-          )}
-        </View>
-
         <HomeStoryViewer
           styles={styles}
           visible={!!selectedStory}
@@ -1307,7 +1290,7 @@ export default function HomeScreen() {
               <Text style={styles.emptyIcon}>📝</Text>
               <Text style={styles.emptyTitle}>{social.error || (feedTab === 'following' ? 'Takip akışında henüz içerik yok' : 'Henüz gönderi yok')}</Text>
               <Text style={styles.emptyText}>{feedTab === 'following' ? 'Okurları keşfet ve takip ederek akışını oluştur.' : 'İlk gönderiyi sen paylaş.'}</Text>
-              <Pressable onPress={() => setShowPostBox(true)} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Gönderi Paylaş</Text></Pressable>
+              <Pressable onPress={() => router.push('/post-create')} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Gönderi Paylaş</Text></Pressable>
             </View>
           )
         }
@@ -1326,7 +1309,7 @@ export default function HomeScreen() {
         <View style={{ flex: 1, backgroundColor: '#0009', justifyContent: 'flex-end' }}>
           <Pressable style={{ flex: 1 }} accessibilityLabel="Kapat" onPress={() => setCreateMenu(false)} />
           <View style={[ui.card, { padding: 24, paddingBottom: 40, maxHeight: '85%' }]}>
-            <Action label="Gönderi Oluştur" onPress={() => { setCreateMenu(false); setShowPostBox(true); requestAnimationFrame(() => scrollRef.current?.scrollToOffset({ offset: Math.max(0, composerY.current - 16), animated: true })); }} />
+            <Action label="Gönderi Oluştur" onPress={() => { setCreateMenu(false); router.push('/post-create'); }} />
             <Action label="Kitap İncelemesi Yaz" onPress={() => { setCreateMenu(false); router.push('/review'); }} />
             <Action label="Alıntı Paylaş" onPress={() => { setCreateMenu(false); router.push('/quote-create'); }} />
             <Action label="Kitap Yaz / Yayınla" onPress={() => { setCreateMenu(false); router.push('/my-works'); }} />
