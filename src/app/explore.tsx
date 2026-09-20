@@ -795,6 +795,51 @@ export default function ExploreScreen() {
   );
 }
 
+const authorPhotoCache = new Map<string, string | null>();
+
+async function findWikipediaAuthorPhoto(name: string): Promise<string | null> {
+  const normalizedName = name.trim();
+  if (!normalizedName) return null;
+
+  const cached = authorPhotoCache.get(normalizedName);
+  if (cached !== undefined) return cached;
+
+  const languages = ['tr', 'en'];
+  for (const language of languages) {
+    try {
+      const params = new URLSearchParams({
+        action: 'query',
+        generator: 'search',
+        gsrsearch: normalizedName,
+        gsrnamespace: '0',
+        gsrlimit: '1',
+        prop: 'pageimages',
+        piprop: 'thumbnail',
+        pithumbsize: '256',
+        format: 'json',
+        origin: '*',
+      });
+
+      const response = await fetch(`https://${language}.wikipedia.org/w/api.php?${params.toString()}`);
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      const pages = data?.query?.pages ? Object.values(data.query.pages) as Array<{ thumbnail?: { source?: string } }> : [];
+      const imageUrl = pages[0]?.thumbnail?.source;
+
+      if (typeof imageUrl === 'string' && /^https:\/\//i.test(imageUrl)) {
+        authorPhotoCache.set(normalizedName, imageUrl);
+        return imageUrl;
+      }
+    } catch {
+      // Bir sonraki Wikipedia dilini dene.
+    }
+  }
+
+  authorPhotoCache.set(normalizedName, null);
+  return null;
+}
+
 function AuthorAvatar({
   author,
   style,
@@ -804,11 +849,29 @@ function AuthorAvatar({
   style: any;
   textStyle: any;
 }) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  const key = typeof author.key === 'string' ? author.key.trim() : '';
-  const photoUrl = /^OL\d+A$/.test(key)
-    ? `https://covers.openlibrary.org/a/olid/${key}-M.jpg?default=false`
-    : null;
+  const authorName = author.name?.trim() || '';
+
+  useEffect(() => {
+    let active = true;
+    setFailed(false);
+
+    if (!authorName) {
+      setPhotoUrl(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    void findWikipediaAuthorPhoto(authorName).then((url) => {
+      if (active) setPhotoUrl(url);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [authorName]);
 
   if (!photoUrl || failed) {
     return (
