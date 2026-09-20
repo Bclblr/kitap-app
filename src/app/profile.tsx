@@ -2208,10 +2208,11 @@ export default function ProfileScreen() {
                           style={
                             styles.commentButton
                           }
+                          accessibilityRole="button"
+                          accessibilityLabel="Yorumları aç"
                         >
-                          <Text>
-                            💬 Yorumlar
-                          </Text>
+                          <Text style={styles.commentButtonIcon}>◯</Text>
+                          <Text style={styles.commentButtonText}>Yorumlar</Text>
                         </Pressable>
                       </View>
                     </View>
@@ -2961,12 +2962,30 @@ const baseStyles = StyleSheet.create({
   },
 
   commentButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 9,
-    backgroundColor: '#20212A',
+    minHeight: 38,
+    paddingHorizontal: 12,
+    borderRadius: 13,
+    backgroundColor: '#171820',
     borderWidth: 1,
-    borderColor: '#2B2C35',
+    borderColor: '#292E39',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+
+  commentButtonIcon: {
+    color: '#A985FF',
+    fontSize: 16,
+    lineHeight: 18,
+    fontWeight: '900',
+    transform: [{ rotate: '-8deg' }],
+  },
+
+  commentButtonText: {
+    color: '#B8BEC8',
+    fontSize: 12,
+    fontWeight: '800',
   },
 
   repostHeader: {
