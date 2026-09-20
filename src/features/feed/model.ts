@@ -45,6 +45,7 @@ export type FeedPost = BookCoverData & {
   is_premium?: boolean;
   text: string | null;
   image_url: string | null;
+  image_urls?: string[] | null;
   book_key: string | null;
   book_title: string | null;
   rating: number;
