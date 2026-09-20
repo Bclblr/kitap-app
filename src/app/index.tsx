@@ -50,6 +50,20 @@ const STORY_SEEN_KEY = 'story-seen-ids';
 const CURRENT_USERNAME = 'Kitap Okuru';
 const FEED_PAGE_SIZE = 15;
 
+const REPORT_CATEGORIES = [
+  { key: 'violence', label: 'Şiddet veya tehlikeli içerik', icon: 'alert-triangle' },
+  { key: 'hate', label: 'Nefret söylemi', icon: 'slash' },
+  { key: 'exploitation', label: 'Sömürü veya istismar', icon: 'shield' },
+  { key: 'suicide_self_harm', label: 'İntihar veya kendine zarar verme', icon: 'heart' },
+  { key: 'bullying_harassment', label: 'Zorbalık veya taciz', icon: 'user-x' },
+  { key: 'sexual_content', label: 'Cinsel içerik', icon: 'eye-off' },
+  { key: 'spam', label: 'Spam veya dolandırıcılık', icon: 'flag' },
+  { key: 'misinformation', label: 'Yanlış veya yanıltıcı bilgi', icon: 'help-circle' },
+  { key: 'illegal_goods', label: 'Yasa dışı ürün veya hizmet', icon: 'package' },
+  { key: 'intellectual_property', label: 'Fikri mülkiyet ihlali', icon: 'copy' },
+  { key: 'other', label: 'Diğer', icon: 'more-horizontal' },
+] as const;
+
 function isValidUUID(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
@@ -260,6 +274,10 @@ export default function HomeScreen() {
 
   const [commentText, setCommentText] = useState('');
   const [postCommentText, setPostCommentText] = useState('');
+  const [reportTarget, setReportTarget] = useState<Post | null>(null);
+  const [reportCategory, setReportCategory] = useState<string>('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   const [showPostBox, setShowPostBox] = useState(false);
   const [postText, setPostText] = useState('');
@@ -314,45 +332,55 @@ export default function HomeScreen() {
     }
   );
 
-  async function reportFeedContent(post: Post) {
+  function closeReportSheet() {
+    if (reportSubmitting) return;
+    setReportTarget(null);
+    setReportCategory('');
+    setReportDescription('');
+  }
+
+  async function submitFeedReport() {
+    if (!reportTarget || !reportCategory || reportSubmitting) return;
+
     const user = await getCurrentUser();
     if (!user) {
       Alert.alert('Giriş gerekli', 'İçeriği şikâyet etmek için giriş yapmalısın.');
       return;
     }
-    if (post.user_id === user.id) {
+
+    if (reportTarget.user_id === user.id) {
+      closeReportSheet();
       Alert.alert('Kendi içeriğin', 'Kendi içeriğini şikâyet edemezsin.');
       return;
     }
 
-    const targetType = post.isQuote ? 'quote' : post.isReview ? 'review' : 'post';
+    const targetType = reportTarget.isQuote ? 'quote' : reportTarget.isReview ? 'review' : 'post';
+    const targetId = reportTarget.isQuote ? reportTarget.id.replace(/^quote-/, '') : String(reportTarget.id);
 
-    const submit = async (category: string) => {
-      const { error } = await supabase.from('reports').insert({
-        reporter_id: user.id,
-        target_type: targetType,
-        target_id: String(post.id),
-        category,
-        description: '',
+    setReportSubmitting(true);
+    try {
+      const { error } = await supabase.rpc('submit_report', {
+        p_target_type: targetType,
+        p_target_id: targetId,
+        p_category: reportCategory,
+        p_description: reportDescription.trim(),
       });
 
-      if (error) {
-        console.error('İçerik şikâyeti gönderilemedi:', error);
-        Alert.alert('Hata', 'Şikâyet gönderilemedi.');
-        return;
-      }
+      if (error) throw error;
 
-      Alert.alert('Şikâyet alındı', 'Bildirimin moderasyon ekibine gönderildi.');
-    };
-
-    Alert.alert('İçeriği şikâyet et', 'Şikâyet nedenini seç.', [
-      { text: 'Spam', onPress: () => submit('spam') },
-      { text: 'Taciz', onPress: () => submit('harassment') },
-      { text: 'Uygunsuz içerik', onPress: () => submit('inappropriate') },
-      { text: 'Yanıltıcı içerik', onPress: () => submit('misleading') },
-      { text: 'Diğer', onPress: () => submit('other') },
-      { text: 'Vazgeç', style: 'cancel' },
-    ]);
+      setReportTarget(null);
+      setReportCategory('');
+      setReportDescription('');
+      Alert.alert(
+        'Şikâyet incelemeye gönderildi',
+        'Bildirimin moderasyon ekibine ulaştı. Durum değiştiğinde Bildirimler bölümünde bilgi göreceksin.'
+      );
+    } catch (error) {
+      console.error('İçerik şikâyeti gönderilemedi:', error);
+      Alert.alert('Gönderilemedi', 'Şikâyet şu anda gönderilemedi. Lütfen tekrar dene.');
+    } finally {
+      setReportSubmitting(false);
+    }
   }
 
   function openFeedContentMenu(post: Post) {
@@ -364,7 +392,15 @@ export default function HomeScreen() {
     }
 
     Alert.alert('İçerik seçenekleri', undefined, [
-      { text: 'Şikâyet Et', style: 'destructive', onPress: () => reportFeedContent(post) },
+      {
+        text: 'Şikâyet Et',
+        style: 'destructive',
+        onPress: () => {
+          setReportTarget(post);
+          setReportCategory('');
+          setReportDescription('');
+        },
+      },
       { text: 'Vazgeç', style: 'cancel' },
     ]);
   }
@@ -1415,6 +1451,78 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Modal
+        visible={!!reportTarget}
+        transparent
+        animationType="slide"
+        onRequestClose={closeReportSheet}
+      >
+        <View style={styles.reportSheetRoot}>
+          <Pressable style={styles.reportSheetBackdrop} onPress={closeReportSheet} />
+          <View style={[styles.reportSheet, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+            <View style={styles.reportSheetHandle} />
+            <View style={styles.reportSheetHeader}>
+              <View>
+                <Text style={styles.reportSheetEyebrow}>ŞİKÂYET</Text>
+                <Text style={styles.reportSheetTitle}>Neden şikâyet ediyorsun?</Text>
+              </View>
+              <Pressable onPress={closeReportSheet} style={styles.reportSheetClose} accessibilityLabel="Şikâyeti kapat">
+                <Feather name="x" size={22} color={colors.text} />
+              </Pressable>
+            </View>
+            <Text style={styles.reportSheetHelp}>
+              Uygun nedeni seç. Bildirim moderasyon ekibine gönderilecek ve sonucu Bildirimler bölümünde takip edebileceksin.
+            </Text>
+            <FlatList
+              data={REPORT_CATEGORIES}
+              keyExtractor={(item) => item.key}
+              style={styles.reportCategoryList}
+              contentContainerStyle={styles.reportCategoryListContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => {
+                const selected = reportCategory === item.key;
+                return (
+                  <Pressable
+                    onPress={() => setReportCategory(item.key)}
+                    style={[styles.reportCategoryRow, selected && styles.reportCategoryRowSelected]}
+                    accessibilityRole="button"
+                  >
+                    <View style={[styles.reportCategoryIcon, selected && styles.reportCategoryIconSelected]}>
+                      <Feather name={item.icon as any} size={19} color={selected ? '#DCCFFF' : colors.textSecondary} />
+                    </View>
+                    <Text style={[styles.reportCategoryText, selected && styles.reportCategoryTextSelected]}>{item.label}</Text>
+                    <Feather name={selected ? 'check-circle' : 'chevron-right'} size={19} color={selected ? colors.primary : colors.textMuted} />
+                  </Pressable>
+                );
+              }}
+            />
+            {reportCategory ? (
+              <View style={styles.reportNoteWrap}>
+                <Text style={styles.reportNoteLabel}>Ek açıklama (isteğe bağlı)</Text>
+                <TextInput
+                  value={reportDescription}
+                  onChangeText={setReportDescription}
+                  placeholder="Moderasyon ekibine yardımcı olacak kısa bir açıklama yazabilirsin."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  maxLength={1000}
+                  style={styles.reportNoteInput}
+                />
+                <Pressable
+                  disabled={reportSubmitting}
+                  onPress={() => void submitFeedReport()}
+                  style={[styles.reportSubmitButton, reportSubmitting && styles.reportSubmitButtonDisabled]}
+                >
+                  {reportSubmitting ? <ActivityIndicator color="#FFF" /> : <Feather name="flag" size={17} color="#FFF" />}
+                  <Text style={styles.reportSubmitText}>{reportSubmitting ? 'Gönderiliyor...' : 'Şikâyeti gönder'}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={commentSheetVisible}
         transparent
         animationType="slide"
@@ -1909,6 +2017,30 @@ const baseStyles = StyleSheet.create({
   deleteComment: { fontSize: 12, fontWeight: '700', color: '#FF6B7A' },
   commentText: { marginTop: 4, fontSize: 13, color: '#C4C8D0', lineHeight: 19, flexShrink: 1, maxWidth: '100%' },
   commentDate: { marginTop: 5, fontSize: 10, color: '#737A87' },
+  reportSheetRoot: { flex: 1, justifyContent: 'flex-end' },
+  reportSheetBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.62)' },
+  reportSheet: { maxHeight: '88%', backgroundColor: '#101014', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, borderColor: '#2A2A31', overflow: 'hidden' },
+  reportSheetHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 3, backgroundColor: '#4B4B54', marginTop: 9 },
+  reportSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 14 },
+  reportSheetEyebrow: { color: '#A985FF', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  reportSheetTitle: { color: '#F4F4F7', fontSize: 20, fontWeight: '900', marginTop: 3 },
+  reportSheetClose: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181E' },
+  reportSheetHelp: { color: '#8E8E9A', fontSize: 12.5, lineHeight: 18, paddingHorizontal: 18, marginTop: 9, marginBottom: 8 },
+  reportCategoryList: { flexGrow: 0, maxHeight: 420 },
+  reportCategoryListContent: { paddingHorizontal: 14, paddingVertical: 4 },
+  reportCategoryRow: { minHeight: 54, borderRadius: 14, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  reportCategoryRowSelected: { backgroundColor: '#21182F' },
+  reportCategoryIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181E', borderWidth: 1, borderColor: '#292931' },
+  reportCategoryIconSelected: { backgroundColor: '#2B1E40', borderColor: '#5A3D83' },
+  reportCategoryText: { flex: 1, color: '#D1D1D8', fontSize: 14, fontWeight: '700' },
+  reportCategoryTextSelected: { color: '#F2ECFF' },
+  reportNoteWrap: { borderTopWidth: 1, borderTopColor: '#292930', paddingHorizontal: 16, paddingTop: 12 },
+  reportNoteLabel: { color: '#B8B8C2', fontSize: 11.5, fontWeight: '800', marginBottom: 7 },
+  reportNoteInput: { minHeight: 74, maxHeight: 120, borderRadius: 14, backgroundColor: '#18181E', borderWidth: 1, borderColor: '#303038', color: '#F2F2F5', fontSize: 13, lineHeight: 18, paddingHorizontal: 12, paddingTop: 11, textAlignVertical: 'top' },
+  reportSubmitButton: { marginTop: 10, minHeight: 48, borderRadius: 14, backgroundColor: '#6F49C8', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  reportSubmitButtonDisabled: { opacity: 0.55 },
+  reportSubmitText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
+
   commentSheetRoot: { flex: 1, justifyContent: 'flex-end' },
   commentSheetBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.58)' },
   commentSheet: { height: '76%', minHeight: 420, backgroundColor: '#101014', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, borderColor: '#2A2A31', overflow: 'hidden' },
