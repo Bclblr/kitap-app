@@ -726,6 +726,80 @@ export default function ProfileScreen() {
     }
   }
 
+  const refreshQuotes = useCallback(async () => {
+    try {
+      const loggedInUserId = await getCurrentUserId();
+      const targetUserId =
+        typeof userId === 'string' && userId
+          ? userId
+          : loggedInUserId;
+
+      if (!targetUserId) {
+        setQuotes([]);
+        setFeed((current) => current.filter((item) => item.type !== 'quote'));
+        setQuoteCount(0);
+        return;
+      }
+
+      const [{ data, error }, { count, error: countError }] = await Promise.all([
+        supabase
+          .from('quotes')
+          .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at')
+          .eq('user_id', targetUserId)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .limit(PROFILE_PAGE_SIZE),
+        supabase
+          .from('quotes')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', targetUserId),
+      ]);
+
+      if (error) throw error;
+      if (countError) console.warn('Alıntı sayısı yüklenemedi:', countError);
+
+      const loadedQuotes: Quote[] = (data ?? []).map((item: any) => ({
+        id: String(item.id),
+        userId: String(item.user_id),
+        bookKey: String(item.book_key || ''),
+        bookTitle: String(item.book_title || ''),
+        text: String(item.text || ''),
+        title: item.title ? String(item.title) : null,
+        topic: item.topic ? String(item.topic) : null,
+        pageNumber: Number.isInteger(item.page_number) ? item.page_number : null,
+        note: item.note ? String(item.note) : null,
+        createdAt: item.created_at || new Date().toISOString(),
+      }));
+
+      setQuotes(loadedQuotes);
+      setQuoteCount(count ?? loadedQuotes.length);
+      profileCursorRef.current = {
+        ...profileCursorRef.current,
+        quote: nextFeedCursor(data ?? []),
+      };
+      setProfileHasMore((current) => ({
+        ...current,
+        quote: (data?.length ?? 0) === PROFILE_PAGE_SIZE,
+      }));
+
+      setFeed((current) => {
+        const withoutQuotes = current.filter((item) => item.type !== 'quote');
+        const quoteItems: FeedItem[] = loadedQuotes.map((quote) => ({
+          id: `quote-${quote.id}`,
+          type: 'quote',
+          createdAt: quote.createdAt,
+          quote,
+        }));
+        return [...withoutQuotes, ...quoteItems].sort(
+          (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)
+        );
+      });
+    } catch (error) {
+      console.error('Profil alıntıları yenilenemedi:', error);
+      setLoadError('Alıntılar şu anda yenilenemedi.');
+    }
+  }, [userId]);
+
   /*
    * ============================================================
    * İSTATİSTİKLER
@@ -1656,7 +1730,7 @@ export default function ProfileScreen() {
           </Text>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingVertical:12}}>
-            {([['post','Gönderiler'],['review','İncelemeler'],['quote','Alıntılar'],['repost','Tekrar Paylaşımlar']] as const).map(([tab,label])=><Pressable key={tab} accessibilityRole="tab" accessibilityState={{selected:profileTab===tab}} onPress={()=>setProfileTab(tab)} style={{minHeight:44,padding:10,borderBottomWidth:3,borderBottomColor:profileTab===tab?'#9467E8':'transparent'}}><Text style={styles.feedType}>{label}</Text></Pressable>)}
+            {([['post','Gönderiler'],['review','İncelemeler'],['quote','Alıntılar'],['repost','Tekrar Paylaşımlar']] as const).map(([tab,label])=><Pressable key={tab} accessibilityRole="tab" accessibilityState={{selected:profileTab===tab}} onPress={()=>{ setProfileTab(tab); if (tab === 'quote') void refreshQuotes(); }} style={{minHeight:44,padding:10,borderBottomWidth:3,borderBottomColor:profileTab===tab?'#9467E8':'transparent'}}><Text style={styles.feedType}>{label}</Text></Pressable>)}
           </ScrollView>
           {!canViewProfileContent ? (
             <View style={styles.emptyCard}>
