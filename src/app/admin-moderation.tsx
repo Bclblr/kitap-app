@@ -43,6 +43,23 @@ const FILTERS: { key: 'all' | ReportStatus; label: string }[] = [
   { key: 'all', label: 'Tümü' },
 ];
 
+function categoryLabel(category: string) {
+  const labels: Record<string, string> = {
+    violence: 'Şiddet veya tehlikeli içerik',
+    hate: 'Nefret söylemi',
+    exploitation: 'Sömürü veya istismar',
+    suicide_self_harm: 'İntihar veya kendine zarar verme',
+    bullying_harassment: 'Zorbalık veya taciz',
+    sexual_content: 'Cinsel içerik',
+    spam: 'Spam veya dolandırıcılık',
+    misinformation: 'Yanlış veya yanıltıcı bilgi',
+    illegal_goods: 'Yasa dışı ürün veya hizmet',
+    intellectual_property: 'Fikri mülkiyet ihlali',
+    other: 'Diğer',
+  };
+  return labels[category] ?? category;
+}
+
 function statusLabel(status: ReportStatus) {
   if (status === 'pending') return 'Bekliyor';
   if (status === 'reviewing') return 'İnceleniyor';
@@ -208,7 +225,7 @@ export default function AdminModerationScreen() {
                     <Text style={styles.statusText}>{statusLabel(report.status)}</Text>
                   </View>
 
-                  <Text style={styles.category}>{report.category || 'other'}</Text>
+                  <Text style={styles.category}>{categoryLabel(report.category || 'other')}</Text>
                   <Text style={styles.description}>{report.description || 'Açıklama girilmemiş.'}</Text>
 
                   <View style={styles.metaBox}>
