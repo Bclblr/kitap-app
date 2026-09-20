@@ -352,17 +352,27 @@ export default function ExploreScreen() {
     setSearched(true);
 
     try {
-      const [userResult, bookResponse, authorResponse] = await Promise.all([
+      const [userResult, bookResult, authorResult] = await Promise.all([
         supabase.rpc('search_visible_profiles', { p_query: searchText, p_limit: 10 }),
         fetch(
           `https://openlibrary.org/search.json?q=${encodeURIComponent(searchText)}&limit=20&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`,
           { signal: controller.signal }
-        ),
+        ).then((response) => ({ response, error: null as unknown })).catch((error: unknown) => ({ response: null, error })),
         fetch(
           `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(searchText)}&limit=10`,
           { signal: controller.signal }
-        ),
+        ).then((response) => ({ response, error: null as unknown })).catch((error: unknown) => ({ response: null, error })),
       ]);
+
+      const bookResponse = bookResult.response;
+      const authorResponse = authorResult.response;
+
+      if (bookResult.error && !(bookResult.error instanceof Error && bookResult.error.name === 'AbortError')) {
+        console.warn('Kitap araması geçici olarak kullanılamıyor:', bookResult.error);
+      }
+      if (authorResult.error && !(authorResult.error instanceof Error && authorResult.error.name === 'AbortError')) {
+        console.warn('Yazar araması geçici olarak kullanılamıyor:', authorResult.error);
+      }
 
       if (requestId !== searchRequestIdRef.current) return;
 
@@ -379,7 +389,7 @@ export default function ExploreScreen() {
         .sort((a, b) => rankText(b.username) - rankText(a.username));
 
       let nextBooks: Book[] = [];
-      if (bookResponse.ok) {
+      if (bookResponse?.ok) {
         const bookData = await bookResponse.json();
         const docs: Book[] = Array.isArray(bookData.docs) ? bookData.docs : [];
         nextBooks = docs
@@ -391,7 +401,7 @@ export default function ExploreScreen() {
       }
 
       let nextAuthors: Author[] = [];
-      if (authorResponse.ok) {
+      if (authorResponse?.ok) {
         const authorData = await authorResponse.json();
         nextAuthors = (Array.isArray(authorData.docs)
           ? authorData.docs.map((author: any) => ({
