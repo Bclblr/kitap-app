@@ -1729,8 +1729,30 @@ export default function ProfileScreen() {
             {profileTab === 'post' ? 'Gönderiler' : profileTab === 'review' ? 'İncelemeler' : profileTab === 'quote' ? 'Alıntılar' : 'Tekrar Paylaşımlar'}
           </Text>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingVertical:12}}>
-            {([['post','Gönderiler'],['review','İncelemeler'],['quote','Alıntılar'],['repost','Tekrar Paylaşımlar']] as const).map(([tab,label])=><Pressable key={tab} accessibilityRole="tab" accessibilityState={{selected:profileTab===tab}} onPress={()=>{ setProfileTab(tab); if (tab === 'quote') void refreshQuotes(); }} style={{minHeight:44,padding:10,borderBottomWidth:3,borderBottomColor:profileTab===tab?'#9467E8':'transparent'}}><Text style={styles.feedType}>{label}</Text></Pressable>)}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.profileTabs}
+          >
+            {([['post','Gönderiler'],['review','İncelemeler'],['quote','Alıntılar'],['repost','Tekrar Paylaşımlar']] as const).map(([tab,label]) => (
+              <Pressable
+                key={tab}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: profileTab === tab }}
+                onPress={() => {
+                  setProfileTab(tab);
+                  if (tab === 'quote') void refreshQuotes();
+                }}
+                style={[
+                  styles.profileTab,
+                  profileTab === tab && styles.profileTabActive,
+                ]}
+              >
+                <Text style={[styles.profileTabText, profileTab === tab && styles.profileTabTextActive]}>
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
           </ScrollView>
           {!canViewProfileContent ? (
             <View style={styles.emptyCard}>
@@ -1816,9 +1838,10 @@ export default function ProfileScreen() {
                           true
                         );
                       }}
-                      style={
-                        styles.feedCard
-                      }
+                      style={[
+                        styles.feedCard,
+                        styles.reviewFeedCard,
+                      ]}
                     >
                       <View
                         style={
@@ -2696,7 +2719,7 @@ const baseStyles = StyleSheet.create({
 
   section: {
     marginTop: 28,
-    marginHorizontal: 20,
+    marginHorizontal: 0,
   },
 
   loadMoreButton: { alignSelf: 'center', marginTop: 14, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: '#21182F', borderWidth: 1, borderColor: '#38284D' },
@@ -2705,7 +2728,41 @@ const baseStyles = StyleSheet.create({
     fontSize: 21,
     fontWeight: '700',
     color: '#F5F5F7',
-    marginBottom: 12,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+  },
+
+  profileTabs: {
+    minWidth: '100%',
+    paddingHorizontal: 14,
+    paddingBottom: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1F2027',
+  },
+
+  profileTab: {
+    minHeight: 48,
+    paddingHorizontal: 12,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+
+  profileTabActive: {
+    borderBottomColor: '#8D65F2',
+  },
+
+  profileTabText: {
+    color: '#81838D',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  profileTabTextActive: {
+    color: '#F2F3F5',
+    fontWeight: '900',
   },
 
   emptyCard: {
@@ -2714,6 +2771,8 @@ const baseStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#25262F',
     padding: 25,
+    marginHorizontal: 14,
+    marginTop: 12,
     alignItems: 'center',
   },
 
@@ -2740,17 +2799,47 @@ const baseStyles = StyleSheet.create({
    */
 
   feedCard: {
-    backgroundColor: '#15161D',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#25262F',
-    padding: 18,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    borderWidth: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#202129',
+    paddingHorizontal: 14,
+    paddingTop: 16,
+    paddingBottom: 18,
+    marginBottom: 0,
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+
+  reviewFeedCard: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    marginHorizontal: 14,
+    marginTop: 12,
     marginBottom: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#34284F',
+    backgroundColor: '#111018',
   },
 
   quoteCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#7C63E6',
+    width: 'auto',
+    alignSelf: 'stretch',
+    marginHorizontal: 14,
+    marginTop: 12,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#2D2738',
+    borderLeftWidth: 3,
+    borderLeftColor: '#8D65F2',
+    backgroundColor: '#111017',
   },
 
   feedTypeRow: {
