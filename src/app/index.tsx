@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import PremiumBadge from '@/components/PremiumBadge';
@@ -140,67 +140,89 @@ function ZoomableFeedImage({ uri, onClose }: { uri: string; onClose: () => void 
 function FeedImageGallery({ urls }: { urls: string[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [viewerUri, setViewerUri] = useState<string | null>(null);
-  const [width, setWidth] = useState(0);
+
+  const swipeResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_event, gesture) =>
+        Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderRelease: (_event, gesture) => {
+        if (gesture.dx <= -45) {
+          setActiveIndex((current) => Math.min(urls.length - 1, current + 1));
+        } else if (gesture.dx >= 45) {
+          setActiveIndex((current) => Math.max(0, current - 1));
+        }
+      },
+    })
+  ).current;
 
   if (!urls.length) return null;
 
-  if (urls.length === 1) {
-    return (
-      <>
-        <Pressable onPress={() => setViewerUri(urls[0])} accessibilityLabel="Fotoğrafı büyüt">
-          <Image source={{ uri: urls[0] }} style={stylesForGallery.singleImage} resizeMode="cover" />
-        </Pressable>
-        {viewerUri ? <ZoomableFeedImage uri={viewerUri} onClose={() => setViewerUri(null)} /> : null}
-      </>
-    );
-  }
+  const safeIndex = Math.min(activeIndex, urls.length - 1);
+  const activeUri = urls[safeIndex];
 
   return (
     <>
-      <View
-        style={stylesForGallery.carouselWrap}
-        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      >
-        {width > 0 ? (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            nestedScrollEnabled
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            onMomentumScrollEnd={(event) => {
-              const next = Math.round(event.nativeEvent.contentOffset.x / Math.max(1, width));
-              setActiveIndex(Math.max(0, Math.min(urls.length - 1, next)));
-            }}
-          >
-            {urls.map((item, index) => (
+      <View style={stylesForGallery.carouselWrap} {...swipeResponder.panHandlers}>
+        <Pressable
+          onPress={() => setViewerUri(activeUri)}
+          accessibilityLabel={`Fotoğrafı büyüt ${safeIndex + 1}/${urls.length}`}
+          style={stylesForGallery.slidePressable}
+        >
+          <Image
+            key={activeUri}
+            source={{ uri: activeUri }}
+            style={stylesForGallery.carouselImage}
+            resizeMode="cover"
+          />
+        </Pressable>
+
+        {urls.length > 1 ? (
+          <>
+            <View style={stylesForGallery.counter}>
+              <Text style={stylesForGallery.counterText}>{safeIndex + 1}/{urls.length}</Text>
+            </View>
+
+            <View style={stylesForGallery.dots}>
+              {urls.map((_, index) => (
+                <Pressable
+                  key={index}
+                  onPress={() => setActiveIndex(index)}
+                  hitSlop={8}
+                  accessibilityLabel={`${index + 1}. fotoğrafa git`}
+                >
+                  <View
+                    style={[
+                      stylesForGallery.dot,
+                      index === safeIndex && stylesForGallery.dotActive,
+                    ]}
+                  />
+                </Pressable>
+              ))}
+            </View>
+
+            {safeIndex > 0 ? (
               <Pressable
-                key={`${item}-${index}`}
-                onPress={() => setViewerUri(item)}
-                accessibilityLabel={`Fotoğrafı büyüt ${index + 1}/${urls.length}`}
-                style={{ width }}
+                onPress={() => setActiveIndex((current) => Math.max(0, current - 1))}
+                style={[stylesForGallery.navButton, stylesForGallery.navButtonLeft]}
+                accessibilityLabel="Önceki fotoğraf"
               >
-                <Image
-                  source={{ uri: item }}
-                  style={[stylesForGallery.carouselImage, { width }]}
-                  resizeMode="cover"
-                />
+                <Feather name="chevron-left" size={22} color="#FFF" />
               </Pressable>
-            ))}
-          </ScrollView>
+            ) : null}
+
+            {safeIndex < urls.length - 1 ? (
+              <Pressable
+                onPress={() => setActiveIndex((current) => Math.min(urls.length - 1, current + 1))}
+                style={[stylesForGallery.navButton, stylesForGallery.navButtonRight]}
+                accessibilityLabel="Sonraki fotoğraf"
+              >
+                <Feather name="chevron-right" size={22} color="#FFF" />
+              </Pressable>
+            ) : null}
+          </>
         ) : null}
-        <View style={stylesForGallery.counter}>
-          <Text style={stylesForGallery.counterText}>{activeIndex + 1}/{urls.length}</Text>
-        </View>
-        <View style={stylesForGallery.dots}>
-          {urls.map((_, index) => (
-            <View
-              key={index}
-              style={[stylesForGallery.dot, index === activeIndex && stylesForGallery.dotActive]}
-            />
-          ))}
-        </View>
       </View>
+
       {viewerUri ? <ZoomableFeedImage uri={viewerUri} onClose={() => setViewerUri(null)} /> : null}
     </>
   );
@@ -209,7 +231,11 @@ function FeedImageGallery({ urls }: { urls: string[] }) {
 const stylesForGallery = StyleSheet.create({
   singleImage: { width: '100%', height: 320, marginTop: 14, backgroundColor: '#0D0D12' },
   carouselWrap: { width: '100%', height: 320, marginTop: 14, position: 'relative', overflow: 'hidden', backgroundColor: '#0D0D12' },
-  carouselImage: { width: '100%', height: 320, backgroundColor: '#0D0D12' },
+  slidePressable: { width: '100%', height: '100%' },
+  carouselImage: { width: '100%', height: '100%', backgroundColor: '#0D0D12' },
+  navButton: { position: 'absolute', top: '50%', marginTop: -21, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.46)', alignItems: 'center', justifyContent: 'center' },
+  navButtonLeft: { left: 8 },
+  navButtonRight: { right: 8 },
   counter: { position: 'absolute', right: 10, top: 10, minWidth: 42, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.62)', paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
   counterText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
   dots: { position: 'absolute', left: 0, right: 0, bottom: 10, flexDirection: 'row', justifyContent: 'center', gap: 5 },
