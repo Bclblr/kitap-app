@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import PremiumBadge from '@/components/PremiumBadge';
@@ -162,27 +162,32 @@ function FeedImageGallery({ urls }: { urls: string[] }) {
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
       >
         {width > 0 ? (
-          <FlatList
-            data={urls}
+          <ScrollView
             horizontal
             pagingEnabled
             nestedScrollEnabled
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(uri, index) => `${uri}-${index}`}
+            decelerationRate="fast"
             onMomentumScrollEnd={(event) => {
               const next = Math.round(event.nativeEvent.contentOffset.x / Math.max(1, width));
               setActiveIndex(Math.max(0, Math.min(urls.length - 1, next)));
             }}
-            renderItem={({ item }) => (
+          >
+            {urls.map((item, index) => (
               <Pressable
+                key={`${item}-${index}`}
                 onPress={() => setViewerUri(item)}
-                accessibilityLabel="Fotoğrafı büyüt"
+                accessibilityLabel={`Fotoğrafı büyüt ${index + 1}/${urls.length}`}
                 style={{ width }}
               >
-                <Image source={{ uri: item }} style={stylesForGallery.carouselImage} resizeMode="cover" />
+                <Image
+                  source={{ uri: item }}
+                  style={[stylesForGallery.carouselImage, { width }]}
+                  resizeMode="cover"
+                />
               </Pressable>
-            )}
-          />
+            ))}
+          </ScrollView>
         ) : null}
         <View style={stylesForGallery.counter}>
           <Text style={stylesForGallery.counterText}>{activeIndex + 1}/{urls.length}</Text>
