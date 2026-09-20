@@ -1579,6 +1579,7 @@ export type Database = {
           title?: string | null
           topic?: string | null
           user_id: string
+          view_count?: number
         }
         Update: {
           book_key?: string
@@ -1871,6 +1872,7 @@ export type Database = {
           title?: string | null
           topic?: string | null
           user_id: string
+          view_count?: number
         }
         Update: {
           book_key?: string
