@@ -1458,9 +1458,21 @@ export default function HomeScreen() {
             />
 
             <View style={styles.commentComposer}>
-              <View style={styles.commentComposerAvatar}>
-                <Feather name="user" size={18} color={colors.textSecondary} />
-              </View>
+              <Pressable
+                onPress={() => router.push('/profile')}
+                style={styles.commentComposerAvatar}
+                accessibilityRole="button"
+                accessibilityLabel="Profilimi aç"
+              >
+                {storyProfileImage ? (
+                  <Image
+                    source={{ uri: storyProfileImage }}
+                    style={styles.commentComposerAvatarImage}
+                  />
+                ) : (
+                  <Feather name="user" size={18} color={colors.textSecondary} />
+                )}
+              </Pressable>
               <TextInput
                 value={activeCommentText}
                 onChangeText={commentingReviewId ? setCommentText : setPostCommentText}
@@ -1860,7 +1872,8 @@ const baseStyles = StyleSheet.create({
   commentSheetCommentText: { color: '#D1D1D7', fontSize: 13.5, lineHeight: 19, marginTop: 4 },
   commentSheetDelete: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
   commentComposer: { flexDirection: 'row', alignItems: 'flex-end', gap: 9, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#26262D', backgroundColor: '#0D0D11' },
-  commentComposerAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1A20', borderWidth: 1, borderColor: '#2C2C34', marginBottom: 4 },
+  commentComposerAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1A20', borderWidth: 1, borderColor: '#2C2C34', marginBottom: 4, overflow: 'hidden' },
+  commentComposerAvatarImage: { width: '100%', height: '100%', borderRadius: 17 },
   commentComposerInput: { flex: 1, minHeight: 42, maxHeight: 96, borderRadius: 21, backgroundColor: '#18181E', borderWidth: 1, borderColor: '#303039', color: '#F3F3F5', fontSize: 13.5, paddingHorizontal: 14, paddingVertical: 10, textAlignVertical: 'top' },
   commentComposerSend: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 6, marginBottom: 1 },
   commentComposerSendDisabled: { opacity: 0.4 },
