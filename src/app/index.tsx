@@ -1606,7 +1606,7 @@ const baseStyles = StyleSheet.create({
   commentText: { marginTop: 4, fontSize: 13, color: '#C4C8D0', lineHeight: 19, flexShrink: 1, maxWidth: '100%' },
   commentDate: { marginTop: 5, fontSize: 10, color: '#737A87' },
   commentSheetRoot: { flex: 1, justifyContent: 'flex-end' },
-  commentSheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.58)' },
+  commentSheetBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.58)' },
   commentSheet: { height: '76%', minHeight: 420, backgroundColor: '#101014', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, borderColor: '#2A2A31', overflow: 'hidden' },
   commentSheetHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 3, backgroundColor: '#4B4B54', marginTop: 9, marginBottom: 5 },
   commentSheetHeader: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14 },
