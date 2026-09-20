@@ -20,6 +20,7 @@ import {
 
 import { supabase } from '@/lib/supabase';
 import ChatActions from '@/components/ChatActions';
+import Image from '@/components/SafeImage';
 
 const MESSAGE_PAGE_SIZE = 50;
 
@@ -68,6 +69,44 @@ export default function ChatScreen() {
     typeof params.username === 'string'
       ? params.username
       : 'Kitap Okuru';
+
+  const [otherProfile, setOtherProfile] = useState<{
+    id: string;
+    username: string | null;
+    full_name: string | null;
+    profile_image: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadOtherProfile() {
+      if (!otherUserId) {
+        setOtherProfile(null);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, profile_image')
+        .eq('id', otherUserId)
+        .maybeSingle();
+
+      if (!active) return;
+
+      if (error) {
+        console.warn('Mesajlaşılan kullanıcının profili yüklenemedi:', error);
+        return;
+      }
+
+      setOtherProfile(data);
+    }
+
+    void loadOtherProfile();
+    return () => {
+      active = false;
+    };
+  }, [otherUserId]);
 
   const [currentUserId, setCurrentUserId] =
     useState<string | null>(null);
@@ -792,42 +831,38 @@ export default function ChatScreen() {
           </Text>
         </Pressable>
 
-        <View
-          style={
-            styles.headerAvatar
-          }
+        <Pressable
+          onPress={() => {
+            if (otherUserId) {
+              router.push({ pathname: '/profile', params: { userId: otherUserId } });
+            }
+          }}
+          disabled={!otherUserId}
+          style={styles.profileHeaderButton}
+          accessibilityRole="button"
+          accessibilityLabel="Kullanıcı profilini aç"
         >
-          <Text
-            style={
-              styles.headerAvatarText
-            }
-          >
-            👤
-          </Text>
-        </View>
+          <View style={styles.headerAvatar}>
+            {otherProfile?.profile_image ? (
+              <Image source={{ uri: otherProfile.profile_image }} style={styles.headerAvatarImage} />
+            ) : (
+              <Text style={styles.headerAvatarInitial}>
+                {(otherProfile?.full_name || otherProfile?.username || username || 'K')
+                  .charAt(0)
+                  .toLocaleUpperCase('tr-TR')}
+              </Text>
+            )}
+          </View>
 
-        <View
-          style={
-            styles.headerInfo
-          }
-        >
-          <Text
-            style={
-              styles.headerUsername
-            }
-            numberOfLines={1}
-          >
-            {username}
-          </Text>
-
-          <Text
-            style={
-              styles.headerSubtitle
-            }
-          >
-            Mesajlar
-          </Text>
-        </View>
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerUsername} numberOfLines={1}>
+              {otherProfile?.full_name || username}
+            </Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {otherProfile?.username ? `@${otherProfile.username}` : 'Profili görüntüle'}
+            </Text>
+          </View>
+        </Pressable>
         <ChatActions conversationId={conversationId} onBlocked={setBlocked} />
       </View>
 
@@ -1007,6 +1042,13 @@ const baseStyles = StyleSheet.create({
     fontWeight: '300',
   },
 
+  profileHeaderButton: {
+    minWidth: 0,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
   headerAvatar: {
     width: 43,
     height: 43,
@@ -1016,10 +1058,18 @@ const baseStyles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#34264B',
+    overflow: 'hidden',
   },
 
-  headerAvatarText: {
-    fontSize: 20,
+  headerAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+
+  headerAvatarInitial: {
+    color: '#DCC9FA',
+    fontSize: 17,
+    fontWeight: '900',
   },
 
   headerInfo: {
