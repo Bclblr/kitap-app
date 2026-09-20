@@ -2380,6 +2380,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      submit_report: {
+        Args: {
+          p_category: string
+          p_description?: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: string
+      }
       record_content_view: {
         Args: { p_content_id: string; p_content_type: string }
         Returns: number
