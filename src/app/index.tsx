@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, PanResponder, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import PremiumBadge from '@/components/PremiumBadge';
@@ -387,6 +387,8 @@ export default function HomeScreen() {
             id: comment.id,
             user_id: comment.user_id,
             username: profilesByUserId.get(comment.user_id)?.username || CURRENT_USERNAME,
+            full_name: profilesByUserId.get(comment.user_id)?.full_name ?? null,
+            profile_image: profilesByUserId.get(comment.user_id)?.profile_image ?? null,
             text: comment.text,
             createdAt: comment.created_at,
           })),
@@ -433,6 +435,8 @@ export default function HomeScreen() {
             id: comment.id,
             user_id: comment.user_id,
             username: profilesByUserId.get(comment.user_id)?.username || CURRENT_USERNAME,
+            full_name: profilesByUserId.get(comment.user_id)?.full_name ?? null,
+            profile_image: profilesByUserId.get(comment.user_id)?.profile_image ?? null,
             text: comment.text,
             createdAt: comment.created_at,
           })),
@@ -838,11 +842,7 @@ export default function HomeScreen() {
   }
 
   function openPostCommentBox(postId: string) {
-    if (commentingPostId === postId) {
-      setCommentingPostId(null);
-      setPostCommentText('');
-      return;
-    }
+    setCommentingReviewId(null);
     setCommentingPostId(postId);
     setPostCommentText('');
   }
@@ -864,7 +864,6 @@ export default function HomeScreen() {
         if (notificationError) console.error('Post yorum bildirimi oluşturulamadı:', notificationError);
       }
       setPostCommentText('');
-      setCommentingPostId(null);
     } catch (error) {
       console.error('Post yorum işlemi hatası:', error);
       Alert.alert('Hata', 'Yorum gönderilirken hata oluştu.');
@@ -923,11 +922,7 @@ export default function HomeScreen() {
   }
 
   function openCommentBox(reviewId: string) {
-    if (commentingReviewId === reviewId) {
-      setCommentingReviewId(null);
-      setCommentText('');
-      return;
-    }
+    setCommentingPostId(null);
     setCommentingReviewId(reviewId);
     setCommentText('');
   }
@@ -945,7 +940,6 @@ export default function HomeScreen() {
       const newComment: Comment = { id: data.id, user_id: user.id, username: CURRENT_USERNAME, text: data.text, createdAt: data.created_at };
       setReviews((current) => current.map((item) => item.id === reviewId ? { ...item, comments: [...(item.comments ?? []), newComment] } : item));
       setCommentText('');
-      setCommentingReviewId(null);
     } catch (error) {
       console.error('Yorum hatası:', error);
       Alert.alert('Hata', 'Yorum gönderilirken bir hata oluştu.');
@@ -1134,44 +1128,172 @@ export default function HomeScreen() {
                     </View>
                   )}
 
-                  {!post.isQuote && (post.isReview ? commentingReviewId === post.id : commentingPostId === post.id) && (
-                    <View style={styles.commentBox}>
-                      <TextInput value={post.isReview ? commentText : postCommentText} onChangeText={post.isReview ? setCommentText : setPostCommentText} placeholder="Yorumunu yaz..." placeholderTextColor="#999" multiline style={styles.commentInput} />
-                      <View style={styles.commentButtons}>
-                        <Pressable onPress={() => { if (post.isReview) { setCommentingReviewId(null); setCommentText(''); } else { setCommentingPostId(null); setPostCommentText(''); } }} style={styles.cancelButton}><Text style={styles.cancelText}>Vazgeç</Text></Pressable>
-                        <Pressable onPress={() => post.isReview ? submitComment(post.id) : submitPostComment(post.id)} style={styles.sendButton}><Text style={styles.sendText}>Gönder</Text></Pressable>
-                      </View>
-                    </View>
-                  )}
-
-                  {!post.isQuote && (feedComments?.length ?? 0) > 0 && (
-                    <View style={styles.comments}>
-                      {feedComments?.map((comment) => {
-                        const isOwnComment = comment.user_id === currentUserId;
-                        return (
-                          <View key={comment.id} style={styles.comment}>
-                            <View style={styles.commentHeader}>
-                              <Text style={styles.commentUser}>{isOwnComment ? CURRENT_USERNAME : 'Kitap Okuru'}</Text>
-                              {isOwnComment && (
-                                <Pressable onPress={() => post.isReview ? deleteComment(post.id, comment.id) : deletePostComment(post.id, comment.id)} accessibilityLabel="Yorumu sil">
-                                  <Feather name="trash-2" size={16} color="#FF6B7A" />
-                                </Pressable>
-                              )}
-                            </View>
-                            <Text style={styles.commentText}>{comment.text}</Text>
-                            <Text style={styles.commentDate}>{formatDate(comment.createdAt)}</Text>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  )}
                 </View>
               </Fragment>
             );
   }
 
+  const activeCommentReview = commentingReviewId
+    ? reviews.find((review) => review.id === commentingReviewId)
+    : null;
+  const activeCommentPost = commentingPostId
+    ? posts.find((post) => post.id === commentingPostId)
+    : null;
+  const activeComments = activeCommentReview?.comments ?? activeCommentPost?.comments ?? [];
+  const activeCommentText = commentingReviewId ? commentText : postCommentText;
+  const commentSheetVisible = !!commentingReviewId || !!commentingPostId;
+
+  function closeCommentSheet() {
+    setCommentingReviewId(null);
+    setCommentingPostId(null);
+    setCommentText('');
+    setPostCommentText('');
+  }
+
+  function submitActiveComment() {
+    if (commentingReviewId) {
+      void submitComment(commentingReviewId);
+      return;
+    }
+    if (commentingPostId) {
+      void submitPostComment(commentingPostId);
+    }
+  }
+
   return (
     <View style={styles.container}>
+      <Modal
+        visible={commentSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeCommentSheet}
+      >
+        <KeyboardAvoidingView
+          style={styles.commentSheetRoot}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <Pressable style={styles.commentSheetBackdrop} onPress={closeCommentSheet} />
+          <View style={[styles.commentSheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+            <View style={styles.commentSheetHandle} />
+            <View style={styles.commentSheetHeader}>
+              <View style={styles.commentSheetHeaderSpacer} />
+              <Text style={styles.commentSheetTitle}>Yorumlar</Text>
+              <Pressable
+                onPress={closeCommentSheet}
+                style={styles.commentSheetClose}
+                accessibilityLabel="Yorumları kapat"
+              >
+                <Feather name="x" size={21} color={colors.text} />
+              </Pressable>
+            </View>
+
+            <View style={styles.commentSheetDivider} />
+
+            <FlatList
+              data={activeComments}
+              keyExtractor={(comment) => comment.id}
+              style={styles.commentSheetList}
+              contentContainerStyle={
+                activeComments.length ? styles.commentSheetListContent : styles.commentSheetEmptyContent
+              }
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={styles.commentSheetEmpty}>
+                  <Feather name="message-circle" size={32} color={colors.textSecondary} />
+                  <Text style={styles.commentSheetEmptyTitle}>Henüz yorum yok</Text>
+                  <Text style={styles.commentSheetEmptyText}>İlk yorumu sen yaz.</Text>
+                </View>
+              }
+              renderItem={({ item: comment }) => {
+                const isOwnComment = comment.user_id === currentUserId;
+                const displayName =
+                  comment.full_name?.trim() ||
+                  comment.username?.trim() ||
+                  (isOwnComment ? CURRENT_USERNAME : 'Kitap Okuru');
+
+                return (
+                  <View style={styles.commentSheetRow}>
+                    <Pressable
+                      onPress={() => {
+                        if (comment.user_id) {
+                          closeCommentSheet();
+                          router.push({ pathname: '/profile', params: { userId: comment.user_id } });
+                        }
+                      }}
+                      disabled={!comment.user_id}
+                      style={styles.commentSheetAvatarWrap}
+                    >
+                      {comment.profile_image ? (
+                        <Image source={{ uri: comment.profile_image }} style={styles.commentSheetAvatar} />
+                      ) : (
+                        <View style={[styles.commentSheetAvatar, styles.commentSheetAvatarFallback]}>
+                          <Text style={styles.commentSheetAvatarText}>
+                            {displayName.charAt(0).toLocaleUpperCase('tr-TR')}
+                          </Text>
+                        </View>
+                      )}
+                    </Pressable>
+
+                    <View style={styles.commentSheetBody}>
+                      <View style={styles.commentSheetNameRow}>
+                        <Text style={styles.commentSheetUser} numberOfLines={1}>
+                          {displayName}
+                        </Text>
+                        <Text style={styles.commentSheetDate}>{formatDate(comment.createdAt)}</Text>
+                      </View>
+                      <Text style={styles.commentSheetCommentText}>{comment.text}</Text>
+                    </View>
+
+                    {isOwnComment ? (
+                      <Pressable
+                        onPress={() =>
+                          commentingReviewId
+                            ? deleteComment(commentingReviewId, comment.id)
+                            : commentingPostId
+                              ? deletePostComment(commentingPostId, comment.id)
+                              : undefined
+                        }
+                        style={styles.commentSheetDelete}
+                        accessibilityLabel="Yorumu sil"
+                      >
+                        <Feather name="trash-2" size={16} color="#FF6B7A" />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                );
+              }}
+            />
+
+            <View style={styles.commentComposer}>
+              <View style={styles.commentComposerAvatar}>
+                <Feather name="user" size={18} color={colors.textSecondary} />
+              </View>
+              <TextInput
+                value={activeCommentText}
+                onChangeText={commentingReviewId ? setCommentText : setPostCommentText}
+                placeholder="Yorum ekle..."
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                maxLength={1000}
+                style={styles.commentComposerInput}
+              />
+              <Pressable
+                onPress={submitActiveComment}
+                disabled={!activeCommentText.trim()}
+                style={[
+                  styles.commentComposerSend,
+                  !activeCommentText.trim() && styles.commentComposerSendDisabled,
+                ]}
+                accessibilityLabel="Yorumu gönder"
+              >
+                <Text style={styles.commentComposerSendText}>Paylaş</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <HomeDrawer
         visible={showAuthMenu}
         styles={styles}
@@ -1483,6 +1605,38 @@ const baseStyles = StyleSheet.create({
   deleteComment: { fontSize: 12, fontWeight: '700', color: '#FF6B7A' },
   commentText: { marginTop: 4, fontSize: 13, color: '#C4C8D0', lineHeight: 19, flexShrink: 1, maxWidth: '100%' },
   commentDate: { marginTop: 5, fontSize: 10, color: '#737A87' },
+  commentSheetRoot: { flex: 1, justifyContent: 'flex-end' },
+  commentSheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.58)' },
+  commentSheet: { height: '76%', minHeight: 420, backgroundColor: '#101014', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, borderColor: '#2A2A31', overflow: 'hidden' },
+  commentSheetHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 3, backgroundColor: '#4B4B54', marginTop: 9, marginBottom: 5 },
+  commentSheetHeader: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14 },
+  commentSheetHeaderSpacer: { width: 38 },
+  commentSheetTitle: { color: '#F4F4F6', fontSize: 15, fontWeight: '900' },
+  commentSheetClose: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  commentSheetDivider: { height: 1, backgroundColor: '#26262D' },
+  commentSheetList: { flex: 1 },
+  commentSheetListContent: { paddingHorizontal: 16, paddingVertical: 10 },
+  commentSheetEmptyContent: { flexGrow: 1, justifyContent: 'center' },
+  commentSheetEmpty: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
+  commentSheetEmptyTitle: { color: '#ECECF0', fontSize: 16, fontWeight: '800', marginTop: 12 },
+  commentSheetEmptyText: { color: '#777782', fontSize: 12, marginTop: 5 },
+  commentSheetRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12 },
+  commentSheetAvatarWrap: { marginRight: 11 },
+  commentSheetAvatar: { width: 38, height: 38, borderRadius: 19 },
+  commentSheetAvatarFallback: { backgroundColor: '#2B2140', borderWidth: 1, borderColor: '#5C438B', alignItems: 'center', justifyContent: 'center' },
+  commentSheetAvatarText: { color: '#E2D4FF', fontSize: 14, fontWeight: '900' },
+  commentSheetBody: { flex: 1, minWidth: 0 },
+  commentSheetNameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  commentSheetUser: { color: '#F0F0F3', fontSize: 12.5, fontWeight: '800', flexShrink: 1 },
+  commentSheetDate: { color: '#6F707A', fontSize: 9.5 },
+  commentSheetCommentText: { color: '#D1D1D7', fontSize: 13.5, lineHeight: 19, marginTop: 4 },
+  commentSheetDelete: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
+  commentComposer: { flexDirection: 'row', alignItems: 'flex-end', gap: 9, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#26262D', backgroundColor: '#0D0D11' },
+  commentComposerAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1A20', borderWidth: 1, borderColor: '#2C2C34', marginBottom: 4 },
+  commentComposerInput: { flex: 1, minHeight: 42, maxHeight: 96, borderRadius: 21, backgroundColor: '#18181E', borderWidth: 1, borderColor: '#303039', color: '#F3F3F5', fontSize: 13.5, paddingHorizontal: 14, paddingVertical: 10, textAlignVertical: 'top' },
+  commentComposerSend: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 6, marginBottom: 1 },
+  commentComposerSendDisabled: { opacity: 0.4 },
+  commentComposerSendText: { color: '#A985FF', fontSize: 12.5, fontWeight: '900' },
   floatingCreateButton: { position: 'absolute', right: 18, bottom: 103, width: 56, height: 56, borderRadius: 28, backgroundColor: '#F28A2E', borderWidth: 2, borderColor: '#FFB15C', justifyContent: 'center', alignItems: 'center', zIndex: 20, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.35, shadowRadius: 8 },
   floatingCreateIcon: { color: '#17100A', fontSize: 34, lineHeight: 36, fontWeight: '400' },
   headerMenuWrap: { position: 'relative', zIndex: 50 },
