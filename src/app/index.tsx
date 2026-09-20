@@ -140,14 +140,20 @@ function ZoomableFeedImage({ uri, onClose }: { uri: string; onClose: () => void 
 function FeedImageGallery({ urls }: { urls: string[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [viewerUri, setViewerUri] = useState<string | null>(null);
+  const urlsLengthRef = useRef(urls.length);
+  urlsLengthRef.current = urls.length;
 
   const swipeResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_event, gesture) =>
         Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+        Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
       onPanResponderRelease: (_event, gesture) => {
         if (gesture.dx <= -45) {
-          setActiveIndex((current) => Math.min(urls.length - 1, current + 1));
+          setActiveIndex((current) =>
+            Math.min(Math.max(0, urlsLengthRef.current - 1), current + 1)
+          );
         } else if (gesture.dx >= 45) {
           setActiveIndex((current) => Math.max(0, current - 1));
         }
