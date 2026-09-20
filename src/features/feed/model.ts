@@ -4,6 +4,8 @@ import type { QuoteCardTemplate } from '@/lib/quote-card';
 export type FeedComment = {
   id: string;
   username: string;
+  full_name?: string | null;
+  profile_image?: string | null;
   text: string;
   createdAt: string;
   user_id?: string;
