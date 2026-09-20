@@ -56,6 +56,156 @@ function isValidUUID(value: string) {
   );
 }
 
+function postImageUrls(post: Post) {
+  const urls = [
+    ...(Array.isArray(post.image_urls) ? post.image_urls : []),
+    post.image_url,
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+  return Array.from(new Set(urls)).slice(0, 6);
+}
+
+function ZoomableFeedImage({ uri, onClose }: { uri: string; onClose: () => void }) {
+  const [scale, setScale] = useState(1);
+  const scaleRef = useRef(1);
+  const startScaleRef = useRef(1);
+  const startDistanceRef = useRef(0);
+
+  const distance = (touches: any[]) => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].pageX - touches[1].pageX;
+    const dy = touches[0].pageY - touches[1].pageY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const responder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
+      onMoveShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
+      onPanResponderGrant: (event) => {
+        const touches = (event.nativeEvent as any).touches ?? [];
+        startDistanceRef.current = distance(touches);
+        startScaleRef.current = scaleRef.current;
+      },
+      onPanResponderMove: (event) => {
+        const touches = (event.nativeEvent as any).touches ?? [];
+        const currentDistance = distance(touches);
+        if (!startDistanceRef.current || !currentDistance) return;
+        const next = Math.min(4, Math.max(1, startScaleRef.current * (currentDistance / startDistanceRef.current)));
+        scaleRef.current = next;
+        setScale(next);
+      },
+      onPanResponderRelease: () => {
+        startDistanceRef.current = 0;
+      },
+      onPanResponderTerminate: () => {
+        startDistanceRef.current = 0;
+      },
+    })
+  ).current;
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={galleryStyles.zoomOverlay}>
+        <Pressable style={galleryStyles.zoomClose} onPress={onClose} accessibilityLabel="Fotoğrafı kapat">
+          <Feather name="x" size={28} color="#FFF" />
+        </Pressable>
+        <View style={galleryStyles.zoomStage} {...responder.panHandlers}>
+          <Image
+            source={{ uri }}
+            style={[galleryStyles.zoomImage, { transform: [{ scale }] }]}
+            resizeMode="contain"
+          />
+        </View>
+        <Text style={galleryStyles.zoomHint}>İki parmağınla yakınlaştırıp uzaklaştırabilirsin</Text>
+      </View>
+    </Modal>
+  );
+}
+
+function FeedImageGallery({ urls }: { urls: string[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
+  const [width, setWidth] = useState(0);
+
+  if (!urls.length) return null;
+
+  if (urls.length === 1) {
+    return (
+      <>
+        <Pressable onPress={() => setViewerUri(urls[0])} accessibilityLabel="Fotoğrafı büyüt">
+          <Image source={{ uri: urls[0] }} style={stylesForGallery.singleImage} resizeMode="cover" />
+        </Pressable>
+        {viewerUri ? <ZoomableFeedImage uri={viewerUri} onClose={() => setViewerUri(null)} /> : null}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <View
+        style={stylesForGallery.carouselWrap}
+        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+      >
+        {width > 0 ? (
+          <FlatList
+            data={urls}
+            horizontal
+            pagingEnabled
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(uri, index) => `${uri}-${index}`}
+            onMomentumScrollEnd={(event) => {
+              const next = Math.round(event.nativeEvent.contentOffset.x / Math.max(1, width));
+              setActiveIndex(Math.max(0, Math.min(urls.length - 1, next)));
+            }}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => setViewerUri(item)}
+                accessibilityLabel="Fotoğrafı büyüt"
+                style={{ width }}
+              >
+                <Image source={{ uri: item }} style={stylesForGallery.carouselImage} resizeMode="cover" />
+              </Pressable>
+            )}
+          />
+        ) : null}
+        <View style={stylesForGallery.counter}>
+          <Text style={stylesForGallery.counterText}>{activeIndex + 1}/{urls.length}</Text>
+        </View>
+        <View style={stylesForGallery.dots}>
+          {urls.map((_, index) => (
+            <View
+              key={index}
+              style={[stylesForGallery.dot, index === activeIndex && stylesForGallery.dotActive]}
+            />
+          ))}
+        </View>
+      </View>
+      {viewerUri ? <ZoomableFeedImage uri={viewerUri} onClose={() => setViewerUri(null)} /> : null}
+    </>
+  );
+}
+
+const stylesForGallery = StyleSheet.create({
+  singleImage: { width: '100%', height: 320, marginTop: 14, backgroundColor: '#0D0D12' },
+  carouselWrap: { width: '100%', height: 320, marginTop: 14, position: 'relative', overflow: 'hidden', backgroundColor: '#0D0D12' },
+  carouselImage: { width: '100%', height: 320, backgroundColor: '#0D0D12' },
+  counter: { position: 'absolute', right: 10, top: 10, minWidth: 42, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.62)', paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  counterText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
+  dots: { position: 'absolute', left: 0, right: 0, bottom: 10, flexDirection: 'row', justifyContent: 'center', gap: 5 },
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
+  dotActive: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#FFF' },
+});
+
+const galleryStyles = StyleSheet.create({
+  zoomOverlay: { flex: 1, backgroundColor: '#000', alignItems: 'stretch', justifyContent: 'center' },
+  zoomStage: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  zoomImage: { width: '100%', height: '100%' },
+  zoomClose: { position: 'absolute', right: 16, top: 18, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(20,20,24,0.72)', alignItems: 'center', justifyContent: 'center', zIndex: 20 },
+  zoomHint: { position: 'absolute', left: 20, right: 20, bottom: 24, color: 'rgba(255,255,255,0.72)', textAlign: 'center', fontSize: 11 },
+});
+
 export default function HomeScreen() {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -1112,7 +1262,7 @@ export default function HomeScreen() {
                   </View>
 
                   {(post.isQuote || post.rating > 0) && <Text style={styles.feedTypeLabel}>{post.isQuote ? 'ALINTI' : 'KİTAP İNCELEMESİ'}</Text>}
-                  {post.image_url && <Image source={{ uri: post.image_url }} style={styles.postImage} />}
+                  {postImageUrls(post).length > 0 && <FeedImageGallery urls={postImageUrls(post)} />}
                   {post.text ? (
                     post.isReview ? (
                       <ReviewSpoilerText
