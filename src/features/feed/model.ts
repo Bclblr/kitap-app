@@ -33,6 +33,7 @@ export type FeedReview = BookCoverData & {
   comments?: FeedComment[];
   reposts?: number;
   reposted?: boolean;
+  view_count?: number;
 };
 
 export type FeedPost = BookCoverData & {
@@ -67,6 +68,7 @@ export type FeedPost = BookCoverData & {
   reviewTopic?: string | null;
   reviewTags?: string[];
   containsSpoiler?: boolean;
+  view_count?: number;
 };
 
 export type FeedProfile = {
