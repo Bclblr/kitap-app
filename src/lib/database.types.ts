@@ -1198,6 +1198,7 @@ export type Database = {
           rating: number | null
           text: string | null
           user_id: string | null
+          view_count: number
           username: string
         }
         Insert: {
@@ -1210,6 +1211,7 @@ export type Database = {
           rating?: number | null
           text?: string | null
           user_id?: string | null
+          view_count?: number
           username: string
         }
         Update: {
@@ -1222,6 +1224,7 @@ export type Database = {
           rating?: number | null
           text?: string | null
           user_id?: string | null
+          view_count?: number
           username?: string
         }
         Relationships: []
@@ -1562,6 +1565,7 @@ export type Database = {
           title: string | null
           topic: string | null
           user_id: string
+          view_count: number
         }
         Insert: {
           book_key: string
@@ -1588,6 +1592,7 @@ export type Database = {
           title?: string | null
           topic?: string | null
           user_id?: string
+          view_count?: number
         }
         Relationships: []
       }
@@ -1852,6 +1857,7 @@ export type Database = {
           title: string | null
           topic: string | null
           user_id: string
+          view_count: number
         }
         Insert: {
           book_key: string
@@ -1878,6 +1884,7 @@ export type Database = {
           title?: string | null
           topic?: string | null
           user_id?: string
+          view_count?: number
         }
         Relationships: []
       }
@@ -2371,6 +2378,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      record_content_view: {
+        Args: { p_content_id: string; p_content_type: string }
+        Returns: number
+      }
       admin_add_sanction: {
         Args: {
           p_ends_at?: string
