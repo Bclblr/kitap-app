@@ -619,9 +619,7 @@ export default function ExploreScreen() {
                 ) : featuredAuthors.length ? (
                   featuredAuthors.map((author, index) => (
                     <Pressable key={author.key || `${author.name}-${index}`} onPress={() => void openAuthor(author)} style={styles.listRow}>
-                      <View style={styles.authorMark}>
-                        <Text style={styles.authorMarkText}>{(author.name?.charAt(0) || 'Y').toUpperCase()}</Text>
-                      </View>
+                      <AuthorAvatar author={author} style={styles.authorMark} textStyle={styles.authorMarkText} />
                       <View style={styles.flexOne}>
                         <Text style={styles.resultTitle}>{author.name}</Text>
                         <Text style={styles.rowDescription}>{author.featuredBookCount} popüler kitap</Text>
@@ -758,9 +756,7 @@ export default function ExploreScreen() {
 
                   {activeSearchType === 'authors' && authors.map((author, index) => (
                     <Pressable key={author.key || `${author.name}-${index}`} onPress={() => void openAuthor(author)} style={styles.resultCard}>
-                      <View style={styles.authorMark}>
-                        <Text style={styles.authorMarkText}>{(author.name?.charAt(0) || 'Y').toUpperCase()}</Text>
-                      </View>
+                      <AuthorAvatar author={author} style={styles.authorMark} textStyle={styles.authorMarkText} />
                       <View style={styles.flexOne}>
                         <Text style={styles.resultTitle}>{author.name || 'Bilinmeyen yazar'}</Text>
                         {!!author.birth_date && <Text style={styles.rowDescription}>Doğum: {author.birth_date}</Text>}
@@ -796,6 +792,39 @@ export default function ExploreScreen() {
         <BottomNav />
       </View>
     </View>
+  );
+}
+
+function AuthorAvatar({
+  author,
+  style,
+  textStyle,
+}: {
+  author: Author;
+  style: any;
+  textStyle: any;
+}) {
+  const [failed, setFailed] = useState(false);
+  const key = typeof author.key === 'string' ? author.key.trim() : '';
+  const photoUrl = /^OL\d+A$/.test(key)
+    ? `https://covers.openlibrary.org/a/olid/${key}-M.jpg?default=false`
+    : null;
+
+  if (!photoUrl || failed) {
+    return (
+      <View style={style}>
+        <Text style={textStyle}>{(author.name?.charAt(0) || 'Y').toUpperCase()}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: photoUrl }}
+      style={style}
+      accessibilityLabel={author.name ? `${author.name} profil fotoğrafı` : 'Yazar profil fotoğrafı'}
+      onError={() => setFailed(true)}
+    />
   );
 }
 
