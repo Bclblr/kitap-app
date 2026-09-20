@@ -855,9 +855,23 @@ export default function HomeScreen() {
     try {
       const { data: postData, error: postError } = await supabase.from('posts').select('id, user_id').eq('id', postId).single();
       if (postError || !postData) { Alert.alert('Hata', 'Gönderi bulunamadı.'); return; }
-      const { data, error } = await supabase.from('post_comments').insert({ post_id: postId, user_id: user.id, text: cleanText }).select().single();
-      if (error) { console.error('Post yorum hatası:', error); Alert.alert('Hata', error.message); return; }
-      const newComment: Comment = { id: data.id, user_id: user.id, username: CURRENT_USERNAME, text: data.text, createdAt: data.created_at };
+      const [commentResult, profileResult] = await Promise.all([
+        supabase.from('post_comments').insert({ post_id: postId, user_id: user.id, text: cleanText }).select().single(),
+        supabase.from('profiles').select('username, full_name, profile_image').eq('id', user.id).maybeSingle(),
+      ]);
+      const { data, error } = commentResult;
+      if (error || !data) { console.error('Post yorum hatası:', error); Alert.alert('Hata', error?.message || 'Yorum kaydedilemedi.'); return; }
+      if (profileResult.error) console.warn('Yorum profili yüklenemedi:', profileResult.error);
+      setCurrentUserId(user.id);
+      const newComment: Comment = {
+        id: data.id,
+        user_id: user.id,
+        username: profileResult.data?.username || CURRENT_USERNAME,
+        full_name: profileResult.data?.full_name ?? null,
+        profile_image: profileResult.data?.profile_image ?? null,
+        text: data.text,
+        createdAt: data.created_at,
+      };
       setPosts((current) => current.map((item) => item.id === postId ? { ...item, comments: [...(item.comments ?? []), newComment] } : item));
       if (postData.user_id && postData.user_id !== user.id) {
         const { error: notificationError } = await supabase.from('notifications').insert({ user_id: postData.user_id, actor_id: user.id, type: 'comment', message: 'gönderine yorum yaptı.', read: false });
@@ -935,9 +949,23 @@ export default function HomeScreen() {
       if (!review) return;
       const user = await getCurrentUser();
       if (!user) { Alert.alert('Giriş gerekli', 'Yorum yapmak için önce giriş yapmalısın.'); return; }
-      const { data, error } = await supabase.from('comments').insert({ review_id: reviewId, user_id: user.id, text: newCommentText }).select().single();
-      if (error) { Alert.alert('Hata', error.message); return; }
-      const newComment: Comment = { id: data.id, user_id: user.id, username: CURRENT_USERNAME, text: data.text, createdAt: data.created_at };
+      const [commentResult, profileResult] = await Promise.all([
+        supabase.from('comments').insert({ review_id: reviewId, user_id: user.id, text: newCommentText }).select().single(),
+        supabase.from('profiles').select('username, full_name, profile_image').eq('id', user.id).maybeSingle(),
+      ]);
+      const { data, error } = commentResult;
+      if (error || !data) { Alert.alert('Hata', error?.message || 'Yorum kaydedilemedi.'); return; }
+      if (profileResult.error) console.warn('Yorum profili yüklenemedi:', profileResult.error);
+      setCurrentUserId(user.id);
+      const newComment: Comment = {
+        id: data.id,
+        user_id: user.id,
+        username: profileResult.data?.username || CURRENT_USERNAME,
+        full_name: profileResult.data?.full_name ?? null,
+        profile_image: profileResult.data?.profile_image ?? null,
+        text: data.text,
+        createdAt: data.created_at,
+      };
       setReviews((current) => current.map((item) => item.id === reviewId ? { ...item, comments: [...(item.comments ?? []), newComment] } : item));
       setCommentText('');
     } catch (error) {
@@ -1066,8 +1094,20 @@ export default function HomeScreen() {
                 <View key={post.id} style={[styles.postCard, post.isQuote && styles.quotePostCard, post.rating > 0 && styles.reviewPostCard, quoteCard ? { backgroundColor: quoteCard.background, borderColor: quoteCard.border } : null]}>
                   {feedIndex > 0 && feedIndex % 9 === 0 && <AdSlot />}
                   <View style={styles.userRow}>
-                    <View style={styles.avatar}>{post.profile_image ? <Image source={{ uri: post.profile_image }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{post.username?.trim().charAt(0).toUpperCase() || 'K'}</Text>}</View>
-                    <View style={styles.userInfo}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Text style={[styles.username, { flexShrink: 1 }]} numberOfLines={1}>{post.full_name?.trim() || post.username}</Text>{post.is_verified ? <VerifiedBadge size={16} /> : null}{post.is_premium ? <PremiumBadge size={16} /> : null}</View><Text style={styles.handle} numberOfLines={1}>@{post.username}</Text><Text style={styles.date}>{formatDate(post.created_at)}</Text></View>
+                    <Pressable
+                      disabled={!post.user_id}
+                      onPress={() => {
+                        if (post.user_id) {
+                          router.push({ pathname: '/profile', params: { userId: post.user_id } });
+                        }
+                      }}
+                      style={styles.feedProfileButton}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${post.full_name?.trim() || post.username} profilini aç`}
+                    >
+                      <View style={styles.avatar}>{post.profile_image ? <Image source={{ uri: post.profile_image }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{post.username?.trim().charAt(0).toUpperCase() || 'K'}</Text>}</View>
+                      <View style={styles.userInfo}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Text style={[styles.username, { flexShrink: 1 }]} numberOfLines={1}>{post.full_name?.trim() || post.username}</Text>{post.is_verified ? <VerifiedBadge size={16} /> : null}{post.is_premium ? <PremiumBadge size={16} /> : null}</View><Text style={styles.handle} numberOfLines={1}>@{post.username}</Text><Text style={styles.date}>{formatDate(post.created_at)}</Text></View>
+                    </Pressable>
                     <Pressable onPress={() => openFeedContentMenu(post)} accessibilityLabel="İçerik seçenekleri"><Text style={styles.moreButton}>•••</Text></Pressable>
                   </View>
 
@@ -1206,7 +1246,9 @@ export default function HomeScreen() {
                 </View>
               }
               renderItem={({ item: comment }) => {
-                const isOwnComment = comment.user_id === currentUserId;
+                const isOwnComment =
+                  !!comment.user_id &&
+                  (comment.user_id === currentUserId || comment.user_id === social.userId);
                 const displayName =
                   comment.full_name?.trim() ||
                   comment.username?.trim() ||
@@ -1569,6 +1611,7 @@ const baseStyles = StyleSheet.create({
   emptyButtonText: { color: '#17120A', fontWeight: '900' },
   reviewCard: { backgroundColor: '#111018', borderRadius: 18, padding: 15, marginBottom: 14, borderWidth: 1, borderColor: '#34284F', width: '100%', maxWidth: '100%', minWidth: 0, alignSelf: 'stretch' },
   userRow: { flexDirection: 'row', alignItems: 'center', maxWidth: '100%', minWidth: 0 },
+  feedProfileButton: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' },
   userInfo: { flex: 1, minWidth: 0 },
   username: { fontSize: 14, fontWeight: '800', color: '#F2F3F5', flexShrink: 1, minWidth: 0 },
   handle: { marginTop: 2, fontSize: 12, color: '#9198A6', flexShrink: 1, minWidth: 0 },
