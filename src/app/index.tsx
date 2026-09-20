@@ -1290,7 +1290,7 @@ export default function HomeScreen() {
               <Text style={styles.emptyIcon}>📝</Text>
               <Text style={styles.emptyTitle}>{social.error || (feedTab === 'following' ? 'Takip akışında henüz içerik yok' : 'Henüz gönderi yok')}</Text>
               <Text style={styles.emptyText}>{feedTab === 'following' ? 'Okurları keşfet ve takip ederek akışını oluştur.' : 'İlk gönderiyi sen paylaş.'}</Text>
-              <Pressable onPress={() => router.push('/post-create')} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Gönderi Paylaş</Text></Pressable>
+              <Pressable onPress={() => router.push('/post-create' as any)} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Gönderi Paylaş</Text></Pressable>
             </View>
           )
         }
@@ -1309,7 +1309,7 @@ export default function HomeScreen() {
         <View style={{ flex: 1, backgroundColor: '#0009', justifyContent: 'flex-end' }}>
           <Pressable style={{ flex: 1 }} accessibilityLabel="Kapat" onPress={() => setCreateMenu(false)} />
           <View style={[ui.card, { padding: 24, paddingBottom: 40, maxHeight: '85%' }]}>
-            <Action label="Gönderi Oluştur" onPress={() => { setCreateMenu(false); router.push('/post-create'); }} />
+            <Action label="Gönderi Oluştur" onPress={() => { setCreateMenu(false); router.push('/post-create' as any); }} />
             <Action label="Kitap İncelemesi Yaz" onPress={() => { setCreateMenu(false); router.push('/review'); }} />
             <Action label="Alıntı Paylaş" onPress={() => { setCreateMenu(false); router.push('/quote-create'); }} />
             <Action label="Kitap Yaz / Yayınla" onPress={() => { setCreateMenu(false); router.push('/my-works'); }} />
