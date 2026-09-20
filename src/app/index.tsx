@@ -245,6 +245,12 @@ export default function HomeScreen() {
   const feedCursorRef = useRef<FeedCursorState>(emptyFeedCursors());
   const feedExhaustedRef = useRef<FeedExhaustedState>(emptyFeedExhausted());
   const loadingFeedRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
+  const recordedViewsRef = useRef(new Set<string>());
+  const viewabilityConfigRef = useRef({
+    itemVisiblePercentThreshold: 60,
+    minimumViewTime: 800,
+  });
 
   const [commentingReviewId, setCommentingReviewId] =
     useState<string | null>(null);
@@ -260,6 +266,53 @@ export default function HomeScreen() {
   const [postImage, setPostImage] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
 
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ item: Post; isViewable?: boolean }> }) => {
+      const viewerId = currentUserIdRef.current;
+      if (!viewerId) return;
+
+      for (const viewable of viewableItems) {
+        if (!viewable.isViewable) continue;
+        const item = viewable.item;
+        if (!item?.id || item.user_id === viewerId) continue;
+
+        const contentType = item.isQuote ? 'quote' : item.isReview ? 'review' : 'post';
+        const rawId = item.isQuote ? item.id.replace(/^quote-/, '') : item.id;
+        if (!isValidUUID(rawId)) continue;
+
+        const viewKey = `${contentType}:${rawId}`;
+        if (recordedViewsRef.current.has(viewKey)) continue;
+        recordedViewsRef.current.add(viewKey);
+
+        void supabase
+          .rpc('record_content_view', {
+            p_content_type: contentType,
+            p_content_id: rawId,
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              recordedViewsRef.current.delete(viewKey);
+              console.warn('İçerik erişimi kaydedilemedi:', error);
+              return;
+            }
+
+            const nextCount = Number(data) || 0;
+            setPosts((current) =>
+              current.map((post) =>
+                post.id === item.id
+                  ? { ...post, view_count: Math.max(Number(post.view_count) || 0, nextCount) }
+                  : post
+              )
+            );
+          });
+      }
+    }
+  );
 
   async function reportFeedContent(post: Post) {
     const user = await getCurrentUser();
@@ -592,6 +645,7 @@ export default function HomeScreen() {
           })),
           reposts: reposts.length,
           reposted: !!userId && reposts.some((item: any) => item.user_id === userId),
+          view_count: Number(review.view_count) || 0,
         };
       });
 
@@ -627,6 +681,7 @@ export default function HomeScreen() {
         comments: review.comments,
         reposts: review.reposts,
         reposted: review.reposted,
+        view_count: review.view_count ?? 0,
         isReview: true,
       }));
 
@@ -647,6 +702,7 @@ export default function HomeScreen() {
         quotePageNumber: Number.isInteger(quote.page_number) ? quote.page_number : null,
         quoteNote: quote.note ?? null,
         card_template_key: normalizeQuoteCardTemplate(quote.card_template_key),
+        view_count: Number(quote.view_count) || 0,
         isQuote: true,
       }));
 
@@ -1296,27 +1352,33 @@ export default function HomeScreen() {
                   )}
                   {post.rating > 0 && <View style={styles.rating}><Text style={styles.stars}>{'★'.repeat(post.rating)}{'☆'.repeat(Math.max(0, 5 - post.rating))}</Text><Text style={styles.ratingNumber}>{post.rating}/5</Text></View>}
 
-                  {!post.isQuote && (
-                    <View style={styles.postActions}>
-                      {!post.isReview && (
+                  <View style={styles.postActions}>
+                      {!post.isQuote && !post.isReview && (
                         <Pressable onPress={() => toggleSavePost(post)} style={[styles.postAction, post.saved && styles.postActionActive]} accessibilityLabel={post.saved ? 'Kaydı kaldır' : 'Kaydet'}>
                           <Feather name="bookmark" size={20} color={post.saved ? colors.primary : colors.textSecondary} />
                         </Pressable>
                       )}
-                      <Pressable onPress={() => post.isReview ? openCommentBox(post.id) : openPostCommentBox(post.id)} style={styles.postAction} accessibilityLabel="Yorumlar">
-                        <Feather name="message-circle" size={20} color={colors.textSecondary} />
-                        <Text style={styles.postActionCount}>{feedComments?.length ?? 0}</Text>
-                      </Pressable>
-                      <Pressable onPress={() => post.isReview ? toggleLike(post.id) : togglePostLike(post)} style={[styles.postAction, feedLiked && styles.postActionActive]} accessibilityLabel={feedLiked ? 'Beğeniyi kaldır' : 'Beğen'}>
-                        <Feather name="heart" size={20} color={feedLiked ? '#FF6B7A' : colors.textSecondary} />
-                        <Text style={[styles.postActionCount, feedLiked && styles.likedPostAction]}>{feedLikes ?? 0}</Text>
-                      </Pressable>
-                      <Pressable onPress={() => post.isReview ? toggleRepost(post.id) : togglePostRepost(post)} style={[styles.postAction, feedReposted && styles.postActionActive]} accessibilityLabel={feedReposted ? 'Repostu kaldır' : 'Repost'}>
-                        <Feather name="repeat" size={20} color={feedReposted ? '#66D19E' : colors.textSecondary} />
-                        <Text style={[styles.postActionCount, feedReposted && styles.repostedPostAction]}>{feedReposts ?? 0}</Text>
-                      </Pressable>
+                      {!post.isQuote && (
+                        <>
+                          <Pressable onPress={() => post.isReview ? openCommentBox(post.id) : openPostCommentBox(post.id)} style={styles.postAction} accessibilityLabel="Yorumlar">
+                            <Feather name="message-circle" size={20} color={colors.textSecondary} />
+                            <Text style={styles.postActionCount}>{feedComments?.length ?? 0}</Text>
+                          </Pressable>
+                          <Pressable onPress={() => post.isReview ? toggleLike(post.id) : togglePostLike(post)} style={[styles.postAction, feedLiked && styles.postActionActive]} accessibilityLabel={feedLiked ? 'Beğeniyi kaldır' : 'Beğen'}>
+                            <Feather name="heart" size={20} color={feedLiked ? '#FF6B7A' : colors.textSecondary} />
+                            <Text style={[styles.postActionCount, feedLiked && styles.likedPostAction]}>{feedLikes ?? 0}</Text>
+                          </Pressable>
+                          <Pressable onPress={() => post.isReview ? toggleRepost(post.id) : togglePostRepost(post)} style={[styles.postAction, feedReposted && styles.postActionActive]} accessibilityLabel={feedReposted ? 'Repostu kaldır' : 'Repost'}>
+                            <Feather name="repeat" size={20} color={feedReposted ? '#66D19E' : colors.textSecondary} />
+                            <Text style={[styles.postActionCount, feedReposted && styles.repostedPostAction]}>{feedReposts ?? 0}</Text>
+                          </Pressable>
+                        </>
+                      )}
+                      <View style={styles.postAction} accessibilityLabel={`${post.view_count ?? 0} kişiye erişti`}>
+                        <Feather name="eye" size={20} color={colors.textSecondary} />
+                        <Text style={styles.postActionCount}>{post.view_count ?? 0}</Text>
+                      </View>
                     </View>
-                  )}
 
                 </View>
               </Fragment>
@@ -1530,6 +1592,8 @@ export default function HomeScreen() {
         data={visiblePosts}
         keyExtractor={(item) => item.isQuote ? item.id : `${item.isReview ? 'review' : 'post'}-${item.id}`}
         renderItem={renderFeedPost}
+        onViewableItemsChanged={onViewableItemsChanged.current}
+        viewabilityConfig={viewabilityConfigRef.current}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         initialNumToRender={8}
