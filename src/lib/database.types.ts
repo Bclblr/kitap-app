@@ -1194,6 +1194,7 @@ export type Database = {
           created_at: string | null
           id: string
           image_url: string | null
+          image_urls: string[]
           rating: number | null
           text: string | null
           user_id: string | null
@@ -1205,6 +1206,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           rating?: number | null
           text?: string | null
           user_id?: string | null
@@ -1216,6 +1218,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           rating?: number | null
           text?: string | null
           user_id?: string | null
