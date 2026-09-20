@@ -184,41 +184,16 @@ function FeedImageGallery({ urls }: { urls: string[] }) {
 
             <View style={stylesForGallery.dots}>
               {urls.map((_, index) => (
-                <Pressable
+                <View
                   key={index}
-                  onPress={() => setActiveIndex(index)}
-                  hitSlop={8}
-                  accessibilityLabel={`${index + 1}. fotoğrafa git`}
-                >
-                  <View
-                    style={[
-                      stylesForGallery.dot,
-                      index === safeIndex && stylesForGallery.dotActive,
-                    ]}
-                  />
-                </Pressable>
+                  style={[
+                    stylesForGallery.dot,
+                    index === safeIndex && stylesForGallery.dotActive,
+                  ]}
+                />
               ))}
             </View>
 
-            {safeIndex > 0 ? (
-              <Pressable
-                onPress={() => setActiveIndex((current) => Math.max(0, current - 1))}
-                style={[stylesForGallery.navButton, stylesForGallery.navButtonLeft]}
-                accessibilityLabel="Önceki fotoğraf"
-              >
-                <Feather name="chevron-left" size={22} color="#FFF" />
-              </Pressable>
-            ) : null}
-
-            {safeIndex < urls.length - 1 ? (
-              <Pressable
-                onPress={() => setActiveIndex((current) => Math.min(urls.length - 1, current + 1))}
-                style={[stylesForGallery.navButton, stylesForGallery.navButtonRight]}
-                accessibilityLabel="Sonraki fotoğraf"
-              >
-                <Feather name="chevron-right" size={22} color="#FFF" />
-              </Pressable>
-            ) : null}
           </>
         ) : null}
       </View>
@@ -233,14 +208,11 @@ const stylesForGallery = StyleSheet.create({
   carouselWrap: { width: '100%', height: 320, marginTop: 14, position: 'relative', overflow: 'hidden', backgroundColor: '#0D0D12' },
   slidePressable: { width: '100%', height: '100%' },
   carouselImage: { width: '100%', height: '100%', backgroundColor: '#0D0D12' },
-  navButton: { position: 'absolute', top: '50%', marginTop: -21, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.46)', alignItems: 'center', justifyContent: 'center' },
-  navButtonLeft: { left: 8 },
-  navButtonRight: { right: 8 },
-  counter: { position: 'absolute', right: 10, top: 10, minWidth: 42, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.62)', paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
-  counterText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
-  dots: { position: 'absolute', left: 0, right: 0, bottom: 10, flexDirection: 'row', justifyContent: 'center', gap: 5 },
-  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
-  dotActive: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#FFF' },
+  counter: { position: 'absolute', right: 10, top: 10, minWidth: 38, height: 26, borderRadius: 13, backgroundColor: 'rgba(0,0,0,0.62)', paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  counterText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
+  dots: { position: 'absolute', left: 0, right: 0, bottom: 10, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.38)' },
+  dotActive: { backgroundColor: '#4D9BFF' },
 });
 
 const galleryStyles = StyleSheet.create({
