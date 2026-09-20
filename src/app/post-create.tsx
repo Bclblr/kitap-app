@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 
 type Profile = { full_name: string | null; username: string | null; profile_image: string | null };
+const MAX_POST_IMAGES = 6;
 
 export default function PostCreateScreen() {
   const router = useRouter();
@@ -20,12 +21,12 @@ export default function PostCreateScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
   const [posting, setPosting] = useState(false);
   const dark = scheme === 'dark';
   const name = profile?.full_name?.trim() || profile?.username?.trim() || 'Kitap Okuru';
   const username = profile?.username?.trim() || 'kitapokuru';
-  const ready = !!(title.trim() || body.trim() || image) && !posting;
+  const ready = !!(title.trim() || body.trim() || images.length) && !posting;
 
   useEffect(() => {
     let mounted = true;
@@ -40,12 +41,27 @@ export default function PostCreateScreen() {
   async function pickImage() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return Alert.alert('İzin gerekli', 'Fotoğraf eklemek için galeri izni vermelisin.');
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 });
-    if (!result.canceled && result.assets[0]?.uri) setImage(result.assets[0].uri);
+
+    const remaining = MAX_POST_IMAGES - images.length;
+    if (remaining <= 0) {
+      return Alert.alert('Fotoğraf sınırı', `Bir gönderiye en fazla ${MAX_POST_IMAGES} fotoğraf ekleyebilirsin.`);
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 0.85,
+    });
+
+    if (result.canceled) return;
+
+    const picked = result.assets.map((asset) => asset.uri).filter(Boolean);
+    setImages((current) => [...current, ...picked].slice(0, MAX_POST_IMAGES));
   }
 
   function close() {
-    if (!title.trim() && !body.trim() && !image) return router.back();
+    if (!title.trim() && !body.trim() && images.length === 0) return router.back();
     Alert.alert('Gönderiden çıkılsın mı?', 'Yazdıkların kaydedilmeyecek.', [
       { text: 'Devam et', style: 'cancel' },
       { text: 'Çık', style: 'destructive', onPress: () => router.back() },
@@ -57,29 +73,50 @@ export default function PostCreateScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return Alert.alert('Giriş gerekli', 'Gönderi paylaşmak için giriş yapmalısın.');
     setPosting(true);
-    let uploadedPath: string | null = null;
+    const uploadedPaths: string[] = [];
     try {
-      let imageUrl: string | null = null;
-      if (image) {
-        uploadedPath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
-        const response = await fetch(image);
+      const imageUrls: string[] = [];
+
+      for (let index = 0; index < images.length; index += 1) {
+        const localUri = images[index];
+        const uploadedPath = `${user.id}/${Date.now()}-${index}-${Math.random().toString(36).slice(2)}.jpg`;
+        const response = await fetch(localUri);
         if (!response.ok) throw new Error('Fotoğraf okunamadı.');
+
         const buffer = await response.arrayBuffer();
-        const { error: uploadError } = await supabase.storage.from('post-images').upload(uploadedPath, buffer, { contentType: 'image/jpeg', upsert: false });
+        const { error: uploadError } = await supabase.storage
+          .from('post-images')
+          .upload(uploadedPath, buffer, { contentType: 'image/jpeg', upsert: false });
+
         if (uploadError) throw uploadError;
+        uploadedPaths.push(uploadedPath);
+
         const { data } = supabase.storage.from('post-images').getPublicUrl(uploadedPath);
-        imageUrl = data.publicUrl.replace('/object/public/', '/object/authenticated/');
+        const permanentUrl = requirePermanentImage(
+          data.publicUrl.replace('/object/public/', '/object/authenticated/')
+        );
+        if (permanentUrl) imageUrls.push(permanentUrl);
       }
+
       const text = [title.trim(), body.trim()].filter(Boolean).join('\n\n') || null;
       const { error } = await supabase.from('posts').insert({
-        user_id: user.id, username, text, image_url: requirePermanentImage(imageUrl),
-        book_key: null, book_title: null, rating: 0,
+        user_id: user.id,
+        username,
+        text,
+        image_url: imageUrls[0] ?? null,
+        image_urls: imageUrls,
+        book_key: null,
+        book_title: null,
+        rating: 0,
       });
       if (error) throw error;
-      uploadedPath = null;
+
+      uploadedPaths.length = 0;
       router.back();
     } catch (error) {
-      if (uploadedPath) await cleanupUploadedMedia('post-images', uploadedPath, 'post_insert_failed');
+      await Promise.all(
+        uploadedPaths.map((path) => cleanupUploadedMedia('post-images', path, 'post_insert_failed'))
+      );
       Alert.alert('Gönderi yayınlanamadı', error instanceof Error ? error.message : 'Bir hata oluştu.');
     } finally { setPosting(false); }
   }
@@ -106,10 +143,34 @@ export default function PostCreateScreen() {
         <TextInput value={title} onChangeText={setTitle} placeholder="Başlık" placeholderTextColor={colors.textSecondary} maxLength={120} style={[s.title, { color: colors.text }]} />
         <TextInput value={body} onChangeText={setBody} placeholder="Ne düşünüyorsun?" placeholderTextColor={colors.textSecondary} multiline maxLength={2000} textAlignVertical="top" style={[s.body, { color: colors.text }]} />
 
-        {image ? <View style={s.previewWrap}>
-          <Image localPreview source={{ uri: image }} style={s.preview} resizeMode="cover" />
-          <Pressable onPress={() => setImage(null)} style={[s.remove, { backgroundColor: colors.background }]}><Feather name="x" size={20} color={colors.text} /></Pressable>
-        </View> : null}
+        {images.length ? (
+          <View style={s.previewSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.previewList}
+            >
+              {images.map((uri, index) => (
+                <View key={uri} style={s.previewWrap}>
+                  <Image localPreview source={{ uri }} style={s.preview} resizeMode="cover" />
+                  <View style={s.previewIndex}>
+                    <Text style={s.previewIndexText}>{index + 1}/{images.length}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setImages((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                    style={[s.remove, { backgroundColor: colors.background }]}
+                    accessibilityLabel="Fotoğrafı kaldır"
+                  >
+                    <Feather name="x" size={20} color={colors.text} />
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
+            <Text style={[s.imageLimitText, { color: colors.textSecondary }]}>
+              {images.length}/{MAX_POST_IMAGES} fotoğraf
+            </Text>
+          </View>
+        ) : null}
 
         <Pressable style={s.topic}>
           <View style={[s.topicIcon, { backgroundColor: colors.primarySoft }]}><Feather name="grid" size={18} color={colors.primary} /></View>
@@ -144,7 +205,7 @@ const s = StyleSheet.create({
   avatar:{width:48,height:48,borderRadius:24,alignItems:'center',justifyContent:'center',overflow:'hidden'}, avatarImage:{width:'100%',height:'100%'}, avatarText:{fontSize:18,fontWeight:'900'},
   identityText:{flex:1,marginLeft:12,minWidth:0}, name:{fontSize:16,fontWeight:'800'}, handle:{fontSize:12,marginTop:2},
   title:{fontSize:24,fontWeight:'800',paddingVertical:8,letterSpacing:-0.5}, body:{minHeight:250,fontSize:18,lineHeight:27,paddingTop:16,paddingBottom:18},
-  previewWrap:{position:'relative',marginBottom:18}, preview:{width:'100%',height:240,borderRadius:18}, remove:{position:'absolute',top:10,right:10,width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center'},
+  previewSection:{marginBottom:18}, previewList:{gap:10,paddingRight:4}, previewWrap:{position:'relative',width:260}, preview:{width:260,height:260,borderRadius:18}, previewIndex:{position:'absolute',left:10,top:10,minWidth:42,height:28,borderRadius:14,backgroundColor:'rgba(0,0,0,0.58)',alignItems:'center',justifyContent:'center',paddingHorizontal:8}, previewIndexText:{color:'#FFF',fontSize:11,fontWeight:'800'}, imageLimitText:{fontSize:11,fontWeight:'700',marginTop:8}, remove:{position:'absolute',top:10,right:10,width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center'},
   topic:{alignSelf:'flex-start',flexDirection:'row',alignItems:'center',gap:9,paddingVertical:12}, topicIcon:{width:32,height:32,borderRadius:10,alignItems:'center',justifyContent:'center'}, topicText:{fontSize:15,fontWeight:'700'},
   tools:{marginTop:8,paddingTop:17,borderTopWidth:StyleSheet.hairlineWidth,flexDirection:'row',alignItems:'center',gap:7}, tool:{width:48,height:48,borderRadius:16,alignItems:'center',justifyContent:'center'},
   footer:{position:'absolute',left:0,right:0,bottom:0,minHeight:76,paddingTop:10,paddingHorizontal:18,borderTopWidth:StyleSheet.hairlineWidth,flexDirection:'row',alignItems:'center',gap:14},
