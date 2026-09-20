@@ -4,7 +4,9 @@ import { useThemedStyles } from '@/theme/use-themed-styles';
 import ReadersList from '@/components/ReadersList';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Image from '@/components/SafeImage';
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import RetryNotice from '@/components/RetryNotice';
@@ -13,6 +15,7 @@ import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
 import { isUserVerified } from '@/lib/verification';
 import { isUserPremium } from '@/lib/premium';
+import { useAppTheme } from '@/providers/ThemeProvider';
 import { loadProfileCustomization, PremiumProfileCustomization } from '@/lib/profile-customization';
 import {
   feedCursorFilter,
@@ -22,7 +25,10 @@ import {
 
 type Comment = {
   id: string;
+  userId: string | null;
   username: string;
+  fullName?: string | null;
+  profileImage?: string | null;
   text: string;
   createdAt: string;
 };
@@ -102,6 +108,8 @@ export default function ProfileScreen() {
   const styles = useThemedStyles(baseStyles);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
 
   const { userId } = useLocalSearchParams<{
     userId?: string;
@@ -1438,34 +1446,44 @@ export default function ProfileScreen() {
         return;
       }
 
-      const loadedComments: Comment[] =
-        (
-          data || []
-        ).map(
-          (item: any) => ({
-            id:
-              String(
-                item.id
-              ),
-
-            username:
-              'Kullanıcı',
-
-            text:
-              String(
-                item.text ||
-                  ''
-              ),
-
-            createdAt:
-              item.created_at ||
-              '',
-          })
-        );
-
-      setComments(
-        loadedComments
+      const rows = data || [];
+      const userIds = Array.from(
+        new Set(
+          rows
+            .map((item: any) => item.user_id)
+            .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+        )
       );
+
+      const { data: commentProfiles, error: profileError } = userIds.length
+        ? await supabase
+            .from('profiles')
+            .select('id, username, full_name, profile_image')
+            .in('id', userIds)
+        : { data: [], error: null };
+
+      if (profileError) {
+        console.warn('Yorum profilleri yüklenemedi:', profileError);
+      }
+
+      const profileMap = new Map(
+        (commentProfiles ?? []).map((item: any) => [String(item.id), item])
+      );
+
+      const loadedComments: Comment[] = rows.map((item: any) => {
+        const author = item.user_id ? profileMap.get(String(item.user_id)) : null;
+        return {
+          id: String(item.id),
+          userId: item.user_id ? String(item.user_id) : null,
+          username: author?.username || 'Kitap Okuru',
+          fullName: author?.full_name ?? null,
+          profileImage: author?.profile_image ?? null,
+          text: String(item.text || ''),
+          createdAt: item.created_at || '',
+        };
+      });
+
+      setComments(loadedComments);
     } finally {
       setCommentsLoading(
         false
@@ -1531,27 +1549,24 @@ export default function ProfileScreen() {
         return;
       }
 
-      setComments(
-        (old) => [
-          ...old,
+      const { data: authorProfile } = await supabase
+        .from('profiles')
+        .select('username, full_name, profile_image')
+        .eq('id', loggedInUserId)
+        .maybeSingle();
 
-          {
-            id:
-              String(
-                data.id
-              ),
-
-            username:
-              profile.username,
-
-            text,
-
-            createdAt:
-              data.created_at ||
-              new Date().toISOString(),
-          },
-        ]
-      );
+      setComments((old) => [
+        ...old,
+        {
+          id: String(data.id),
+          userId: loggedInUserId,
+          username: authorProfile?.username || profile.username || 'Kitap Okuru',
+          fullName: authorProfile?.full_name ?? null,
+          profileImage: authorProfile?.profile_image ?? null,
+          text,
+          createdAt: data.created_at || new Date().toISOString(),
+        },
+      ]);
 
       setCommentText('');
     } finally {
@@ -1559,6 +1574,36 @@ export default function ProfileScreen() {
         false
       );
     }
+  }
+
+  async function deletePostComment(commentId: string) {
+    const loggedInUserId = await getCurrentUserId();
+    if (!loggedInUserId) {
+      Alert.alert('Giriş gerekli', 'Bu işlemi yapmak için giriş yapmalısın.');
+      return;
+    }
+
+    Alert.alert('Yorumu sil', 'Bu yorum silinsin mi?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sil',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase
+            .from('post_comments')
+            .delete()
+            .eq('id', commentId)
+            .eq('user_id', loggedInUserId);
+
+          if (error) {
+            Alert.alert('Hata', error.message);
+            return;
+          }
+
+          setComments((current) => current.filter((comment) => comment.id !== commentId));
+        },
+      },
+    ]);
   }
 
   function closePostModal() {
@@ -2200,19 +2245,12 @@ export default function ProfileScreen() {
                         </Text>
 
                         <Pressable
-                          onPress={() =>
-                            openPostComments(
-                              post
-                            )
-                          }
-                          style={
-                            styles.commentButton
-                          }
+                          onPress={() => openPostComments(post)}
+                          style={styles.postAction}
                           accessibilityRole="button"
-                          accessibilityLabel="Yorumları aç"
+                          accessibilityLabel="Yorumlar"
                         >
-                          <Text style={styles.commentButtonIcon}>◯</Text>
-                          <Text style={styles.commentButtonText}>Yorumlar</Text>
+                          <Feather name="message-circle" size={20} color={colors.textSecondary} />
                         </Pressable>
                       </View>
                     </View>
@@ -2367,216 +2405,149 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* =======================================================
-          GÖNDERİ / YORUM MODALI
-          ======================================================= */}
-
       <Modal
-        visible={
-          postModalVisible
-        }
+        visible={postModalVisible}
         transparent
         animationType="slide"
-        onRequestClose={
-          closePostModal
-        }
+        onRequestClose={closePostModal}
       >
-        <View
-          style={
-            styles.modalOverlay
-          }
+        <KeyboardAvoidingView
+          style={styles.commentSheetRoot}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View
-            style={
-              styles.postModal
-            }
-          >
-            <View
-              style={
-                styles.modalHeader
-              }
-            >
-              <Text
-                style={
-                  styles.modalTitle
-                }
-              >
-                Gönderi
-              </Text>
-
+          <Pressable style={styles.commentSheetBackdrop} onPress={closePostModal} />
+          <View style={[styles.commentSheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+            <View style={styles.commentSheetHandle} />
+            <View style={styles.commentSheetHeader}>
+              <View style={styles.commentSheetHeaderSpacer} />
+              <Text style={styles.commentSheetTitle}>Yorumlar</Text>
               <Pressable
-                onPress={
-                  closePostModal
-                }
+                onPress={closePostModal}
+                style={styles.commentSheetClose}
+                accessibilityLabel="Yorumları kapat"
               >
-                <Text
-                  style={
-                    styles.closeButton
-                  }
-                >
-                  ✕
-                </Text>
+                <Feather name="x" size={21} color={colors.text} />
               </Pressable>
             </View>
 
-            {selectedPost && (
-              <ScrollView
-                style={
-                  styles.modalScroll
-                }
-              >
-                <Text
-                  style={
-                    styles.postUsername
-                  }
-                >
-                  @{selectedPost.username}
-                </Text>
+            <View style={styles.commentSheetDivider} />
 
-                {selectedPost.text ? (
-                  <Text
-                    style={
-                      styles.modalPostText
-                    }
-                  >
-                    {
-                      selectedPost.text
-                    }
-                  </Text>
-                ) : null}
-
-                {selectedPost.imageUrl && (
-                  <Image
-                    source={{
-                      uri:
-                        selectedPost.imageUrl,
-                    }}
-                    style={
-                      styles.modalPostImage
-                    }
-                    resizeMode="contain"
-                  />
-                )}
-
-                <Text
-                  style={
-                    styles.feedDate
-                  }
-                >
-                  {formatDate(
-                    selectedPost.createdAt
-                  )}
-                </Text>
-
-                <Text
-                  style={
-                    styles.commentsTitle
-                  }
-                >
-                  Yorumlar
-                </Text>
-
-                {commentsLoading ? (
-                  <Text
-                    style={
-                      styles.emptyComments
-                    }
-                  >
-                    Yorumlar yükleniyor...
-                  </Text>
-                ) : comments.length ===
-                  0 ? (
-                  <Text
-                    style={
-                      styles.emptyComments
-                    }
-                  >
-                    Henüz yorum yok.
-                  </Text>
-                ) : (
-                  comments.map(
-                    (
-                      comment
-                    ) => (
-                      <View
-                        key={
-                          comment.id
-                        }
-                        style={
-                          styles.commentItem
-                        }
-                      >
-                        <Text
-                          style={
-                            styles.commentUsername
-                          }
-                        >
-                          {
-                            comment.username
-                          }
-                        </Text>
-
-                        <Text
-                          style={
-                            styles.commentText
-                          }
-                        >
-                          {
-                            comment.text
-                          }
-                        </Text>
-                      </View>
-                    )
-                  )
-                )}
-              </ScrollView>
-            )}
-
-            <View
-              style={
-                styles.commentInputRow
+            <FlatList
+              data={comments}
+              keyExtractor={(comment) => comment.id}
+              style={styles.commentSheetList}
+              contentContainerStyle={
+                comments.length ? styles.commentSheetListContent : styles.commentSheetEmptyContent
               }
-            >
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                commentsLoading ? (
+                  <View style={styles.commentSheetEmpty}>
+                    <Text style={styles.commentSheetEmptyText}>Yorumlar yükleniyor...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.commentSheetEmpty}>
+                    <Feather name="message-circle" size={32} color={colors.textSecondary} />
+                    <Text style={styles.commentSheetEmptyTitle}>Henüz yorum yok</Text>
+                    <Text style={styles.commentSheetEmptyText}>İlk yorumu sen yaz.</Text>
+                  </View>
+                )
+              }
+              renderItem={({ item: comment }) => {
+                const isOwnComment = !!comment.userId && comment.userId === currentUserId;
+                const displayName =
+                  comment.fullName?.trim() ||
+                  comment.username?.trim() ||
+                  (isOwnComment ? profile.username : 'Kitap Okuru');
+
+                return (
+                  <View style={styles.commentSheetRow}>
+                    <Pressable
+                      onPress={() => {
+                        if (comment.userId) {
+                          closePostModal();
+                          router.push({ pathname: '/profile', params: { userId: comment.userId } });
+                        }
+                      }}
+                      disabled={!comment.userId}
+                      style={styles.commentSheetAvatarWrap}
+                    >
+                      {comment.profileImage ? (
+                        <Image source={{ uri: comment.profileImage }} style={styles.commentSheetAvatar} />
+                      ) : (
+                        <View style={[styles.commentSheetAvatar, styles.commentSheetAvatarFallback]}>
+                          <Text style={styles.commentSheetAvatarText}>
+                            {displayName.charAt(0).toLocaleUpperCase('tr-TR')}
+                          </Text>
+                        </View>
+                      )}
+                    </Pressable>
+
+                    <View style={styles.commentSheetBody}>
+                      <View style={styles.commentSheetNameRow}>
+                        <Text style={styles.commentSheetUser} numberOfLines={1}>
+                          {displayName}
+                        </Text>
+                        <Text style={styles.commentSheetDate}>{formatDate(comment.createdAt)}</Text>
+                      </View>
+                      <Text style={styles.commentSheetCommentText}>{comment.text}</Text>
+                    </View>
+
+                    {isOwnComment ? (
+                      <Pressable
+                        onPress={() => void deletePostComment(comment.id)}
+                        style={styles.commentSheetDelete}
+                        accessibilityLabel="Yorumu sil"
+                      >
+                        <Feather name="trash-2" size={16} color="#FF6B7A" />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                );
+              }}
+            />
+
+            <View style={styles.commentComposer}>
+              <Pressable
+                onPress={() => router.push('/profile')}
+                style={styles.commentComposerAvatar}
+                accessibilityRole="button"
+                accessibilityLabel="Profilimi aç"
+              >
+                {currentUserId && isOwnProfile && profile.profileImage ? (
+                  <Image source={{ uri: profile.profileImage }} style={styles.commentComposerAvatarImage} />
+                ) : (
+                  <Feather name="user" size={18} color={colors.textSecondary} />
+                )}
+              </Pressable>
+
               <TextInput
-                value={
-                  commentText
-                }
-                onChangeText={
-                  setCommentText
-                }
-                placeholder="Yorum yaz..."
-                placeholderTextColor="#999"
-                style={
-                  styles.commentInput
-                }
+                value={commentText}
+                onChangeText={setCommentText}
+                placeholder="Yorum ekle..."
+                placeholderTextColor={colors.textSecondary}
                 multiline
-                maxLength={300}
+                maxLength={1000}
+                style={styles.commentComposerInput}
               />
 
               <Pressable
-                onPress={
-                  sendPostComment
-                }
-                disabled={
-                  commentSending
-                }
-                style={
-                  styles.sendButton
-                }
+                onPress={() => void sendPostComment()}
+                disabled={!commentText.trim() || commentSending}
+                style={[
+                  styles.commentComposerSend,
+                  (!commentText.trim() || commentSending) && styles.commentComposerSendDisabled,
+                ]}
+                accessibilityLabel="Yorumu gönder"
               >
-                <Text
-                  style={
-                    styles.sendButtonText
-                  }
-                >
-                  {commentSending
-                    ? '...'
-                    : 'Gönder'}
+                <Text style={styles.commentComposerSendText}>
+                  {commentSending ? '...' : 'Paylaş'}
                 </Text>
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <BottomNav />
@@ -2961,31 +2932,15 @@ const baseStyles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  commentButton: {
-    minHeight: 38,
-    paddingHorizontal: 12,
+  postAction: {
+    minWidth: 48,
+    height: 38,
+    paddingHorizontal: 10,
     borderRadius: 13,
-    backgroundColor: '#171820',
-    borderWidth: 1,
-    borderColor: '#292E39',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-  },
-
-  commentButtonIcon: {
-    color: '#A985FF',
-    fontSize: 16,
-    lineHeight: 18,
-    fontWeight: '900',
-    transform: [{ rotate: '-8deg' }],
-  },
-
-  commentButtonText: {
-    color: '#B8BEC8',
-    fontSize: 12,
-    fontWeight: '800',
+    gap: 5,
   },
 
   repostHeader: {
@@ -3008,6 +2963,40 @@ const baseStyles = StyleSheet.create({
     fontSize: 11,
     color: '#999',
   },
+
+  commentSheetRoot: { flex: 1, justifyContent: 'flex-end' },
+  commentSheetBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.58)' },
+  commentSheet: { height: '76%', minHeight: 420, backgroundColor: '#101014', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, borderColor: '#2A2A31', overflow: 'hidden' },
+  commentSheetHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 3, backgroundColor: '#4B4B54', marginTop: 9, marginBottom: 5 },
+  commentSheetHeader: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14 },
+  commentSheetHeaderSpacer: { width: 38 },
+  commentSheetTitle: { color: '#F4F4F6', fontSize: 15, fontWeight: '900' },
+  commentSheetClose: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  commentSheetDivider: { height: 1, backgroundColor: '#26262D' },
+  commentSheetList: { flex: 1 },
+  commentSheetListContent: { paddingHorizontal: 16, paddingVertical: 10 },
+  commentSheetEmptyContent: { flexGrow: 1, justifyContent: 'center' },
+  commentSheetEmpty: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
+  commentSheetEmptyTitle: { color: '#ECECF0', fontSize: 16, fontWeight: '800', marginTop: 12 },
+  commentSheetEmptyText: { color: '#777782', fontSize: 12, marginTop: 5 },
+  commentSheetRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12 },
+  commentSheetAvatarWrap: { marginRight: 11 },
+  commentSheetAvatar: { width: 38, height: 38, borderRadius: 19 },
+  commentSheetAvatarFallback: { backgroundColor: '#2B2140', borderWidth: 1, borderColor: '#5C438B', alignItems: 'center', justifyContent: 'center' },
+  commentSheetAvatarText: { color: '#E2D4FF', fontSize: 14, fontWeight: '900' },
+  commentSheetBody: { flex: 1, minWidth: 0 },
+  commentSheetNameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  commentSheetUser: { color: '#F0F0F3', fontSize: 12.5, fontWeight: '800', flexShrink: 1 },
+  commentSheetDate: { color: '#6F707A', fontSize: 9.5 },
+  commentSheetCommentText: { color: '#D1D1D7', fontSize: 13.5, lineHeight: 19, marginTop: 4 },
+  commentSheetDelete: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
+  commentComposer: { flexDirection: 'row', alignItems: 'flex-end', gap: 9, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#26262D', backgroundColor: '#0D0D11' },
+  commentComposerAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1A20', borderWidth: 1, borderColor: '#2C2C34', marginBottom: 4, overflow: 'hidden' },
+  commentComposerAvatarImage: { width: '100%', height: '100%', borderRadius: 17 },
+  commentComposerInput: { flex: 1, minHeight: 42, maxHeight: 96, borderRadius: 21, backgroundColor: '#18181E', borderWidth: 1, borderColor: '#303039', color: '#F3F3F5', fontSize: 13.5, paddingHorizontal: 14, paddingVertical: 10, textAlignVertical: 'top' },
+  commentComposerSend: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 6, marginBottom: 1 },
+  commentComposerSendDisabled: { opacity: 0.4 },
+  commentComposerSendText: { color: '#A985FF', fontSize: 12.5, fontWeight: '900' },
 
   /*
    * MODAL
