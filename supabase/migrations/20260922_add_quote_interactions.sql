@@ -50,3 +50,13 @@ create policy quote_comments_delete on public.quote_comments for delete to authe
 create index if not exists quote_comments_quote_id_created_at_idx on public.quote_comments (quote_id, created_at);
 create index if not exists quote_likes_quote_id_idx on public.quote_likes (quote_id);
 create index if not exists quote_reposts_quote_id_idx on public.quote_reposts (quote_id);
+
+
+grant select on table public.quote_likes to anon, authenticated;
+grant insert, delete on table public.quote_likes to authenticated;
+
+grant select on table public.quote_reposts to anon, authenticated;
+grant insert, delete on table public.quote_reposts to authenticated;
+
+grant select on table public.quote_comments to anon, authenticated;
+grant insert, update, delete on table public.quote_comments to authenticated;
