@@ -123,18 +123,41 @@ export default function BottomNav() {
       scheduleRefresh();
     });
 
-    void supabase.auth.getUser().then(({ data: { user } }) => {
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
       if (!active || !user) return;
+
+      // Ensure any stale channel with the same topic is removed before creating a new one.
+      await supabase.removeChannel(
+        supabase.channel(`bottom-nav-unread-${user.id}`)
+      ).catch(() => undefined);
+
+      if (!active) return;
+
       channel = supabase
-        .channel(`bottom-nav-unread-${user.id}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, scheduleRefresh)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, scheduleRefresh)
-        .subscribe();
-    });
+        .channel(`bottom-nav-unread-${user.id}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          scheduleRefresh
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'messages' },
+          scheduleRefresh
+        );
+
+      channel.subscribe();
+    };
+
+    void setupRealtime();
 
     return () => {
       active = false;
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      if (refreshTimer.current) {
+        clearTimeout(refreshTimer.current);
+        refreshTimer.current = null;
+      }
       authListener.subscription.unsubscribe();
       if (channel) void supabase.removeChannel(channel);
     };
