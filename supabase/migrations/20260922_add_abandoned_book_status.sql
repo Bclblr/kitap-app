@@ -62,3 +62,11 @@ $function$;
 
 grant execute on function public.get_my_shelf_counts() to authenticated;
 grant execute on function public.set_user_book_status(text, text, text) to authenticated;
+
+
+alter table public.user_book_status
+  drop constraint if exists user_book_status_status_check;
+
+alter table public.user_book_status
+  add constraint user_book_status_status_check
+  check (status in ('reading','read','want','abandoned'));
