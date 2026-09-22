@@ -45,6 +45,7 @@ export default function MessagesScreen() {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const currentUserIdRef = useRef<string | null>(null);
   const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadConversations = useCallback(async (silent = false) => {
@@ -56,6 +57,7 @@ export default function MessagesScreen() {
         data: { user },
       } = await supabase.auth.getUser();
       const currentUserId = user?.id ?? null;
+      currentUserIdRef.current = currentUserId;
 
       if (!currentUserId) {
         setConversations([]);
@@ -130,40 +132,84 @@ export default function MessagesScreen() {
     let active = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const scheduleRefresh = () => {
+    const scheduleRefresh = (delay = 120) => {
       if (!active) return;
       if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
       realtimeRefreshTimer.current = setTimeout(() => {
         void loadConversations(true);
-      }, 120);
+      }, delay);
     };
 
     void supabase.auth.getUser().then(({ data: { user } }) => {
       if (!active || !user) return;
+      currentUserIdRef.current = user.id;
 
       channel = supabase
         .channel(`messages-inbox-${user.id}`)
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'messages' },
-          scheduleRefresh
+          (payload) => {
+            const message = payload.new as {
+              id?: string;
+              conversation_id?: string;
+              sender_id?: string;
+              content?: string;
+              created_at?: string;
+              is_read?: boolean;
+            };
+
+            if (!message.conversation_id) {
+              scheduleRefresh();
+              return;
+            }
+
+            let matched = false;
+            setConversations((current) => {
+              const next = current.map((conversation) => {
+                if (conversation.id !== message.conversation_id) return conversation;
+                matched = true;
+
+                const isIncoming =
+                  !!message.sender_id &&
+                  message.sender_id !== currentUserIdRef.current;
+
+                return {
+                  ...conversation,
+                  lastMessage: message.content || conversation.lastMessage,
+                  updatedAt: message.created_at || new Date().toISOString(),
+                  unreadCount: isIncoming
+                    ? conversation.unreadCount + 1
+                    : conversation.unreadCount,
+                };
+              });
+
+              if (!matched) return current;
+
+              return [...next].sort(
+                (a, b) =>
+                  new Date(b.updatedAt).getTime() -
+                  new Date(a.updatedAt).getTime()
+              );
+            });
+
+            // A brand-new conversation may not exist in the local list yet.
+            // Refresh shortly afterwards so profile/participant data is filled in.
+            setTimeout(() => {
+              if (active) void loadConversations(true);
+            }, matched ? 350 : 80);
+          }
         )
         .on(
           'postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'messages' },
-          scheduleRefresh
+          () => scheduleRefresh(80)
         )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'conversations' },
-          scheduleRefresh
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'conversations' },
-          scheduleRefresh
-        )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            scheduleRefresh(0);
+          }
+        });
     });
 
     return () => {
