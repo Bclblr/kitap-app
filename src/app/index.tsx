@@ -970,7 +970,7 @@ export default function HomeScreen() {
         if (!finalCoverUrl && key && openLibraryWorkUrl(key)) {
           if (!requests.has(key)) requests.set(key, loadBookCover(key, null));
           try { finalCoverUrl = await requests.get(key) ?? null; }
-          catch (error) { console.error('Kitap kapa?? i?lenemedi:', key, error); }
+          catch { finalCoverUrl = null; }
         }
         console.log('[Book cover debug]', {
           title: book.title, coverUrl: book.coverUrl, cover_url: book.cover_url,
