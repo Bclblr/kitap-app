@@ -19,16 +19,16 @@ type Book = BookCoverData & {
   authors?: Author[];
   covers?: number[];
   first_publish_year?: number;
-  status?: 'reading' | 'read' | 'want';
+  status?: 'reading' | 'read' | 'want' | 'abandoned';
 };
 
-type Filter = 'all' | 'reading' | 'read' | 'want';
+type Filter = 'all' | 'reading' | 'read' | 'want' | 'abandoned';
 const SHELF_PAGE_SIZE = 30;
 
 type UserBookStatusRow = {
   book_key: string;
   book_title: string | null;
-  status: 'reading' | 'read' | 'want';
+  status: 'reading' | 'read' | 'want' | 'abandoned';
 };
 
 export default function ShelvesScreen() {
@@ -43,7 +43,7 @@ export default function ShelvesScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
-  const [serverCounts, setServerCounts] = useState({ want: 0, reading: 0, read: 0, total: 0 });
+  const [serverCounts, setServerCounts] = useState({ want: 0, reading: 0, read: 0, abandoned: 0, total: 0 });
 
   const loadBooks = useCallback(async (reset = true, offset = 0) => {
     if (reset) {
@@ -67,7 +67,7 @@ export default function ShelvesScreen() {
       if (!user) {
         setBooks([]);
         setShelfCustomization(null);
-        setServerCounts({ want: 0, reading: 0, read: 0, total: 0 });
+        setServerCounts({ want: 0, reading: 0, read: 0, abandoned: 0, total: 0 });
         return;
       }
 
@@ -86,6 +86,7 @@ export default function ShelvesScreen() {
             want: Number(row?.want_count) || 0,
             reading: Number(row?.reading_count) || 0,
             read: Number(row?.read_count) || 0,
+            abandoned: Number((row as any)?.abandoned_count) || 0,
             total: Number(row?.total_count) || 0,
           });
         }
@@ -216,6 +217,9 @@ export default function ShelvesScreen() {
       case 'read':
         return `✅ ${shelfLabels.read}`;
 
+      case 'abandoned':
+        return '⏸ Yarım Bıraktım';
+
       case 'want':
       default:
         return `📚 ${shelfLabels.want}`;
@@ -238,7 +242,9 @@ export default function ShelvesScreen() {
         ? serverCounts.reading
         : filter === 'read'
           ? serverCounts.read
-          : serverCounts.want;
+          : filter === 'abandoned'
+            ? serverCounts.abandoned
+            : serverCounts.want;
 
   return (
     <View style={styles.container}>
@@ -345,6 +351,24 @@ export default function ShelvesScreen() {
               ]}
             >
               📚 {shelfLabels.want}{activeCustomization?.show_counts ? ` (${shelfCounts.want})` : ''}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setFilter('abandoned')}
+            style={[
+              styles.filterButton,
+              filter === 'abandoned' && styles.activeFilter,
+              filter === 'abandoned' && { borderColor: shelfAccent },
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                filter === 'abandoned' && styles.activeFilterText,
+              ]}
+            >
+              ⏸ Yarım Bıraktım{activeCustomization?.show_counts ? ` (${shelfCounts.abandoned})` : ''}
             </Text>
           </Pressable>
         </ScrollView>
