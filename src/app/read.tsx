@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
 
 type Author = string | { name?: string };
 
-type BookStatus = 'reading' | 'read' | 'want';
+type BookStatus = 'reading' | 'read' | 'want' | 'abandoned';
 
 type Book = BookCoverData & {
   key?: string;
@@ -894,9 +894,9 @@ const baseStyles = StyleSheet.create({
   currentBookTitle: { color: '#FAFAFB', fontSize: 20, lineHeight: 25, fontWeight: '900', letterSpacing: -0.4 },
   author: { color: '#A0A1AA', fontSize: 13, lineHeight: 19, marginTop: 7 },
   year: { color: '#696B75', fontSize: 10, marginTop: 9 },
-  primaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#F18B31', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginTop: 15 },
-  primaryButtonText: { color: '#1B1108', fontSize: 14, fontWeight: '900' },
-  primaryButtonArrow: { color: '#1B1108', fontSize: 25, lineHeight: 26, marginLeft: 8 },
+  primaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#21182F', borderWidth: 1, borderColor: '#38284D', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginTop: 15 },
+  primaryButtonText: { color: '#A985FF', fontSize: 14, fontWeight: '900' },
+  primaryButtonArrow: { color: '#A985FF', fontSize: 25, lineHeight: 26, marginLeft: 8 },
   continueButton: { minHeight: 46, borderRadius: 14, backgroundColor: '#8058D9', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 15 },
   continueButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   continueButtonArrow: { color: '#FFFFFF', fontSize: 22, lineHeight: 24, marginLeft: 8 },
