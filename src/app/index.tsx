@@ -1963,14 +1963,13 @@ export default function HomeScreen() {
         ListEmptyComponent={
           loadingPosts ? (
             <View style={styles.loadingBox}><ActivityIndicator /><Text style={styles.info}>Gönderiler yükleniyor...</Text></View>
-          ) : (
+          ) : feedTab === 'following' ? (
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>📝</Text>
-              <Text style={styles.emptyTitle}>{social.error || (feedTab === 'following' ? 'Takip akışında henüz içerik yok' : 'Henüz gönderi yok')}</Text>
-              <Text style={styles.emptyText}>{feedTab === 'following' ? 'Okurları keşfet ve takip ederek akışını oluştur.' : 'İlk gönderiyi sen paylaş.'}</Text>
-              <Pressable onPress={() => router.push('/post-create' as any)} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Gönderi Paylaş</Text></Pressable>
+              <Text style={styles.emptyTitle}>{social.error || 'Takip akışında henüz içerik yok'}</Text>
+              <Text style={styles.emptyText}>Okurları keşfet ve takip ederek akışını oluştur.</Text>
             </View>
-          )
+          ) : null
         }
         ListFooterComponent={
           <>
