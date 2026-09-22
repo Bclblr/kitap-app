@@ -330,7 +330,15 @@ export default function ReadScreen() {
       setPageCountLoading(true);
       setPageCountSource(null);
 
-      const normalizedKey = book.key.startsWith('/') ? book.key : `/${book.key}`;
+      let normalizedKey = book.key.startsWith('/') ? book.key : `/${book.key}`;
+      if (/^\/OL\d+W$/i.test(normalizedKey)) {
+        normalizedKey = `/works${normalizedKey}`;
+      } else if (/^\/OL\d+M$/i.test(normalizedKey)) {
+        normalizedKey = `/books${normalizedKey}`;
+      }
+
+      setTotalPages(null);
+      setTotalPagesInput('');
       let candidates: number[] = [];
 
       if (normalizedKey.startsWith('/books/')) {
