@@ -3,7 +3,7 @@ import QuoteMetadata from '@/components/QuoteMetadata';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import ReadersList from '@/components/ReadersList';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -54,6 +54,7 @@ type Review = {
   tags?: string[];
   containsSpoiler?: boolean;
   createdAt: string;
+  viewCount?: number;
 };
 
 type Quote = {
@@ -67,6 +68,7 @@ type Quote = {
   pageNumber?: number | null;
   note?: string | null;
   createdAt: string;
+  viewCount?: number;
 };
 
 type Post = {
@@ -79,6 +81,7 @@ type Post = {
   bookTitle: string | null;
   rating: number;
   createdAt: string;
+  viewCount?: number;
 };
 
 type FeedItem = {
@@ -92,6 +95,144 @@ type FeedItem = {
   repostedByUsername?: string;
   repostedAt?: string;
 };
+
+
+type InteractionType = 'post' | 'review' | 'quote';
+
+function ProfileCardActions({
+  type,
+  id,
+  viewCount = 0,
+  onComment,
+}: {
+  type: InteractionType;
+  id: string;
+  viewCount?: number;
+  onComment: () => void;
+}) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(baseStyles);
+  const [liked, setLiked] = useState(false);
+  const [reposted, setReposted] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [likes, setLikes] = useState(0);
+  const [reposts, setReposts] = useState(0);
+  const [comments, setComments] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id ?? null;
+      const config =
+        type === 'post'
+          ? { likeTable: 'post_likes', repostTable: 'post_reposts', commentTable: 'post_comments', key: 'post_id' }
+          : type === 'review'
+            ? { likeTable: 'likes', repostTable: 'reposts', commentTable: 'comments', key: 'review_id' }
+            : { likeTable: 'quote_likes', repostTable: 'quote_reposts', commentTable: 'quote_comments', key: 'quote_id' };
+
+      const [likeResult, repostResult, commentResult, savedResult] = await Promise.all([
+        (supabase as any).from(config.likeTable).select('user_id').eq(config.key, id),
+        (supabase as any).from(config.repostTable).select('user_id').eq(config.key, id),
+        (supabase as any).from(config.commentTable).select('id', { count: 'exact', head: true }).eq(config.key, id),
+        type === 'post' && userId
+          ? supabase.from('saved_posts').select('post_id').eq('post_id', id).eq('user_id', userId).maybeSingle()
+          : Promise.resolve({ data: null, error: null } as any),
+      ]);
+
+      if (!active) return;
+      const likeRows = likeResult.data ?? [];
+      const repostRows = repostResult.data ?? [];
+      setLikes(likeRows.length);
+      setReposts(repostRows.length);
+      setComments(commentResult.count ?? 0);
+      setLiked(!!userId && likeRows.some((row: any) => row.user_id === userId));
+      setReposted(!!userId && repostRows.some((row: any) => row.user_id === userId));
+      setSaved(!!savedResult.data);
+    })();
+
+    return () => { active = false; };
+  }, [id, type]);
+
+  async function toggleLike() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return Alert.alert('Giriş gerekli', 'Beğenmek için giriş yapmalısın.');
+    const table = type === 'post' ? 'post_likes' : type === 'review' ? 'likes' : 'quote_likes';
+    const key = type === 'post' ? 'post_id' : type === 'review' ? 'review_id' : 'quote_id';
+
+    if (liked) {
+      const { error } = await (supabase as any).from(table).delete().eq(key, id).eq('user_id', user.id);
+      if (error) return Alert.alert('Hata', error.message);
+      setLiked(false);
+      setLikes((count) => Math.max(0, count - 1));
+    } else {
+      const { error } = await (supabase as any).from(table).insert({ [key]: id, user_id: user.id });
+      if (error) return Alert.alert('Hata', error.message);
+      setLiked(true);
+      setLikes((count) => count + 1);
+    }
+  }
+
+  async function toggleRepost() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return Alert.alert('Giriş gerekli', 'Tekrar paylaşmak için giriş yapmalısın.');
+    const table = type === 'post' ? 'post_reposts' : type === 'review' ? 'reposts' : 'quote_reposts';
+    const key = type === 'post' ? 'post_id' : type === 'review' ? 'review_id' : 'quote_id';
+
+    if (reposted) {
+      const { error } = await (supabase as any).from(table).delete().eq(key, id).eq('user_id', user.id);
+      if (error) return Alert.alert('Hata', error.message);
+      setReposted(false);
+      setReposts((count) => Math.max(0, count - 1));
+    } else {
+      const { error } = await (supabase as any).from(table).insert({ [key]: id, user_id: user.id });
+      if (error) return Alert.alert('Hata', error.message);
+      setReposted(true);
+      setReposts((count) => count + 1);
+    }
+  }
+
+  async function toggleSave() {
+    if (type !== 'post') return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return Alert.alert('Giriş gerekli', 'Kaydetmek için giriş yapmalısın.');
+    if (saved) {
+      const { error } = await supabase.from('saved_posts').delete().eq('post_id', id).eq('user_id', user.id);
+      if (error) return Alert.alert('Hata', error.message);
+      setSaved(false);
+    } else {
+      const { error } = await supabase.from('saved_posts').insert({ post_id: id, user_id: user.id });
+      if (error) return Alert.alert('Hata', error.message);
+      setSaved(true);
+    }
+  }
+
+  return (
+    <View style={styles.profileActionRow}>
+      {type === 'post' ? (
+        <Pressable onPress={() => void toggleSave()} style={styles.profileActionButton} accessibilityLabel={saved ? 'Kaydı kaldır' : 'Kaydet'}>
+          <Feather name="bookmark" size={20} color={saved ? colors.primary : colors.textSecondary} />
+        </Pressable>
+      ) : null}
+      <Pressable onPress={onComment} style={styles.profileActionButton} accessibilityLabel="Yorumlar">
+        <Feather name="message-circle" size={20} color={colors.textSecondary} />
+        <Text style={styles.profileActionCount}>{comments}</Text>
+      </Pressable>
+      <Pressable onPress={() => void toggleLike()} style={styles.profileActionButton} accessibilityLabel={liked ? 'Beğeniyi kaldır' : 'Beğen'}>
+        <Feather name="heart" size={20} color={liked ? '#FF6B7A' : colors.textSecondary} />
+        <Text style={[styles.profileActionCount, liked && { color: '#FF6B7A' }]}>{likes}</Text>
+      </Pressable>
+      <Pressable onPress={() => void toggleRepost()} style={styles.profileActionButton} accessibilityLabel={reposted ? 'Repostu kaldır' : 'Repost'}>
+        <Feather name="repeat" size={20} color={reposted ? '#66D19E' : colors.textSecondary} />
+        <Text style={[styles.profileActionCount, reposted && { color: '#66D19E' }]}>{reposts}</Text>
+      </Pressable>
+      <View style={styles.profileActionButton}>
+        <Feather name="eye" size={20} color={colors.textSecondary} />
+        <Text style={styles.profileActionCount}>{viewCount}</Text>
+      </View>
+    </View>
+  );
+}
 
 const PROFILE_PAGE_SIZE = 20;
 
@@ -172,6 +313,7 @@ export default function ProfileScreen() {
 
   const [commentSending, setCommentSending] =
     useState(false);
+  const [commentTarget, setCommentTarget] = useState<{ type: InteractionType; id: string } | null>(null);
 
   const [selectedReview, setSelectedReview] =
     useState<Review | null>(null);
@@ -568,7 +710,7 @@ export default function ProfileScreen() {
       if (profileTab === 'review') {
         let query = supabase
           .from('reviews')
-          .select('id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at')
+          .select('id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at, view_count')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
@@ -588,6 +730,7 @@ export default function ProfileScreen() {
           tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
           containsSpoiler: item.contains_spoiler === true,
           createdAt: item.created_at || new Date().toISOString(),
+          viewCount: Number(item.view_count) || 0,
         }));
         pageLength = page.length;
         pageCursorRows = (data ?? []) as { id?: string | null; created_at?: string | null }[];
@@ -601,7 +744,7 @@ export default function ProfileScreen() {
       } else if (profileTab === 'quote') {
         let query = supabase
           .from('quotes')
-          .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at')
+          .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at, view_count')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
@@ -620,6 +763,7 @@ export default function ProfileScreen() {
           pageNumber: Number.isInteger(item.page_number) ? item.page_number : null,
           note: item.note ? String(item.note) : null,
           createdAt: item.created_at || new Date().toISOString(),
+          viewCount: Number(item.view_count) || 0,
         }));
         pageLength = page.length;
         pageCursorRows = (data ?? []) as { id?: string | null; created_at?: string | null }[];
@@ -633,7 +777,7 @@ export default function ProfileScreen() {
       } else if (profileTab === 'post') {
         let query = supabase
           .from('posts')
-          .select('id, username, text, image_url, book_key, book_title, rating, created_at, user_id')
+          .select('id, username, text, image_url, book_key, book_title, rating, created_at, user_id, view_count')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
@@ -651,6 +795,7 @@ export default function ProfileScreen() {
           bookTitle: item.book_title || null,
           rating: Number(item.rating) || 0,
           createdAt: item.created_at || new Date().toISOString(),
+          viewCount: Number(item.view_count) || 0,
         }));
         pageLength = page.length;
         pageCursorRows = (data ?? []) as { id?: string | null; created_at?: string | null }[];
@@ -679,7 +824,7 @@ export default function ProfileScreen() {
         if (postIds.length) {
           const { data: repostPosts, error: postsError } = await supabase
             .from('posts')
-            .select('id, username, text, image_url, book_key, book_title, rating, created_at, user_id')
+            .select('id, username, text, image_url, book_key, book_title, rating, created_at, user_id, view_count')
             .in('id', postIds);
           if (postsError) throw postsError;
 
@@ -695,6 +840,7 @@ export default function ProfileScreen() {
               bookTitle: item.book_title || null,
               rating: Number(item.rating) || 0,
               createdAt: item.created_at || new Date().toISOString(),
+          viewCount: Number(item.view_count) || 0,
             });
           }
 
@@ -752,7 +898,7 @@ export default function ProfileScreen() {
       const [{ data, error }, { count, error: countError }] = await Promise.all([
         supabase
           .from('quotes')
-          .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at')
+          .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at, view_count')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
@@ -777,6 +923,7 @@ export default function ProfileScreen() {
         pageNumber: Number.isInteger(item.page_number) ? item.page_number : null,
         note: item.note ? String(item.note) : null,
         createdAt: item.created_at || new Date().toISOString(),
+          viewCount: Number(item.view_count) || 0,
       }));
 
       setQuotes(loadedQuotes);
@@ -852,7 +999,7 @@ export default function ProfileScreen() {
         supabase
           .from('reviews')
           .select(
-            'id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at'
+            'id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at, view_count'
           )
           .eq(
             'user_id',
@@ -870,7 +1017,7 @@ export default function ProfileScreen() {
         supabase
           .from('quotes')
           .select(
-            'id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at'
+            'id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at, view_count'
           )
           .eq(
             'user_id',
@@ -888,7 +1035,7 @@ export default function ProfileScreen() {
         supabase
           .from('posts')
           .select(
-            'id, username, text, image_url, book_key, book_title, rating, created_at, user_id'
+            'id, username, text, image_url, book_key, book_title, rating, created_at, user_id, view_count'
           )
           .eq(
             'user_id',
@@ -982,6 +1129,7 @@ export default function ProfileScreen() {
             createdAt:
               item.created_at ||
               new Date().toISOString(),
+            viewCount: Number(item.view_count) || 0,
           })
         );
 
@@ -1037,6 +1185,7 @@ export default function ProfileScreen() {
             createdAt:
               item.created_at ||
               new Date().toISOString(),
+            viewCount: Number(item.view_count) || 0,
           })
         );
 
@@ -1093,6 +1242,7 @@ export default function ProfileScreen() {
             createdAt:
               item.created_at ||
               new Date().toISOString(),
+            viewCount: Number(item.view_count) || 0,
           })
         );
 
@@ -1119,7 +1269,7 @@ export default function ProfileScreen() {
         } = await supabase
           .from('posts')
           .select(
-            'id, username, text, image_url, book_key, book_title, rating, created_at, user_id'
+            'id, username, text, image_url, book_key, book_title, rating, created_at, user_id, view_count'
           )
           .in(
             'id',
@@ -1491,63 +1641,82 @@ export default function ProfileScreen() {
     }
   }
 
-  async function sendPostComment() {
-    const text =
-      commentText.trim();
 
-    if (
-      !text ||
-      !selectedPost
-    ) {
-      return;
-    }
+  async function openContentComments(type: InteractionType, id: string) {
+    setCommentTarget({ type, id });
+    setSelectedPost(type === 'post' ? posts.find((post) => post.id === id) ?? null : null);
+    setPostModalVisible(true);
+    setCommentsLoading(true);
+    setCommentText('');
 
-    const loggedInUserId =
-      await getCurrentUserId();
-
-    if (!loggedInUserId) {
-      Alert.alert(
-        'Giriş gerekli',
-        'Yorum yapmak için giriş yapmalısın.'
-      );
-      return;
-    }
-
-    setCommentSending(
-      true
-    );
+    const config =
+      type === 'post'
+        ? { table: 'post_comments', key: 'post_id' }
+        : type === 'review'
+          ? { table: 'comments', key: 'review_id' }
+          : { table: 'quote_comments', key: 'quote_id' };
 
     try {
-      const {
-        data,
-        error,
-      } = await supabase
-        .from('post_comments')
-        .insert({
-          post_id:
-            selectedPost.id,
+      const { data, error } = await (supabase as any)
+        .from(config.table)
+        .select('id, user_id, text, created_at')
+        .eq(config.key, id)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
 
-          user_id:
-            loggedInUserId,
+      const rows = data ?? [];
+      const userIds = Array.from(new Set(rows.map((row: any) => row.user_id).filter(Boolean))) as string[];
+      const { data: profilesData } = userIds.length
+        ? await supabase.from('profiles').select('id, username, full_name, profile_image').in('id', userIds)
+        : { data: [] as any[] };
+      const profileMap = new Map((profilesData ?? []).map((row: any) => [String(row.id), row]));
 
-          text,
-        })
+      setComments(rows.map((row: any) => {
+        const author: any = profileMap.get(String(row.user_id));
+        return {
+          id: String(row.id),
+          userId: row.user_id ? String(row.user_id) : null,
+          username: author?.username || 'Kitap Okuru',
+          fullName: author?.full_name ?? null,
+          profileImage: author?.profile_image ?? null,
+          text: String(row.text || ''),
+          createdAt: row.created_at || '',
+        };
+      }));
+    } catch (error) {
+      console.error('Yorumlar yüklenemedi:', error);
+      setComments([]);
+    } finally {
+      setCommentsLoading(false);
+    }
+  }
+
+
+  async function sendPostComment() {
+    const text = commentText.trim();
+    if (!text || !commentTarget) return;
+
+    const loggedInUserId = await getCurrentUserId();
+    if (!loggedInUserId) {
+      Alert.alert('Giriş gerekli', 'Yorum yapmak için giriş yapmalısın.');
+      return;
+    }
+
+    const config =
+      commentTarget.type === 'post'
+        ? { table: 'post_comments', key: 'post_id' }
+        : commentTarget.type === 'review'
+          ? { table: 'comments', key: 'review_id' }
+          : { table: 'quote_comments', key: 'quote_id' };
+
+    setCommentSending(true);
+    try {
+      const { data, error } = await (supabase as any)
+        .from(config.table)
+        .insert({ [config.key]: commentTarget.id, user_id: loggedInUserId, text })
         .select()
         .single();
-
-      if (error) {
-        console.error(
-          'Yorum gönderilemedi:',
-          error
-        );
-
-        Alert.alert(
-          'Hata',
-          'Yorum gönderilemedi.'
-        );
-
-        return;
-      }
+      if (error) throw error;
 
       const { data: authorProfile } = await supabase
         .from('profiles')
@@ -1555,33 +1724,35 @@ export default function ProfileScreen() {
         .eq('id', loggedInUserId)
         .maybeSingle();
 
-      setComments((old) => [
-        ...old,
-        {
-          id: String(data.id),
-          userId: loggedInUserId,
-          username: authorProfile?.username || profile.username || 'Kitap Okuru',
-          fullName: authorProfile?.full_name ?? null,
-          profileImage: authorProfile?.profile_image ?? null,
-          text,
-          createdAt: data.created_at || new Date().toISOString(),
-        },
-      ]);
-
+      setComments((old) => [...old, {
+        id: String(data.id),
+        userId: loggedInUserId,
+        username: authorProfile?.username || profile.username || 'Kitap Okuru',
+        fullName: authorProfile?.full_name ?? null,
+        profileImage: authorProfile?.profile_image ?? null,
+        text,
+        createdAt: data.created_at || new Date().toISOString(),
+      }]);
       setCommentText('');
+    } catch (error) {
+      console.error('Yorum gönderilemedi:', error);
+      Alert.alert('Hata', 'Yorum gönderilemedi.');
     } finally {
-      setCommentSending(
-        false
-      );
+      setCommentSending(false);
     }
   }
 
+
   async function deletePostComment(commentId: string) {
     const loggedInUserId = await getCurrentUserId();
-    if (!loggedInUserId) {
-      Alert.alert('Giriş gerekli', 'Bu işlemi yapmak için giriş yapmalısın.');
-      return;
-    }
+    if (!loggedInUserId || !commentTarget) return;
+
+    const table =
+      commentTarget.type === 'post'
+        ? 'post_comments'
+        : commentTarget.type === 'review'
+          ? 'comments'
+          : 'quote_comments';
 
     Alert.alert('Yorumu sil', 'Bu yorum silinsin mi?', [
       { text: 'Vazgeç', style: 'cancel' },
@@ -1589,17 +1760,15 @@ export default function ProfileScreen() {
         text: 'Sil',
         style: 'destructive',
         onPress: async () => {
-          const { error } = await supabase
-            .from('post_comments')
+          const { error } = await (supabase as any)
+            .from(table)
             .delete()
             .eq('id', commentId)
             .eq('user_id', loggedInUserId);
-
           if (error) {
             Alert.alert('Hata', error.message);
             return;
           }
-
           setComments((current) => current.filter((comment) => comment.id !== commentId));
         },
       },
@@ -1617,6 +1786,35 @@ export default function ProfileScreen() {
 
     setCommentText('');
     setComments([]);
+    setCommentTarget(null);
+  }
+
+
+  function deleteOwnPost(post: Post) {
+    if (!currentUserId || post.userId !== currentUserId) return;
+
+    Alert.alert('Gönderiyi sil', 'Bu gönderi kalıcı olarak silinsin mi?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sil',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase
+            .from('posts')
+            .delete()
+            .eq('id', post.id)
+            .eq('user_id', currentUserId);
+          if (error) {
+            Alert.alert('Hata', error.message);
+            return;
+          }
+
+          setPosts((current) => current.filter((item) => item.id !== post.id));
+          setFeed((current) => current.filter((item) => !(item.type === 'post' && item.post?.id === post.id)));
+          if (selectedPost?.id === post.id) closePostModal();
+        },
+      },
+    ]);
   }
 
   async function openMessageToProfile() {
@@ -1977,6 +2175,12 @@ export default function ProfileScreen() {
                         tags={review.tags}
                         textStyle={styles.feedText}
                       />
+                      <ProfileCardActions
+                        type="review"
+                        id={review.id}
+                        viewCount={review.viewCount ?? 0}
+                        onComment={() => void openContentComments('review', review.id)}
+                      />
                     </Pressable>
                   );
                 }
@@ -2077,6 +2281,12 @@ export default function ProfileScreen() {
                         topic={quote.topic}
                         pageNumber={quote.pageNumber}
                         note={quote.note}
+                      />
+                      <ProfileCardActions
+                        type="quote"
+                        id={quote.id}
+                        viewCount={quote.viewCount ?? 0}
+                        onComment={() => void openContentComments('quote', quote.id)}
                       />
                     </Pressable>
                   );
@@ -2227,32 +2437,26 @@ export default function ProfileScreen() {
                         </Pressable>
                       )}
 
-                      <View
-                        style={
-                          styles.postBottomRow
-                        }
-                      >
-                        <Text
-                          style={
-                            styles.feedDate
-                          }
-                        >
-                          {formatDate(
-                            item.reposted
-                              ? item.createdAt
-                              : post.createdAt
-                          )}
+                      <View style={styles.postMetaRow}>
+                        <Text style={styles.feedDate}>
+                          {formatDate(item.reposted ? item.createdAt : post.createdAt)}
                         </Text>
-
-                        <Pressable
-                          onPress={() => openPostComments(post)}
-                          style={styles.postAction}
-                          accessibilityRole="button"
-                          accessibilityLabel="Yorumlar"
-                        >
-                          <Feather name="message-circle" size={20} color={colors.textSecondary} />
-                        </Pressable>
+                        {isOwnProfile && !item.reposted ? (
+                          <Pressable
+                            onPress={() => deleteOwnPost(post)}
+                            style={styles.deletePostButton}
+                            accessibilityLabel="Gönderiyi sil"
+                          >
+                            <Feather name="trash-2" size={17} color="#FF6B7A" />
+                          </Pressable>
+                        ) : null}
                       </View>
+                      <ProfileCardActions
+                        type="post"
+                        id={post.id}
+                        viewCount={post.viewCount ?? 0}
+                        onComment={() => void openContentComments('post', post.id)}
+                      />
                     </View>
                   );
                 }
@@ -2997,6 +3201,41 @@ const baseStyles = StyleSheet.create({
   commentComposerSend: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 6, marginBottom: 1 },
   commentComposerSendDisabled: { opacity: 0.4 },
   commentComposerSendText: { color: '#A985FF', fontSize: 12.5, fontWeight: '900' },
+
+  profileActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+    paddingTop: 12,
+    marginTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#24242B',
+  },
+  profileActionButton: {
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  profileActionCount: {
+    color: '#8B8B95',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  postMetaRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  deletePostButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,107,122,0.08)',
+  },
 
   /*
    * MODAL
