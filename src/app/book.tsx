@@ -14,7 +14,7 @@ import { BookCoverData, existingBookCover, openLibraryUrl } from '@/lib/open-lib
 
 type Author = string | { name?: string };
 
-type BookStatus = 'reading' | 'read' | 'want';
+type BookStatus = 'reading' | 'read' | 'want' | 'abandoned';
 
 type Book = BookCoverData & {
   key?: string;
@@ -406,6 +406,13 @@ export default function BookScreen() {
                 </View>
                 <Text style={[styles.statusText, status === 'read' && styles.statusTextSelected]}>Okudum</Text>
               </Pressable>
+
+              <Pressable onPress={() => void changeStatus('abandoned')} style={[styles.statusButton, status === 'abandoned' && styles.statusButtonSelected]}>
+                <View style={[styles.statusIcon, status === 'abandoned' && styles.statusIconSelected]}>
+                  <Feather name="pause-circle" size={17} color={status === 'abandoned' ? '#F4F5F7' : '#8F96A3'} />
+                </View>
+                <Text style={[styles.statusText, status === 'abandoned' && styles.statusTextSelected]}>Yarım Bıraktım</Text>
+              </Pressable>
             </View>
           </View>
 
@@ -561,8 +568,8 @@ const baseStyles = StyleSheet.create({
   sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
   sectionTitle: { color: '#F4F5F7', fontSize: 16, fontWeight: '800' },
   sectionHint: { color: '#747B88', fontSize: 12, fontWeight: '600' },
-  statusRow: { flexDirection: 'row', gap: 8 },
-  statusButton: { flex: 1, minHeight: 84, paddingVertical: 12, paddingHorizontal: 8, borderRadius: 18, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#111318', borderWidth: 1, borderColor: '#23262D' },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statusButton: { width: '48.5%', minHeight: 84, paddingVertical: 12, paddingHorizontal: 8, borderRadius: 18, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#111318', borderWidth: 1, borderColor: '#23262D' },
   statusButtonSelected: { backgroundColor: '#191424', borderColor: '#4A376B' },
   statusIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#191C22' },
   statusIconSelected: { backgroundColor: '#4A376B' },
