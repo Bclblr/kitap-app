@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
-import { BookCoverData, existingBookCover, openLibraryUrl } from '@/lib/open-library-cover';
+import { BookCoverData, existingBookCover, loadOpenLibraryBookMetadata, openLibraryUrl } from '@/lib/open-library-cover';
 
 // BOOK_DARK_PREMIUM_V1
 
@@ -167,20 +167,17 @@ export default function BookScreen() {
           return;
         }
 
-        const response = await fetch(url, { signal: controller.signal });
-        if (!response.ok) throw new Error('Open Library HTTP ' + response.status);
+        const metadata = await loadOpenLibraryBookMetadata(bookKey ?? '', availableBook);
 
-        const data = await response.json();
-        if (!data || typeof data !== 'object' || Array.isArray(data)) {
-          throw new Error('Geçersiz Open Library kitap yanıtı');
-        }
-
-        if (active) {
+        if (active && metadata) {
           setBook((current) => ({
-            ...data,
             ...current,
-            ...data,
+            ...metadata,
             key: bookKey,
+            title: metadata.title ?? current?.title ?? availableBook?.title,
+            authors: metadata.authors?.length
+              ? metadata.authors
+              : current?.authors ?? availableBook?.authors,
             status: shelfStatus ?? current?.status,
           }));
         }
