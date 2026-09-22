@@ -337,8 +337,6 @@ export default function ReadScreen() {
         normalizedKey = `/books${normalizedKey}`;
       }
 
-      setTotalPages(null);
-      setTotalPagesInput('');
       let candidates: number[] = [];
 
       if (normalizedKey.startsWith('/books/')) {
@@ -373,9 +371,11 @@ export default function ReadScreen() {
       }
 
       setPageCountSource('bulunamadı');
-    } catch (error) {
-      console.warn('Kitap sayfa sayısı veritabanından alınamadı:', error);
-      setPageCountSource('bulunamadı');
+    } catch {
+      // Open Library erişimi özellikle web tarafında CORS/ağ/TLS nedeniyle
+      // geçici olarak başarısız olabilir. Daha önce kaydedilmiş sayfa sayısını
+      // koru ve yalnızca kaynak bilgisini güncelle.
+      setPageCountSource((current) => current ?? 'bulunamadı');
     } finally {
       setPageCountLoading(false);
     }
