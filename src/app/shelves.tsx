@@ -1,4 +1,4 @@
-import { BookCoverData, existingBookCover } from '@/lib/open-library-cover';
+import { BookCoverData, existingBookCover, loadOpenLibraryBookMetadata } from '@/lib/open-library-cover';
 import BookCover from '@/components/BookCover';
 import RetryNotice from '@/components/RetryNotice';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -112,10 +112,28 @@ export default function ShelvesScreen() {
         status: row.status,
       }));
 
+      const enrichedBooks = await Promise.all(
+        serverBooks.map(async (book) => {
+          if (!book.key) return book;
+
+          const metadata = await loadOpenLibraryBookMetadata(book.key, book);
+          if (!metadata) return book;
+
+          return {
+            ...book,
+            ...metadata,
+            key: book.key,
+            title: metadata.title ?? book.title,
+            authors: metadata.authors?.length ? metadata.authors : book.authors,
+            status: book.status,
+          } as Book;
+        })
+      );
+
       setBooks((current) => {
-        if (reset) return serverBooks;
+        if (reset) return enrichedBooks;
         const existing = new Set(current.map((book) => book.key));
-        return [...current, ...serverBooks.filter((book) => !existing.has(book.key))];
+        return [...current, ...enrichedBooks.filter((book) => !existing.has(book.key))];
       });
       setHasMore(serverBooks.length === SHELF_PAGE_SIZE);
     } catch (error) {
