@@ -1817,6 +1817,19 @@ export default function ProfileScreen() {
     ]);
   }
 
+  function openProfilePostMenu(post: Post) {
+    if (!currentUserId || post.userId !== currentUserId) return;
+
+    Alert.alert('Gönderi seçenekleri', undefined, [
+      {
+        text: 'Gönderiyi Sil',
+        style: 'destructive',
+        onPress: () => deleteOwnPost(post),
+      },
+      { text: 'Vazgeç', style: 'cancel' },
+    ]);
+  }
+
   async function openMessageToProfile() {
     if (!profile?.id) {
       Alert.alert('Hata', 'Kullanıcı bulunamadı.');
@@ -2341,30 +2354,25 @@ export default function ProfileScreen() {
                         </View>
                       )}
 
-                      <View
-                        style={
-                          styles.feedTypeRow
-                        }
-                      >
-                        <Text
-                          style={
-                            styles.feedType
-                          }
-                        >
-                          📝 GÖNDERİ
-                        </Text>
+                      <View style={styles.feedTypeRow}>
+                        <Text style={styles.feedType}>📝 GÖNDERİ</Text>
 
-                        {!item.reposted && (
-                          <Text
-                            style={
-                              styles.feedDate
-                            }
-                          >
-                            {formatDate(
-                              post.createdAt
-                            )}
-                          </Text>
-                        )}
+                        <View style={styles.postHeaderActions}>
+                          {!item.reposted ? (
+                            <Text style={styles.feedDate}>
+                              {formatDate(post.createdAt)}
+                            </Text>
+                          ) : null}
+                          {isOwnProfile && !item.reposted ? (
+                            <Pressable
+                              onPress={() => openProfilePostMenu(post)}
+                              style={styles.postMoreButton}
+                              accessibilityLabel="Gönderi seçenekleri"
+                            >
+                              <Text style={styles.postMoreText}>•••</Text>
+                            </Pressable>
+                          ) : null}
+                        </View>
                       </View>
 
                       <Text
@@ -2441,15 +2449,6 @@ export default function ProfileScreen() {
                         <Text style={styles.feedDate}>
                           {formatDate(item.reposted ? item.createdAt : post.createdAt)}
                         </Text>
-                        {isOwnProfile && !item.reposted ? (
-                          <Pressable
-                            onPress={() => deleteOwnPost(post)}
-                            style={styles.deletePostButton}
-                            accessibilityLabel="Gönderiyi sil"
-                          >
-                            <Feather name="trash-2" size={17} color="#FF6B7A" />
-                          </Pressable>
-                        ) : null}
                       </View>
                       <ProfileCardActions
                         type="post"
@@ -3228,13 +3227,24 @@ const baseStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  deletePostButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  postHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  postMoreButton: {
+    minWidth: 34,
+    minHeight: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,107,122,0.08)',
+    paddingHorizontal: 4,
+  },
+  postMoreText: {
+    color: '#8E8E98',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 1,
+    lineHeight: 20,
   },
 
   /*
