@@ -26,6 +26,13 @@ type Book = BookCoverData & {
   status?: BookStatus;
 };
 
+type BookNote = {
+  id: string;
+  content: string;
+  page_number: number | null;
+  created_at: string;
+};
+
 async function saveBookStatusToSupabase(
   bookKey: string,
   bookTitle: string,
@@ -72,6 +79,13 @@ export default function BookScreen() {
   const [quoteText, setQuoteText] = useState('');
   const [savingQuote, setSavingQuote] = useState(false);
   const [quoteSaved, setQuoteSaved] = useState(false);
+
+  const [showNoteBox, setShowNoteBox] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [notePageInput, setNotePageInput] = useState('');
+  const [notes, setNotes] = useState<BookNote[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -191,6 +205,15 @@ export default function BookScreen() {
     };
   }, [added, author, editionKey, isbn, key, routeCover, routeCoverId, routeCoverUrl, routeDescription, status, title]);
 
+  useEffect(() => {
+    if (!key) {
+      setNotes([]);
+      return;
+    }
+
+    void loadBookNotes(key);
+  }, [key]);
+
   async function addToShelf() {
     if (!book || !key) return;
 
@@ -269,6 +292,120 @@ export default function BookScreen() {
       console.error('Alıntı kaydedilemedi:', error);
     } finally {
       setSavingQuote(false);
+    }
+  }
+
+  async function loadBookNotes(bookKey: string) {
+    try {
+      setNotesLoading(true);
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError && authError.name !== 'AuthSessionMissingError') {
+        throw authError;
+      }
+
+      if (!user) {
+        setNotes([]);
+        return;
+      }
+
+      const { data, error } = await (supabase as any)
+        .from('book_notes')
+        .select('id, content, page_number, created_at')
+        .eq('user_id', user.id)
+        .eq('book_key', bookKey)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setNotes((data ?? []) as BookNote[]);
+    } catch (error) {
+      console.error('Kitap notları yüklenemedi:', error);
+    } finally {
+      setNotesLoading(false);
+    }
+  }
+
+  async function saveNote() {
+    const cleanNote = noteText.trim();
+    if (!cleanNote || !book || !key || savingNote) return;
+
+    const cleanPage = notePageInput.trim();
+    let pageNumber: number | null = null;
+
+    if (cleanPage) {
+      if (!/^\d+$/.test(cleanPage) || Number(cleanPage) <= 0) {
+        Alert.alert('Geçersiz sayfa', 'Sayfa numarası pozitif bir tam sayı olmalı.');
+        return;
+      }
+      pageNumber = Number(cleanPage);
+    }
+
+    try {
+      setSavingNote(true);
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) throw authError;
+      if (!user) {
+        Alert.alert('Giriş gerekli', 'Kitaba özel not eklemek için giriş yapmalısın.');
+        return;
+      }
+
+      const { data, error } = await (supabase as any)
+        .from('book_notes')
+        .insert({
+          user_id: user.id,
+          book_key: key,
+          book_title: book.title ?? 'Bilinmeyen kitap',
+          content: cleanNote,
+          page_number: pageNumber,
+        })
+        .select('id, content, page_number, created_at')
+        .single();
+
+      if (error) throw error;
+
+      setNotes((current) => [data as BookNote, ...current]);
+      setNoteText('');
+      setNotePageInput('');
+      setShowNoteBox(false);
+      Alert.alert('Not kaydedildi', 'Bu not yalnızca senin hesabında görünür.');
+    } catch (error) {
+      console.error('Kitap notu kaydedilemedi:', error);
+      Alert.alert('Not kaydedilemedi', 'Lütfen tekrar dene.');
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  async function deleteNote(noteId: string) {
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) throw authError;
+      if (!user) return;
+
+      const { error } = await (supabase as any)
+        .from('book_notes')
+        .delete()
+        .eq('id', noteId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setNotes((current) => current.filter((note) => note.id !== noteId));
+    } catch (error) {
+      console.error('Kitap notu silinemedi:', error);
+      Alert.alert('Not silinemedi', 'Lütfen tekrar dene.');
     }
   }
 
@@ -449,7 +586,134 @@ export default function BookScreen() {
               </View>
               <Feather name="chevron-right" size={20} color="#707784" />
             </Pressable>
+
+            <Pressable onPress={() => setShowNoteBox((value) => !value)} style={styles.actionCard}>
+              <View style={styles.actionIcon}>
+                <Feather name="file-text" size={20} color="#C8B6FF" />
+              </View>
+              <View style={styles.actionCopy}>
+                <Text style={styles.actionTitle}>Not Ekle</Text>
+                <Text style={styles.actionSubtitle}>Sadece sana özel kitap notu kaydet</Text>
+              </View>
+              <Feather name={showNoteBox ? 'chevron-up' : 'chevron-right'} size={20} color="#707784" />
+            </Pressable>
           </View>
+
+          {showNoteBox ? (
+            <View style={styles.noteBox}>
+              <View style={styles.noteHeader}>
+                <View style={styles.noteHeaderCopy}>
+                  <Text style={styles.noteTitle}>Yeni Not</Text>
+                  <Text style={styles.noteSubtitle}>Bu not gizlidir; yalnızca sen görebilirsin.</Text>
+                </View>
+                <Text style={styles.characterCount}>{noteText.length}/5000</Text>
+              </View>
+
+              <TextInput
+                value={noteText}
+                onChangeText={setNoteText}
+                placeholder="Kitapla ilgili notunu yaz..."
+                placeholderTextColor="#676E7A"
+                multiline
+                maxLength={5000}
+                textAlignVertical="top"
+                style={styles.noteInput}
+              />
+
+              <View style={styles.notePageRow}>
+                <View style={styles.notePageInputWrap}>
+                  <Feather name="bookmark" size={14} color="#8574B8" />
+                  <TextInput
+                    value={notePageInput}
+                    onChangeText={setNotePageInput}
+                    placeholder="Sayfa (isteğe bağlı)"
+                    placeholderTextColor="#676E7A"
+                    keyboardType="number-pad"
+                    style={styles.notePageInput}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.quoteActions}>
+                <Pressable
+                  onPress={() => {
+                    setShowNoteBox(false);
+                    setNoteText('');
+                    setNotePageInput('');
+                  }}
+                  style={styles.cancelQuoteButton}
+                >
+                  <Text style={styles.cancelQuoteText}>Vazgeç</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => void saveNote()}
+                  disabled={savingNote || !noteText.trim()}
+                  style={[styles.saveQuoteButton, (savingNote || !noteText.trim()) && styles.disabledButton]}
+                >
+                  {savingNote ? (
+                    <ActivityIndicator size="small" color="#0B0C0F" />
+                  ) : (
+                    <Feather name="check" size={16} color="#0B0C0F" />
+                  )}
+                  <Text style={styles.saveQuoteText}>{savingNote ? 'Kaydediliyor...' : 'Notu Kaydet'}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
+          {notesLoading || notes.length > 0 ? (
+            <View style={styles.notesSection}>
+              <View style={styles.notesSectionHeader}>
+                <View>
+                  <Text style={styles.notesSectionTitle}>Notlarım</Text>
+                  <Text style={styles.notesSectionSubtitle}>Bu kitaba kaydettiğin özel notlar</Text>
+                </View>
+                <View style={styles.notesCountBadge}>
+                  <Text style={styles.notesCountText}>{notes.length}</Text>
+                </View>
+              </View>
+
+              {notesLoading ? (
+                <View style={styles.notesLoading}>
+                  <ActivityIndicator size="small" color="#A985FF" />
+                  <Text style={styles.notesLoadingText}>Notların yükleniyor...</Text>
+                </View>
+              ) : (
+                notes.map((note) => (
+                  <View key={note.id} style={styles.noteItem}>
+                    <View style={styles.noteItemTop}>
+                      <View style={styles.noteMetaRow}>
+                        {note.page_number ? (
+                          <View style={styles.notePageBadge}>
+                            <Feather name="bookmark" size={11} color="#BCA8F6" />
+                            <Text style={styles.notePageBadgeText}>s. {note.page_number}</Text>
+                          </View>
+                        ) : null}
+                        <Text style={styles.noteDate}>
+                          {new Date(note.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => Alert.alert(
+                          'Notu sil',
+                          'Bu not kalıcı olarak silinsin mi?',
+                          [
+                            { text: 'Vazgeç', style: 'cancel' },
+                            { text: 'Sil', style: 'destructive', onPress: () => void deleteNote(note.id) },
+                          ]
+                        )}
+                        hitSlop={10}
+                        style={styles.noteDeleteButton}
+                      >
+                        <Feather name="trash-2" size={16} color="#A96C76" />
+                      </Pressable>
+                    </View>
+                    <Text style={styles.noteContent}>{note.content}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+          ) : null}
 
           {showQuoteBox ? (
             <View style={styles.quoteBox}>
@@ -581,6 +845,31 @@ const baseStyles = StyleSheet.create({
   actionCopy: { flex: 1 },
   actionTitle: { color: '#F4F5F7', fontSize: 14, fontWeight: '800' },
   actionSubtitle: { color: '#7F8692', fontSize: 11, lineHeight: 16, marginTop: 4 },
+  noteBox: { marginTop: 12, padding: 15, borderRadius: 21, backgroundColor: '#111318', borderWidth: 1, borderColor: '#302842' },
+  noteHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
+  noteHeaderCopy: { flex: 1 },
+  noteTitle: { color: '#F4F5F7', fontSize: 15, fontWeight: '800' },
+  noteSubtitle: { color: '#7B728B', fontSize: 11, lineHeight: 16, marginTop: 4 },
+  noteInput: { minHeight: 126, maxHeight: 260, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 13, color: '#ECEEF2', fontSize: 14, lineHeight: 21, backgroundColor: '#0B0D11', borderWidth: 1, borderColor: '#29233A' },
+  notePageRow: { marginTop: 10, flexDirection: 'row' },
+  notePageInputWrap: { minHeight: 42, minWidth: 190, borderRadius: 13, backgroundColor: '#0D0F14', borderWidth: 1, borderColor: '#272A32', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  notePageInput: { flex: 1, color: '#E3E4E8', fontSize: 12.5, paddingVertical: 0 },
+  notesSection: { marginTop: 14, padding: 15, borderRadius: 21, backgroundColor: '#111318', borderWidth: 1, borderColor: '#272A32' },
+  notesSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 },
+  notesSectionTitle: { color: '#F4F5F7', fontSize: 15, fontWeight: '800' },
+  notesSectionSubtitle: { color: '#727985', fontSize: 10.5, marginTop: 3 },
+  notesCountBadge: { minWidth: 28, height: 28, borderRadius: 14, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#21182F', borderWidth: 1, borderColor: '#3B2A52' },
+  notesCountText: { color: '#BDA8F8', fontSize: 11, fontWeight: '900' },
+  notesLoading: { minHeight: 70, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9 },
+  notesLoadingText: { color: '#777E89', fontSize: 11 },
+  noteItem: { paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#262931' },
+  noteItemTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  noteMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  notePageBadge: { minHeight: 25, borderRadius: 9, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#21182F', borderWidth: 1, borderColor: '#38284D' },
+  notePageBadgeText: { color: '#BDA8F8', fontSize: 10, fontWeight: '800' },
+  noteDate: { color: '#686F7A', fontSize: 9.5, fontWeight: '600' },
+  noteDeleteButton: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1216', borderWidth: 1, borderColor: '#342027' },
+  noteContent: { color: '#C4C7CE', fontSize: 13, lineHeight: 20, marginTop: 9 },
   quoteBox: { marginTop: 12, padding: 15, borderRadius: 21, backgroundColor: '#111318', borderWidth: 1, borderColor: '#292D35' },
   quoteHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
   quoteTitle: { color: '#F4F5F7', fontSize: 15, fontWeight: '800' },
