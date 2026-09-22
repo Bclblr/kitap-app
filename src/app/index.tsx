@@ -503,7 +503,7 @@ export default function HomeScreen() {
       const buildQuoteQuery = () => {
         let query = supabase
           .from('quotes')
-          .select('id,user_id,book_key,book_title,text,title,topic,page_number,note,card_template_key,created_at')
+          .select('id,user_id,book_key,book_title,text,title,topic,page_number,note,card_template_key,created_at,view_count')
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
           .limit(FEED_PAGE_SIZE);
