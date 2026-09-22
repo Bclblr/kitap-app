@@ -231,17 +231,28 @@ export default function ShelvesScreen() {
   function getStatusText(status?: Book['status']) {
     switch (status) {
       case 'reading':
-        return `📖 ${shelfLabels.reading}`;
-
+        return shelfLabels.reading;
       case 'read':
-        return `✅ ${shelfLabels.read}`;
-
+        return shelfLabels.read;
       case 'abandoned':
-        return '⏸ Yarım Bıraktım';
-
+        return 'Yarım Bıraktım';
       case 'want':
       default:
-        return `📚 ${shelfLabels.want}`;
+        return shelfLabels.want;
+    }
+  }
+
+  function getStatusIcon(status?: Book['status']): keyof typeof Feather.glyphMap {
+    switch (status) {
+      case 'reading':
+        return 'book-open';
+      case 'read':
+        return 'check-circle';
+      case 'abandoned':
+        return 'pause-circle';
+      case 'want':
+      default:
+        return 'bookmark';
     }
   }
 
@@ -284,8 +295,13 @@ export default function ShelvesScreen() {
             onPress={() => router.push('/premium-shelf-customization')}
             style={[styles.premiumShelfButton, { borderColor: shelfAccent }]}
           >
-            <Text style={[styles.premiumShelfButtonText, { color: shelfAccent }]}>✦ Raf görünümünü kişiselleştir</Text>
-            <Text style={[styles.premiumShelfButtonArrow, { color: shelfAccent }]}>›</Text>
+            <View style={styles.premiumShelfButtonCopy}>
+              <View style={[styles.premiumShelfButtonIcon, { borderColor: shelfAccent }]}>
+                <Feather name="sliders" size={16} color={shelfAccent} />
+              </View>
+              <Text style={[styles.premiumShelfButtonText, { color: shelfAccent }]}>Raf görünümünü kişiselleştir</Text>
+            </View>
+            <Feather name="chevron-right" size={19} color={shelfAccent} />
           </Pressable>
         ) : null}
 
@@ -322,15 +338,12 @@ export default function ShelvesScreen() {
               filter === 'reading' && { borderColor: shelfAccent },
             ]}
           >
-            <Text
-              style={[
-                styles.filterText,
-                filter === 'reading' &&
-                  styles.activeFilterText,
-              ]}
-            >
-              📖 {shelfLabels.reading}{activeCustomization?.show_counts ? ` (${shelfCounts.reading})` : ''}
-            </Text>
+            <View style={styles.filterContent}>
+              <Feather name="book-open" size={14} color={filter === 'reading' ? '#D9CCFF' : '#A0A0AA'} />
+              <Text style={[styles.filterText, filter === 'reading' && styles.activeFilterText]}>
+                {shelfLabels.reading}{activeCustomization?.show_counts ? ` (${shelfCounts.reading})` : ''}
+              </Text>
+            </View>
           </Pressable>
 
           <Pressable
@@ -342,15 +355,12 @@ export default function ShelvesScreen() {
               filter === 'read' && { borderColor: shelfAccent },
             ]}
           >
-            <Text
-              style={[
-                styles.filterText,
-                filter === 'read' &&
-                  styles.activeFilterText,
-              ]}
-            >
-              ✅ {shelfLabels.read}{activeCustomization?.show_counts ? ` (${shelfCounts.read})` : ''}
-            </Text>
+            <View style={styles.filterContent}>
+              <Feather name="check-circle" size={14} color={filter === 'read' ? '#D9CCFF' : '#A0A0AA'} />
+              <Text style={[styles.filterText, filter === 'read' && styles.activeFilterText]}>
+                {shelfLabels.read}{activeCustomization?.show_counts ? ` (${shelfCounts.read})` : ''}
+              </Text>
+            </View>
           </Pressable>
 
           <Pressable
@@ -362,15 +372,12 @@ export default function ShelvesScreen() {
               filter === 'want' && { borderColor: shelfAccent },
             ]}
           >
-            <Text
-              style={[
-                styles.filterText,
-                filter === 'want' &&
-                  styles.activeFilterText,
-              ]}
-            >
-              📚 {shelfLabels.want}{activeCustomization?.show_counts ? ` (${shelfCounts.want})` : ''}
-            </Text>
+            <View style={styles.filterContent}>
+              <Feather name="bookmark" size={14} color={filter === 'want' ? '#D9CCFF' : '#A0A0AA'} />
+              <Text style={[styles.filterText, filter === 'want' && styles.activeFilterText]}>
+                {shelfLabels.want}{activeCustomization?.show_counts ? ` (${shelfCounts.want})` : ''}
+              </Text>
+            </View>
           </Pressable>
 
           <Pressable
@@ -381,14 +388,12 @@ export default function ShelvesScreen() {
               filter === 'abandoned' && { borderColor: shelfAccent },
             ]}
           >
-            <Text
-              style={[
-                styles.filterText,
-                filter === 'abandoned' && styles.activeFilterText,
-              ]}
-            >
-              ⏸ Yarım Bıraktım{activeCustomization?.show_counts ? ` (${shelfCounts.abandoned})` : ''}
-            </Text>
+            <View style={styles.filterContent}>
+              <Feather name="pause-circle" size={14} color={filter === 'abandoned' ? '#D9CCFF' : '#A0A0AA'} />
+              <Text style={[styles.filterText, filter === 'abandoned' && styles.activeFilterText]}>
+                Yarım Bıraktım{activeCustomization?.show_counts ? ` (${shelfCounts.abandoned})` : ''}
+              </Text>
+            </View>
           </Pressable>
         </ScrollView>
 
@@ -406,9 +411,9 @@ export default function ShelvesScreen() {
           </Text>
         ) : loadError && books.length === 0 ? null : books.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>
-              📚
-            </Text>
+            <View style={styles.emptyIcon}>
+              <Feather name="book" size={28} color="#A985FF" />
+            </View>
 
             <Text style={styles.emptyTitle}>
               Rafın henüz boş
@@ -425,16 +430,17 @@ export default function ShelvesScreen() {
               }
               style={styles.exploreButton}
             >
+              <Feather name="search" size={17} color="#FFFFFF" />
               <Text style={styles.exploreButtonText}>
-                🔎 Kitap Keşfet
+                Kitap Keşfet
               </Text>
             </Pressable>
           </View>
         ) : filteredBooks.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>
-              📖
-            </Text>
+            <View style={styles.emptyIcon}>
+              <Feather name="book-open" size={28} color="#A985FF" />
+            </View>
 
             <Text style={styles.emptyTitle}>
               Bu rafta kitap yok
@@ -505,9 +511,12 @@ export default function ShelvesScreen() {
                         {getAuthorName(book)}
                       </Text>
 
-                      <Text style={styles.status}>
-                        {getStatusText(book.status)}
-                      </Text>
+                      <View style={styles.statusBadge}>
+                        <Feather name={getStatusIcon(book.status)} size={12} color="#CDB7F8" />
+                        <Text style={styles.status}>
+                          {getStatusText(book.status)}
+                        </Text>
+                      </View>
 
                       {book.first_publish_year && (
                         <Text style={styles.year}>
@@ -590,8 +599,9 @@ export default function ShelvesScreen() {
                         styles.deleteButtonPressed,
                     ]}
                   >
+                    <Feather name="trash-2" size={15} color="#D98792" />
                     <Text style={styles.deleteText}>
-                      🗑️ Kitabı Rafımdan Sil
+                      Kitabı Rafımdan Sil
                     </Text>
                   </Pressable>
                 </View>
@@ -661,6 +671,12 @@ const baseStyles = StyleSheet.create({
     borderColor: '#8B5CF6',
   },
 
+  filterContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+
   filterText: {
     fontSize: 13,
     fontWeight: '600',
@@ -715,8 +731,15 @@ const baseStyles = StyleSheet.create({
   },
 
   emptyIcon: {
-    fontSize: 44,
+    width: 54,
+    height: 54,
+    borderRadius: 17,
     marginBottom: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#21182F',
+    borderWidth: 1,
+    borderColor: '#3A2B50',
   },
 
   emptyTitle: {
@@ -738,6 +761,10 @@ const baseStyles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 14,
     borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
 
   exploreButtonText: {
@@ -804,9 +831,21 @@ const baseStyles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  status: {
+  statusBadge: {
     marginTop: 10,
     alignSelf: 'flex-start',
+    minHeight: 28,
+    borderRadius: 10,
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#21182F',
+    borderWidth: 1,
+    borderColor: '#38284D',
+  },
+
+  status: {
     color: '#CDB7F8',
     fontSize: 12,
     fontWeight: '700',
@@ -889,8 +928,10 @@ const baseStyles = StyleSheet.create({
     backgroundColor: '#1C171A',
     borderWidth: 1,
     borderColor: '#4A292F',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
   },
 
   deleteButtonPressed: {
@@ -915,15 +956,26 @@ const baseStyles = StyleSheet.create({
     backgroundColor: '#15161D',
   },
 
+  premiumShelfButtonCopy: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  premiumShelfButtonIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#21182F',
+    borderWidth: 1,
+  },
+
   premiumShelfButtonText: {
     fontSize: 13,
     fontWeight: '800',
-  },
-
-  premiumShelfButtonArrow: {
-    fontSize: 25,
-    lineHeight: 26,
-    fontWeight: '700',
   },
 
   compactBookCard: {
