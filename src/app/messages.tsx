@@ -1,7 +1,7 @@
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -45,10 +45,11 @@ export default function MessagesScreen() {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setLoadError(null);
 
       const {
@@ -115,7 +116,7 @@ export default function MessagesScreen() {
       console.error('Konuşmalar yüklenirken hata:', error);
       setLoadError('Mesajlar şu anda yenilenemedi. Mevcut konuşmaların korunuyor.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -124,6 +125,56 @@ export default function MessagesScreen() {
       void loadConversations();
     }, [loadConversations])
   );
+
+  useEffect(() => {
+    let active = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const scheduleRefresh = () => {
+      if (!active) return;
+      if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
+      realtimeRefreshTimer.current = setTimeout(() => {
+        void loadConversations(true);
+      }, 120);
+    };
+
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!active || !user) return;
+
+      channel = supabase
+        .channel(`messages-inbox-${user.id}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          scheduleRefresh
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'messages' },
+          scheduleRefresh
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'conversations' },
+          scheduleRefresh
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'conversations' },
+          scheduleRefresh
+        )
+        .subscribe();
+    });
+
+    return () => {
+      active = false;
+      if (realtimeRefreshTimer.current) {
+        clearTimeout(realtimeRefreshTimer.current);
+        realtimeRefreshTimer.current = null;
+      }
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [loadConversations]);
 
   const normalizedQuery = query.trim().toLocaleLowerCase('tr-TR');
   const matchingConversations = useMemo(
