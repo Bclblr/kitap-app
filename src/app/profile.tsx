@@ -201,7 +201,7 @@ function ProfileCardActions({
       if (error) return Alert.alert('Hata', error.message);
       setSaved(false);
     } else {
-      const { error } = await supabase.from('saved_posts').insert({ post_id: id, user_id: user.id });
+      const { error } = await supabase.from('saved_posts').insert({ post_id: id, user_id: user.id, username: user.user_metadata?.username || user.email?.split('@')[0] || 'Kitap Okuru' });
       if (error) return Alert.alert('Hata', error.message);
       setSaved(true);
     }
