@@ -106,7 +106,7 @@ export default function ShelvesScreen() {
       const { data, error } = await request;
       if (error) throw error;
 
-      const serverBooks = ((data ?? []) as UserBookStatusRow[]).map((row) => ({
+      const serverBooks: Book[] = ((data ?? []) as UserBookStatusRow[]).map((row) => ({
         key: row.book_key,
         title: row.book_title ?? 'Bilinmeyen kitap',
         status: row.status,
