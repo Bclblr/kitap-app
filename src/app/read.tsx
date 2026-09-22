@@ -814,6 +814,7 @@ export default function ReadScreen() {
             <ShelfButton accent="#9B72F2" label="Okuyorum" symbol="◉" onPress={() => router.push('/shelves')} />
             <ShelfButton accent="#65C79A" label="Okudum" symbol="✓" onPress={() => router.push('/shelves')} />
             <ShelfButton accent="#F29A45" label="Okumak İstiyorum" symbol="+" onPress={() => router.push('/shelves')} />
+            <ShelfButton accent="#D98792" label="Yarım Bıraktım" symbol="Ⅱ" onPress={() => router.push('/shelves')} />
           </View>
         </View>
       </ScrollView>
