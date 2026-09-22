@@ -20,6 +20,8 @@ const BENEFITS = [
   ['bar-chart-2', 'Gelişmiş okuma istatistikleri', 'Okuma alışkanlıklarını daha ayrıntılı raporlarla incele.'],
   ['calendar', 'Aylık ve yıllık raporlar', 'Okuma geçmişini dönemsel özetlerle takip et.'],
   ['target', 'Gelişmiş hedefler', 'Daha ayrıntılı ve kişiselleştirilebilir okuma hedefleri oluştur.'],
+  ['compass', 'Akıllı okuma planı', 'Kalan sayfana göre günlük hedefini ve bitirme tarihini otomatik planla.'],
+  ['gift', 'Reading Wrapped', 'Yıllık okuma hikâyeni özetle ve paylaşılabilir hale getir.'],
   ['user', 'Profil kişiselleştirme', 'Premium tema ve profil seçeneklerine eriş.'],
   ['book-open', 'Gelişmiş raflar', 'Raflarını daha ayrıntılı biçimde düzenle ve kişiselleştir.'],
   ['image', 'Alıntı ve paylaşım kartları', 'Paylaşımlar için ek Premium kart şablonlarını kullan.'],
@@ -234,7 +236,7 @@ export default function PremiumScreen() {
     }
   }
 
-  function openPremiumFeature(path: '/premium-reading-stats' | '/premium-year-report' | '/premium-reading-goals' | '/premium-profile-customization' | '/premium-shelf-customization' | '/premium-quote-cards', message: string) {
+  function openPremiumFeature(path: '/premium-reading-stats' | '/premium-year-report' | '/premium-reading-goals' | '/premium-reading-plan' | '/premium-reading-wrapped' | '/premium-profile-customization' | '/premium-shelf-customization' | '/premium-quote-cards', message: string) {
     if (!premium.isPremium) {
       Alert.alert('Premium özelliği', message);
       return;
@@ -359,6 +361,42 @@ export default function PremiumScreen() {
             <Text style={[styles.featureActionTitle, { color: colors.text }]}>Gelişmiş Okuma Hedefleri</Text>
             <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}> 
               {premium.isPremium ? 'Haftalık, aylık, yıllık ve seri hedeflerini yönet.' : 'Premium ile uzun dönemli okuma hedeflerini aç.'}
+            </Text>
+          </View>
+          <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Akıllı okuma planını aç"
+          onPress={() => openPremiumFeature('/premium-reading-plan', 'Akıllı okuma planı aktif Premium üyelikle kullanılabilir.')}
+          style={[styles.featureAction, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+        >
+          <View style={[styles.featureActionIcon, { backgroundColor: colors.primarySoft }]}>
+            <Feather name="compass" size={21} color={colors.primary} />
+          </View>
+          <View style={styles.featureActionText}>
+            <Text style={[styles.featureActionTitle, { color: colors.text }]}>Akıllı Okuma Planı</Text>
+            <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}>
+              {premium.isPremium ? 'Aktif kitabın için günlük sayfa hedefini otomatik hesapla.' : 'Premium ile kişisel bitirme planını oluştur.'}
+            </Text>
+          </View>
+          <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Reading Wrapped ekranını aç"
+          onPress={() => openPremiumFeature('/premium-reading-wrapped', 'Reading Wrapped aktif Premium üyelikle kullanılabilir.')}
+          style={[styles.featureAction, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+        >
+          <View style={[styles.featureActionIcon, { backgroundColor: colors.primarySoft }]}>
+            <Feather name="gift" size={21} color={colors.primary} />
+          </View>
+          <View style={styles.featureActionText}>
+            <Text style={[styles.featureActionTitle, { color: colors.text }]}>Reading Wrapped</Text>
+            <Text style={[styles.featureActionBody, { color: colors.textSecondary }]}>
+              {premium.isPremium ? 'Yıllık okuma hikâyeni özetle ve paylaş.' : 'Premium ile paylaşılabilir yıllık okuma özetini aç.'}
             </Text>
           </View>
           <Feather name={premium.isPremium ? 'chevron-right' : 'lock'} size={19} color={colors.primary} />
