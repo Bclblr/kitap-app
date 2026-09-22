@@ -241,7 +241,7 @@ export default function PremiumScreen() {
       Alert.alert('Premium özelliği', message);
       return;
     }
-    router.push(path);
+    router.push(path as any);
   }
 
   const paidLabel = premium.hasPaidPremium && premium.hasAdminPremium
