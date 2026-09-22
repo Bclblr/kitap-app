@@ -94,6 +94,8 @@ export default function BookScreen() {
     async function getBook() {
       const bookKey = key;
       const url = openLibraryUrl(bookKey);
+      let shelfStatus: BookStatus | null = null;
+
       setAdded(false);
       setStatus('want');
 
@@ -132,11 +134,10 @@ export default function BookScreen() {
               .maybeSingle();
 
             if (shelfError) throw shelfError;
-
             if (!active) return;
 
             if (shelfRow) {
-              const shelfStatus = shelfRow.status as BookStatus;
+              shelfStatus = shelfRow.status as BookStatus;
               setAdded(true);
               setStatus(shelfStatus);
               availableBook = {
@@ -180,7 +181,7 @@ export default function BookScreen() {
             ...current,
             ...data,
             key: bookKey,
-            status: added ? status : undefined,
+            status: shelfStatus ?? current?.status,
           }));
         }
       } catch (error) {
@@ -203,7 +204,7 @@ export default function BookScreen() {
       active = false;
       controller.abort();
     };
-  }, [added, author, editionKey, isbn, key, routeCover, routeCoverId, routeCoverUrl, routeDescription, status, title]);
+  }, [author, editionKey, isbn, key, routeCover, routeCoverId, routeCoverUrl, routeDescription, title]);
 
   useEffect(() => {
     if (!key) {
