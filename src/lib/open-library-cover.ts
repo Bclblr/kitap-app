@@ -70,8 +70,10 @@ export async function loadBookCover(bookKey: string, fallback: string | null): P
     try {
       response = await fetch(url);
     } catch (error) {
-      if (!(error instanceof TypeError)) throw error;
-      console.warn('Kitap kapağı isteği tamamlanamadı:', url, error);
+      // React Native / Expo native fetch failures (including TLS failures) are not
+      // guaranteed to be TypeError instances. A missing remote cover must never
+      // crash or surface as a feed error; callers can render their fallback.
+      console.warn('Kitap kapağı isteği tamamlanamadı:', url);
       return null;
     }
 
@@ -84,8 +86,7 @@ export async function loadBookCover(bookKey: string, fallback: string | null): P
     try {
       data = await response.json();
     } catch (error) {
-      if (!(error instanceof SyntaxError || error instanceof TypeError)) throw error;
-      console.warn('Kitap kapağı yanıtı okunamadı:', url, error);
+      console.warn('Kitap kapağı yanıtı okunamadı:', url);
       return null;
     }
 
