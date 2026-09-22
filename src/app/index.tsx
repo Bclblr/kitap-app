@@ -280,9 +280,12 @@ export default function HomeScreen() {
 
   const [commentingPostId, setCommentingPostId] =
     useState<string | null>(null);
+  const [commentingQuoteId, setCommentingQuoteId] =
+    useState<string | null>(null);
 
   const [commentText, setCommentText] = useState('');
   const [postCommentText, setPostCommentText] = useState('');
+  const [quoteCommentText, setQuoteCommentText] = useState('');
   const [reportTarget, setReportTarget] = useState<Post | null>(null);
   const [reportCategory, setReportCategory] = useState<string>('');
   const [reportDescription, setReportDescription] = useState('');
@@ -536,6 +539,7 @@ export default function HomeScreen() {
 
       const postIds = visiblePostRows.map((post: any) => post.id);
       const reviewIds = visibleReviewRows.map((review: any) => review.id);
+      const quoteIds = visibleQuoteRows.map((quote: any) => quote.id);
 
       const [
         postLikesResult,
@@ -545,6 +549,9 @@ export default function HomeScreen() {
         reviewLikesResult,
         reviewRepostsResult,
         reviewCommentsResult,
+        quoteLikesResult,
+        quoteRepostsResult,
+        quoteCommentsResult,
       ] = await Promise.all([
         postIds.length
           ? supabase.from('post_likes').select('post_id, user_id').in('post_id', postIds)
@@ -567,9 +574,18 @@ export default function HomeScreen() {
         reviewIds.length
           ? supabase.from('comments').select('id, text, created_at, user_id, review_id').in('review_id', reviewIds).order('created_at', { ascending: true })
           : Promise.resolve({ data: [], error: null } as any),
+        quoteIds.length
+          ? (supabase as any).from('quote_likes').select('quote_id, user_id').in('quote_id', quoteIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        quoteIds.length
+          ? (supabase as any).from('quote_reposts').select('quote_id, user_id').in('quote_id', quoteIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        quoteIds.length
+          ? (supabase as any).from('quote_comments').select('id, text, created_at, user_id, quote_id').in('quote_id', quoteIds).order('created_at', { ascending: true })
+          : Promise.resolve({ data: [], error: null } as any),
       ]);
 
-      for (const result of [postLikesResult, postRepostsResult, postCommentsResult, savedResult, reviewLikesResult, reviewRepostsResult, reviewCommentsResult]) {
+      for (const result of [postLikesResult, postRepostsResult, postCommentsResult, savedResult, reviewLikesResult, reviewRepostsResult, reviewCommentsResult, quoteLikesResult, quoteRepostsResult, quoteCommentsResult]) {
         if (result.error) console.error('Feed ilişki verisi alınamadı:', result.error);
       }
 
@@ -580,6 +596,7 @@ export default function HomeScreen() {
         ...visibleQuoteRows.map((quote: any) => quote.user_id),
         ...(postCommentsResult.data ?? []).map((comment: any) => comment.user_id),
         ...(reviewCommentsResult.data ?? []).map((comment: any) => comment.user_id),
+        ...(quoteCommentsResult.data ?? []).map((comment: any) => comment.user_id),
       ].filter((id): id is string => typeof id === 'string' && id.length > 0);
 
       const profileResult = await loadFeedProfiles(feedUserIds);
@@ -611,6 +628,9 @@ export default function HomeScreen() {
       const reviewReposts = groupBy(reviewRepostsResult.data ?? [], 'review_id');
       const reviewComments = groupBy(reviewCommentsResult.data ?? [], 'review_id');
       const savedPostIds = new Set<string>((savedResult.data ?? []).map((item: any) => item.post_id));
+      const quoteLikes = groupBy(quoteLikesResult.data ?? [], 'quote_id');
+      const quoteReposts = groupBy(quoteRepostsResult.data ?? [], 'quote_id');
+      const quoteComments = groupBy(quoteCommentsResult.data ?? [], 'quote_id');
 
       const preparedPosts: Post[] = visiblePostRows.map((post: any) => {
         const author = post.user_id ? profilesByUserId.get(post.user_id) : null;
@@ -730,26 +750,47 @@ export default function HomeScreen() {
         isReview: true,
       }));
 
-      const quotePosts: Post[] = visibleQuoteRows.map((quote: any) => ({
-        id: `quote-${quote.id}`,
-        user_id: quote.user_id,
-        username: profilesByUserId.get(quote.user_id)?.username || CURRENT_USERNAME,
-        full_name: profilesByUserId.get(quote.user_id)?.full_name,
-        profile_image: profilesByUserId.get(quote.user_id)?.profile_image,
-        text: quote.text,
-        image_url: null,
-        book_key: quote.book_key,
-        book_title: quote.book_title,
-        rating: 0,
-        created_at: quote.created_at,
-        quoteTitle: quote.title ?? null,
-        quoteTopic: quote.topic ?? null,
-        quotePageNumber: Number.isInteger(quote.page_number) ? quote.page_number : null,
-        quoteNote: quote.note ?? null,
-        card_template_key: normalizeQuoteCardTemplate(quote.card_template_key),
-        view_count: Number(quote.view_count) || 0,
-        isQuote: true,
-      }));
+      const quotePosts: Post[] = visibleQuoteRows.map((quote: any) => {
+        const likes = quoteLikes.get(quote.id) ?? [];
+        const reposts = quoteReposts.get(quote.id) ?? [];
+        const comments = (quoteComments.get(quote.id) ?? []).filter(
+          (comment: any) => !comment.user_id || !blockedUserIds.has(comment.user_id)
+        );
+
+        return {
+          id: `quote-${quote.id}`,
+          user_id: quote.user_id,
+          username: profilesByUserId.get(quote.user_id)?.username || CURRENT_USERNAME,
+          full_name: profilesByUserId.get(quote.user_id)?.full_name,
+          profile_image: profilesByUserId.get(quote.user_id)?.profile_image,
+          text: quote.text,
+          image_url: null,
+          book_key: quote.book_key,
+          book_title: quote.book_title,
+          rating: 0,
+          created_at: quote.created_at,
+          quoteTitle: quote.title ?? null,
+          quoteTopic: quote.topic ?? null,
+          quotePageNumber: Number.isInteger(quote.page_number) ? quote.page_number : null,
+          quoteNote: quote.note ?? null,
+          card_template_key: normalizeQuoteCardTemplate(quote.card_template_key),
+          likes: likes.length,
+          liked: !!userId && likes.some((item: any) => item.user_id === userId),
+          reposts: reposts.length,
+          reposted: !!userId && reposts.some((item: any) => item.user_id === userId),
+          comments: comments.map((comment: any) => ({
+            id: comment.id,
+            user_id: comment.user_id,
+            username: profilesByUserId.get(comment.user_id)?.username || CURRENT_USERNAME,
+            full_name: profilesByUserId.get(comment.user_id)?.full_name ?? null,
+            profile_image: profilesByUserId.get(comment.user_id)?.profile_image ?? null,
+            text: comment.text,
+            createdAt: comment.created_at,
+          })),
+          view_count: Number(quote.view_count) || 0,
+          isQuote: true,
+        };
+      });
 
       const pageItems = [...preparedPosts, ...reviewPosts, ...quotePosts]
         .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
@@ -1240,6 +1281,117 @@ export default function HomeScreen() {
     ]);
   }
 
+  function quoteRawId(postId: string) {
+    return postId.replace(/^quote-/, '');
+  }
+
+  function openQuoteCommentBox(postId: string) {
+    setCommentingReviewId(null);
+    setCommentingPostId(null);
+    setCommentingQuoteId(postId);
+    setQuoteCommentText('');
+  }
+
+  async function toggleQuoteLike(post: Post) {
+    const user = await getCurrentUser();
+    if (!user) {
+      Alert.alert('Giriş gerekli', 'Beğenmek için önce giriş yapmalısın.');
+      return;
+    }
+    const quoteId = quoteRawId(post.id);
+    try {
+      if (post.liked) {
+        const { error } = await (supabase as any).from('quote_likes').delete().eq('quote_id', quoteId).eq('user_id', user.id);
+        if (error) throw error;
+        setPosts((current) => current.map((item) => item.id === post.id ? { ...item, liked: false, likes: Math.max(0, (item.likes ?? 0) - 1) } : item));
+      } else {
+        const { error } = await (supabase as any).from('quote_likes').insert({ quote_id: quoteId, user_id: user.id });
+        if (error) throw error;
+        setPosts((current) => current.map((item) => item.id === post.id ? { ...item, liked: true, likes: (item.likes ?? 0) + 1 } : item));
+      }
+    } catch (error) {
+      console.error('Alıntı beğeni hatası:', error);
+      Alert.alert('Hata', 'Beğeni işlemi tamamlanamadı.');
+    }
+  }
+
+  async function toggleQuoteRepost(post: Post) {
+    const user = await getCurrentUser();
+    if (!user) {
+      Alert.alert('Giriş gerekli', 'Yeniden paylaşmak için önce giriş yapmalısın.');
+      return;
+    }
+    const quoteId = quoteRawId(post.id);
+    try {
+      if (post.reposted) {
+        const { error } = await (supabase as any).from('quote_reposts').delete().eq('quote_id', quoteId).eq('user_id', user.id);
+        if (error) throw error;
+        setPosts((current) => current.map((item) => item.id === post.id ? { ...item, reposted: false, reposts: Math.max(0, (item.reposts ?? 0) - 1) } : item));
+      } else {
+        const { error } = await (supabase as any).from('quote_reposts').insert({ quote_id: quoteId, user_id: user.id });
+        if (error) throw error;
+        setPosts((current) => current.map((item) => item.id === post.id ? { ...item, reposted: true, reposts: (item.reposts ?? 0) + 1 } : item));
+      }
+    } catch (error) {
+      console.error('Alıntı repost hatası:', error);
+      Alert.alert('Hata', 'Yeniden paylaşım işlemi tamamlanamadı.');
+    }
+  }
+
+  async function submitQuoteComment(postId: string) {
+    const cleanText = quoteCommentText.trim();
+    if (!cleanText) return;
+    const user = await getCurrentUser();
+    if (!user) {
+      Alert.alert('Giriş gerekli', 'Yorum yapmak için önce giriş yapmalısın.');
+      return;
+    }
+    const quoteId = quoteRawId(postId);
+    try {
+      const [commentResult, profileResult] = await Promise.all([
+        (supabase as any).from('quote_comments').insert({ quote_id: quoteId, user_id: user.id, text: cleanText }).select().single(),
+        supabase.from('profiles').select('username, full_name, profile_image').eq('id', user.id).maybeSingle(),
+      ]);
+      if (commentResult.error || !commentResult.data) throw commentResult.error ?? new Error('Yorum kaydedilemedi.');
+      const data = commentResult.data;
+      const newComment: Comment = {
+        id: data.id,
+        user_id: user.id,
+        username: profileResult.data?.username || CURRENT_USERNAME,
+        full_name: profileResult.data?.full_name ?? null,
+        profile_image: profileResult.data?.profile_image ?? null,
+        text: data.text,
+        createdAt: data.created_at,
+      };
+      setCurrentUserId(user.id);
+      setPosts((current) => current.map((item) => item.id === postId ? { ...item, comments: [...(item.comments ?? []), newComment] } : item));
+      setQuoteCommentText('');
+    } catch (error) {
+      console.error('Alıntı yorum hatası:', error);
+      Alert.alert('Hata', 'Yorum gönderilemedi.');
+    }
+  }
+
+  async function deleteQuoteComment(postId: string, commentId: string) {
+    const user = await getCurrentUser();
+    if (!user) return;
+    Alert.alert('Yorumu sil', 'Bu yorum silinsin mi?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sil',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await (supabase as any).from('quote_comments').delete().eq('id', commentId).eq('user_id', user.id);
+          if (error) {
+            Alert.alert('Hata', error.message);
+            return;
+          }
+          setPosts((current) => current.map((item) => item.id === postId ? { ...item, comments: (item.comments ?? []).filter((comment) => comment.id !== commentId) } : item));
+        },
+      },
+    ]);
+  }
+
   function formatDate(date: string) {
     const parsedDate = new Date(date);
     if (Number.isNaN(parsedDate.getTime())) return '';
@@ -1403,22 +1555,30 @@ export default function HomeScreen() {
                           <Feather name="bookmark" size={20} color={post.saved ? colors.primary : colors.textSecondary} />
                         </Pressable>
                       )}
-                      {!post.isQuote && (
-                        <>
-                          <Pressable onPress={() => post.isReview ? openCommentBox(post.id) : openPostCommentBox(post.id)} style={styles.postAction} accessibilityLabel="Yorumlar">
-                            <Feather name="message-circle" size={20} color={colors.textSecondary} />
-                            <Text style={styles.postActionCount}>{feedComments?.length ?? 0}</Text>
-                          </Pressable>
-                          <Pressable onPress={() => post.isReview ? toggleLike(post.id) : togglePostLike(post)} style={[styles.postAction, feedLiked && styles.postActionActive]} accessibilityLabel={feedLiked ? 'Beğeniyi kaldır' : 'Beğen'}>
-                            <Feather name="heart" size={20} color={feedLiked ? '#FF6B7A' : colors.textSecondary} />
-                            <Text style={[styles.postActionCount, feedLiked && styles.likedPostAction]}>{feedLikes ?? 0}</Text>
-                          </Pressable>
-                          <Pressable onPress={() => post.isReview ? toggleRepost(post.id) : togglePostRepost(post)} style={[styles.postAction, feedReposted && styles.postActionActive]} accessibilityLabel={feedReposted ? 'Repostu kaldır' : 'Repost'}>
-                            <Feather name="repeat" size={20} color={feedReposted ? '#66D19E' : colors.textSecondary} />
-                            <Text style={[styles.postActionCount, feedReposted && styles.repostedPostAction]}>{feedReposts ?? 0}</Text>
-                          </Pressable>
-                        </>
-                      )}
+                      <Pressable
+                        onPress={() => post.isQuote ? openQuoteCommentBox(post.id) : post.isReview ? openCommentBox(post.id) : openPostCommentBox(post.id)}
+                        style={styles.postAction}
+                        accessibilityLabel="Yorumlar"
+                      >
+                        <Feather name="message-circle" size={20} color={colors.textSecondary} />
+                        <Text style={styles.postActionCount}>{feedComments?.length ?? 0}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => post.isQuote ? toggleQuoteLike(post) : post.isReview ? toggleLike(post.id) : togglePostLike(post)}
+                        style={[styles.postAction, feedLiked && styles.postActionActive]}
+                        accessibilityLabel={feedLiked ? 'Beğeniyi kaldır' : 'Beğen'}
+                      >
+                        <Feather name="heart" size={20} color={feedLiked ? '#FF6B7A' : colors.textSecondary} />
+                        <Text style={[styles.postActionCount, feedLiked && styles.likedPostAction]}>{feedLikes ?? 0}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => post.isQuote ? toggleQuoteRepost(post) : post.isReview ? toggleRepost(post.id) : togglePostRepost(post)}
+                        style={[styles.postAction, feedReposted && styles.postActionActive]}
+                        accessibilityLabel={feedReposted ? 'Repostu kaldır' : 'Repost'}
+                      >
+                        <Feather name="repeat" size={20} color={feedReposted ? '#66D19E' : colors.textSecondary} />
+                        <Text style={[styles.postActionCount, feedReposted && styles.repostedPostAction]}>{feedReposts ?? 0}</Text>
+                      </Pressable>
                       <View style={styles.postAction} accessibilityLabel={`${post.view_count ?? 0} kişiye erişti`}>
                         <Feather name="eye" size={20} color={colors.textSecondary} />
                         <Text style={styles.postActionCount}>{post.view_count ?? 0}</Text>
@@ -1436,15 +1596,20 @@ export default function HomeScreen() {
   const activeCommentPost = commentingPostId
     ? posts.find((post) => post.id === commentingPostId)
     : null;
-  const activeComments = activeCommentReview?.comments ?? activeCommentPost?.comments ?? [];
-  const activeCommentText = commentingReviewId ? commentText : postCommentText;
-  const commentSheetVisible = !!commentingReviewId || !!commentingPostId;
+  const activeCommentQuote = commentingQuoteId
+    ? posts.find((post) => post.id === commentingQuoteId)
+    : null;
+  const activeComments = activeCommentReview?.comments ?? activeCommentPost?.comments ?? activeCommentQuote?.comments ?? [];
+  const activeCommentText = commentingReviewId ? commentText : commentingQuoteId ? quoteCommentText : postCommentText;
+  const commentSheetVisible = !!commentingReviewId || !!commentingPostId || !!commentingQuoteId;
 
   function closeCommentSheet() {
     setCommentingReviewId(null);
     setCommentingPostId(null);
+    setCommentingQuoteId(null);
     setCommentText('');
     setPostCommentText('');
+    setQuoteCommentText('');
   }
 
   function submitActiveComment() {
@@ -1454,6 +1619,10 @@ export default function HomeScreen() {
     }
     if (commentingPostId) {
       void submitPostComment(commentingPostId);
+      return;
+    }
+    if (commentingQuoteId) {
+      void submitQuoteComment(commentingQuoteId);
     }
   }
 
@@ -1623,7 +1792,9 @@ export default function HomeScreen() {
                             ? deleteComment(commentingReviewId, comment.id)
                             : commentingPostId
                               ? deletePostComment(commentingPostId, comment.id)
-                              : undefined
+                              : commentingQuoteId
+                                ? deleteQuoteComment(commentingQuoteId, comment.id)
+                                : undefined
                         }
                         style={styles.commentSheetDelete}
                         accessibilityLabel="Yorumu sil"
@@ -1654,7 +1825,7 @@ export default function HomeScreen() {
               </Pressable>
               <TextInput
                 value={activeCommentText}
-                onChangeText={commentingReviewId ? setCommentText : setPostCommentText}
+                onChangeText={commentingReviewId ? setCommentText : commentingQuoteId ? setQuoteCommentText : setPostCommentText}
                 placeholder="Yorum ekle..."
                 placeholderTextColor={colors.textSecondary}
                 multiline
