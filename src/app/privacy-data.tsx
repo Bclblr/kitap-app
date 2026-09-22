@@ -52,14 +52,29 @@ const EMPTY_SUMMARY: DataSummary = {
 
 type CountTable = 'posts' | 'reviews' | 'quotes' | 'comments' | 'saved_posts' | 'saved_works' | 'user_blocks' | 'user_book_status';
 
-async function countRows(table: CountTable, column: string, userId: string) {
+const COUNT_SELECT_COLUMN: Record<CountTable, string> = {
+  posts: 'id',
+  reviews: 'id',
+  quotes: 'id',
+  comments: 'id',
+  saved_posts: 'post_id',
+  saved_works: 'work_id',
+  user_blocks: 'blocked_id',
+  user_book_status: 'book_key',
+};
+
+async function countRows(table: CountTable, filterColumn: string, userId: string) {
+  const selectColumn = COUNT_SELECT_COLUMN[table];
   const { count, error } = await (supabase
     .from(table) as any)
-    .select('*', { count: 'exact', head: true })
-    .eq(column, userId);
+    .select(selectColumn, { count: 'exact', head: true })
+    .eq(filterColumn, userId);
 
   if (error) {
-    console.warn(`${table} sayımı alınamadı:`, error.message || error.code || 'Bilinmeyen veritabanı hatası');
+    const detail = [error.code, error.message, error.details, error.hint]
+      .filter(Boolean)
+      .join(' · ');
+    console.warn(`${table} sayımı alınamadı:`, detail || 'Bilinmeyen veritabanı hatası');
     return 0;
   }
 
