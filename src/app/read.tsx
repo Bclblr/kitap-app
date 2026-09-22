@@ -49,6 +49,46 @@ type UserBookStatusRow = {
   status: BookStatus;
 };
 
+type ReadingDayStat = {
+  date: string;
+  pages: number;
+};
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function shortDayLabel(dateKey: string) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  return date.toLocaleDateString('tr-TR', { weekday: 'short' }).replace('.', '');
+}
+
+function readingActivityLabel(dateKey: string) {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (dateKey === localDateKey(today)) return 'Bugün';
+  if (dateKey === localDateKey(yesterday)) return 'Dün';
+
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+function representativePageCount(values: number[]) {
+  const valid = values
+    .filter((value) => Number.isInteger(value) && value >= 20 && value <= 5000)
+    .sort((a, b) => a - b);
+
+  if (!valid.length) return null;
+  return valid[Math.floor(valid.length / 2)];
+}
+
 function getAuthorName(book: Book) {
   const authorName = book.authors
     ?.map((author) =>
@@ -94,6 +134,11 @@ export default function ReadScreen() {
   const [goalSaving, setGoalSaving] = useState(false);
   const [sameBookReaders, setSameBookReaders] = useState<SameBookReader[]>([]);
   const [sameBookReadersLoading, setSameBookReadersLoading] = useState(false);
+  const [pageCountLoading, setPageCountLoading] = useState(false);
+  const [pageCountSource, setPageCountSource] = useState<string | null>(null);
+  const [readingInsightsLoading, setReadingInsightsLoading] = useState(false);
+  const [weeklyStats, setWeeklyStats] = useState<ReadingDayStat[]>([]);
+  const [recentReadingActivity, setRecentReadingActivity] = useState<ReadingDayStat[]>([]);
   const progressRequestId = useRef(0);
   const sameBookReadersRequestId = useRef(0);
 
@@ -272,6 +317,128 @@ export default function ReadScreen() {
     }
   }, []);
 
+  const loadBookPageCount = useCallback(async (book: Book | undefined) => {
+    if (!book?.key) {
+      setPageCountLoading(false);
+      setPageCountSource(null);
+      setTotalPages(null);
+      setTotalPagesInput('');
+      return;
+    }
+
+    try {
+      setPageCountLoading(true);
+      setPageCountSource(null);
+
+      const normalizedKey = book.key.startsWith('/') ? book.key : `/${book.key}`;
+      let candidates: number[] = [];
+
+      if (normalizedKey.startsWith('/books/')) {
+        const response = await fetch(`https://openlibrary.org${normalizedKey}.json`);
+        if (response.ok) {
+          const data = await response.json();
+          if (Number.isInteger(data?.number_of_pages)) {
+            candidates = [data.number_of_pages];
+          }
+        }
+      } else if (normalizedKey.startsWith('/works/')) {
+        const response = await fetch(
+          `https://openlibrary.org${normalizedKey}/editions.json?limit=50`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          candidates = Array.isArray(data?.entries)
+            ? data.entries
+                .map((entry: any) => Number(entry?.number_of_pages))
+                .filter((value: number) => Number.isFinite(value))
+            : [];
+        }
+      }
+
+      const databasePageCount = representativePageCount(candidates);
+
+      if (databasePageCount) {
+        setTotalPages(databasePageCount);
+        setTotalPagesInput(String(databasePageCount));
+        setPageCountSource('Open Library');
+        return;
+      }
+
+      setPageCountSource('bulunamadı');
+    } catch (error) {
+      console.warn('Kitap sayfa sayısı veritabanından alınamadı:', error);
+      setPageCountSource('bulunamadı');
+    } finally {
+      setPageCountLoading(false);
+    }
+  }, []);
+
+  const loadReadingInsights = useCallback(async () => {
+    try {
+      setReadingInsightsLoading(true);
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError && userError.name !== 'AuthSessionMissingError') {
+        throw userError;
+      }
+
+      if (!user) {
+        setWeeklyStats([]);
+        setRecentReadingActivity([]);
+        return;
+      }
+
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+
+      const { data, error } = await supabase
+        .from('reading_daily_stats')
+        .select('reading_date, pages_read')
+        .eq('user_id', user.id)
+        .gte('reading_date', localDateKey(thirtyDaysAgo))
+        .order('reading_date', { ascending: true });
+
+      if (error) throw error;
+
+      const pageMap = new Map<string, number>(
+        (data ?? []).map((row: any) => [
+          String(row.reading_date),
+          Number(row.pages_read) || 0,
+        ])
+      );
+
+      const lastSeven: ReadingDayStat[] = [];
+      for (let offset = 6; offset >= 0; offset -= 1) {
+        const date = new Date();
+        date.setDate(date.getDate() - offset);
+        const key = localDateKey(date);
+        lastSeven.push({ date: key, pages: pageMap.get(key) ?? 0 });
+      }
+
+      setWeeklyStats(lastSeven);
+      setRecentReadingActivity(
+        (data ?? [])
+          .map((row: any) => ({
+            date: String(row.reading_date),
+            pages: Number(row.pages_read) || 0,
+          }))
+          .filter((row: ReadingDayStat) => row.pages > 0)
+          .reverse()
+          .slice(0, 5)
+      );
+    } catch (error) {
+      console.error('Okuma özeti yüklenemedi:', error);
+      setWeeklyStats([]);
+      setRecentReadingActivity([]);
+    } finally {
+      setReadingInsightsLoading(false);
+    }
+  }, []);
+
   const loadReadingBooks = useCallback(async () => {
     try {
       setLoading(true);
@@ -310,8 +477,9 @@ export default function ReadScreen() {
       }));
 
       setReadingBooks(activeBooks);
+      await loadProgress(activeBooks[0]);
       await Promise.all([
-        loadProgress(activeBooks[0]),
+        loadBookPageCount(activeBooks[0]),
         loadSameBookReaders(activeBooks[0]?.key),
       ]);
     } catch (error) {
@@ -319,17 +487,22 @@ export default function ReadScreen() {
       setReadingBooks([]);
       await Promise.all([
         loadProgress(undefined),
+        loadBookPageCount(undefined),
         loadSameBookReaders(undefined),
       ]);
     } finally {
       setLoading(false);
     }
-  }, [loadProgress, loadSameBookReaders]);
+  }, [loadBookPageCount, loadProgress, loadSameBookReaders]);
 
   useFocusEffect(
     useCallback(() => {
-      void Promise.all([loadReadingBooks(), loadReadingDashboard()]);
-    }, [loadReadingBooks, loadReadingDashboard])
+      void Promise.all([
+        loadReadingBooks(),
+        loadReadingDashboard(),
+        loadReadingInsights(),
+      ]);
+    }, [loadReadingBooks, loadReadingDashboard, loadReadingInsights])
   );
 
   function openBook(book: Book) {
@@ -354,6 +527,18 @@ export default function ReadScreen() {
   const dailyGoalPercentage =
     dailyPageGoal > 0
       ? Math.min(100, Math.round((todayPagesRead / dailyPageGoal) * 100))
+      : null;
+  const weeklyPages = weeklyStats.reduce((sum, day) => sum + day.pages, 0);
+  const weeklyActiveDays = weeklyStats.filter((day) => day.pages > 0).length;
+  const weeklyDailyAverage = weeklyStats.length ? weeklyPages / weeklyStats.length : 0;
+  const maxWeeklyPages = Math.max(1, ...weeklyStats.map((day) => day.pages));
+  const estimatedDaysToFinish =
+    totalPages && totalPages > currentPage && weeklyDailyAverage > 0
+      ? Math.ceil((totalPages - currentPage) / weeklyDailyAverage)
+      : null;
+  const estimatedFinishDate =
+    estimatedDaysToFinish !== null
+      ? new Date(Date.now() + estimatedDaysToFinish * 24 * 60 * 60 * 1000)
       : null;
 
   async function saveDailyPageGoal() {
@@ -440,18 +625,18 @@ export default function ReadScreen() {
     const cleanCurrentPage = currentPageInput.trim();
     const cleanTotalPages = totalPagesInput.trim();
 
-    if (!/^\d+$/.test(cleanCurrentPage)) {
+    if (!totalPages || !/^\d+$/.test(cleanTotalPages)) {
       Alert.alert(
-        'Geçersiz mevcut sayfa',
-        'Mevcut sayfa sıfır veya daha büyük bir tam sayı olmalı.'
+        'Sayfa sayısı bulunamadı',
+        'Bu kitabın toplam sayfa bilgisi Open Library veritabanında bulunamadı. İlerleme kaydı için önce kitap verisinin gelmesi gerekiyor.'
       );
       return;
     }
 
-    if (!/^\d+$/.test(cleanTotalPages)) {
+    if (!/^\d+$/.test(cleanCurrentPage)) {
       Alert.alert(
-        'Geçersiz toplam sayfa',
-        'Toplam sayfa sıfırdan büyük bir tam sayı olmalı.'
+        'Geçersiz mevcut sayfa',
+        'Mevcut sayfa sıfır veya daha büyük bir tam sayı olmalı.'
       );
       return;
     }
@@ -529,7 +714,7 @@ export default function ReadScreen() {
       setLastProgressUpdate(updatedProgress.updated_at ?? null);
       setTodayPagesRead(updatedProgress.today_pages_read ?? 0);
 
-      await loadReadingDashboard();
+      await Promise.all([loadReadingDashboard(), loadReadingInsights()]);
 
       if (updatedProgress.current_page >= updatedProgress.total_pages) {
         const { error: statusError } = await supabase.rpc('set_user_book_status', {
@@ -673,7 +858,22 @@ export default function ReadScreen() {
                     <View style={styles.inputDivider} />
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Toplam sayfa</Text>
-                      <TextInput value={totalPagesInput} onChangeText={setTotalPagesInput} keyboardType="number-pad" placeholder="Örn. 320" placeholderTextColor="#5F616B" style={styles.progressInput} />
+                      <View style={styles.pageCountBox}>
+                        {pageCountLoading ? (
+                          <ActivityIndicator size="small" color="#9B72F2" />
+                        ) : (
+                          <Text style={styles.pageCountValue}>
+                            {totalPages ? totalPages : '—'}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={styles.pageCountSource}>
+                        {pageCountLoading
+                          ? 'Veritabanından alınıyor...'
+                          : pageCountSource === 'Open Library'
+                            ? 'Open Library verisinden otomatik'
+                            : 'Sayfa bilgisi bulunamadı'}
+                      </Text>
                     </View>
                   </View>
 
@@ -688,7 +888,7 @@ export default function ReadScreen() {
                       </View>
                     </View>
                   ) : (
-                    <Text style={styles.progressHint}>İlerleme yüzdesi için toplam sayfa bilgisini gir.</Text>
+                    <Text style={styles.progressHint}>Toplam sayfa bilgisi veritabanından geldiğinde ilerleme yüzdesi otomatik hesaplanır.</Text>
                   )}
 
                   {lastProgressUpdate ? (
@@ -767,6 +967,107 @@ export default function ReadScreen() {
                   </Pressable>
                 </View>
               </>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Son 7 Gün</Text>
+          <View style={styles.insightsCard}>
+            {readingInsightsLoading ? (
+              <DashboardLoading />
+            ) : (
+              <>
+                <View style={styles.weeklySummaryRow}>
+                  <View style={styles.weeklySummaryItem}>
+                    <Text style={styles.weeklySummaryValue}>{weeklyPages}</Text>
+                    <Text style={styles.weeklySummaryLabel}>sayfa</Text>
+                  </View>
+                  <View style={styles.weeklySummaryDivider} />
+                  <View style={styles.weeklySummaryItem}>
+                    <Text style={styles.weeklySummaryValue}>{weeklyActiveDays}</Text>
+                    <Text style={styles.weeklySummaryLabel}>aktif gün</Text>
+                  </View>
+                  <View style={styles.weeklySummaryDivider} />
+                  <View style={styles.weeklySummaryItem}>
+                    <Text style={styles.weeklySummaryValue}>
+                      {weeklyStats.length ? Math.round(weeklyDailyAverage) : 0}
+                    </Text>
+                    <Text style={styles.weeklySummaryLabel}>günlük ort.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.weeklyChart}>
+                  {weeklyStats.map((day) => {
+                    const barHeight = day.pages > 0
+                      ? Math.max(8, Math.round((day.pages / maxWeeklyPages) * 82))
+                      : 4;
+
+                    return (
+                      <View key={day.date} style={styles.weeklyBarColumn}>
+                        <Text style={styles.weeklyBarValue}>{day.pages || ''}</Text>
+                        <View style={styles.weeklyBarTrack}>
+                          <View style={[styles.weeklyBarFill, { height: barHeight }]} />
+                        </View>
+                        <Text style={styles.weeklyBarLabel}>{shortDayLabel(day.date)}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.estimateCard}>
+                  <View style={styles.estimateIconWrap}>
+                    <Text style={styles.estimateIcon}>⌁</Text>
+                  </View>
+                  <View style={styles.estimateCopy}>
+                    <Text style={styles.estimateTitle}>Tahmini bitirme</Text>
+                    <Text style={styles.estimateText}>
+                      {!currentBook
+                        ? 'Aktif bir kitap seçtiğinde tahmin burada görünür.'
+                        : !totalPages
+                          ? 'Toplam sayfa bilgisi bekleniyor.'
+                          : currentPage >= totalPages
+                            ? 'Bu kitabı tamamladın.'
+                            : estimatedFinishDate
+                              ? `Bu tempoyla yaklaşık ${estimatedDaysToFinish} gün içinde, ${estimatedFinishDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} civarında bitirebilirsin.`
+                              : 'Tahmin için son 7 günde biraz okuma verisi gerekiyor.'}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Son Okuma Hareketleri</Text>
+          <View style={styles.activityCard}>
+            {readingInsightsLoading ? (
+              <DashboardLoading />
+            ) : recentReadingActivity.length ? (
+              recentReadingActivity.map((activity, index) => (
+                <View
+                  key={activity.date}
+                  style={[
+                    styles.activityRow,
+                    index < recentReadingActivity.length - 1 && styles.activityRowBorder,
+                  ]}
+                >
+                  <View style={styles.activityDot} />
+                  <View style={styles.activityCopy}>
+                    <Text style={styles.activityTitle}>
+                      {activity.pages} sayfa okudun
+                    </Text>
+                    <Text style={styles.activityDate}>
+                      {readingActivityLabel(activity.date)}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.activityEmpty}>
+                İlerleme kaydettikçe son okuma hareketlerin burada görünecek.
+              </Text>
             )}
           </View>
         </View>
@@ -895,6 +1196,35 @@ const baseStyles = StyleSheet.create({
   currentBookTitle: { color: '#FAFAFB', fontSize: 20, lineHeight: 25, fontWeight: '900', letterSpacing: -0.4 },
   author: { color: '#A0A1AA', fontSize: 13, lineHeight: 19, marginTop: 7 },
   year: { color: '#696B75', fontSize: 10, marginTop: 9 },
+  pageCountBox: { height: 46, borderRadius: 13, paddingHorizontal: 13, backgroundColor: '#111218', borderWidth: 1, borderColor: '#352A49', justifyContent: 'center', alignItems: 'flex-start' },
+  pageCountValue: { color: '#DCCEFF', fontSize: 15, fontWeight: '900' },
+  pageCountSource: { color: '#676A74', fontSize: 9, lineHeight: 13, marginTop: 5 },
+  insightsCard: { borderRadius: 20, padding: 16, backgroundColor: '#111218', borderWidth: 1, borderColor: '#292A33' },
+  weeklySummaryRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  weeklySummaryItem: { flex: 1, alignItems: 'center' },
+  weeklySummaryValue: { color: '#F4F4F6', fontSize: 20, fontWeight: '900' },
+  weeklySummaryLabel: { color: '#747680', fontSize: 9.5, fontWeight: '700', marginTop: 3 },
+  weeklySummaryDivider: { width: 1, height: 30, backgroundColor: '#292A33' },
+  weeklyChart: { height: 132, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 6 },
+  weeklyBarColumn: { flex: 1, height: 126, alignItems: 'center', justifyContent: 'flex-end' },
+  weeklyBarValue: { color: '#8E8F99', fontSize: 8.5, minHeight: 13, marginBottom: 4 },
+  weeklyBarTrack: { height: 84, width: '62%', minWidth: 16, borderRadius: 8, backgroundColor: '#1B1C24', justifyContent: 'flex-end', overflow: 'hidden' },
+  weeklyBarFill: { width: '100%', borderRadius: 8, backgroundColor: '#8B63E6' },
+  weeklyBarLabel: { color: '#777983', fontSize: 9, fontWeight: '700', marginTop: 7 },
+  estimateCard: { marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#292A33', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  estimateIconWrap: { width: 38, height: 38, borderRadius: 13, backgroundColor: '#241B35', borderWidth: 1, borderColor: '#3A2A52', alignItems: 'center', justifyContent: 'center' },
+  estimateIcon: { color: '#B79AF8', fontSize: 22, fontWeight: '800' },
+  estimateCopy: { flex: 1 },
+  estimateTitle: { color: '#ECECF0', fontSize: 12.5, fontWeight: '900' },
+  estimateText: { color: '#858791', fontSize: 10.5, lineHeight: 16, marginTop: 4 },
+  activityCard: { borderRadius: 18, paddingHorizontal: 15, backgroundColor: '#111218', borderWidth: 1, borderColor: '#292A33' },
+  activityRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center' },
+  activityRowBorder: { borderBottomWidth: 1, borderBottomColor: '#24252D' },
+  activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#8B63E6', marginRight: 12 },
+  activityCopy: { flex: 1 },
+  activityTitle: { color: '#E6E6EA', fontSize: 12.5, fontWeight: '800' },
+  activityDate: { color: '#72747D', fontSize: 10, marginTop: 3 },
+  activityEmpty: { color: '#7E8089', fontSize: 11.5, lineHeight: 18, textAlign: 'center', paddingVertical: 22 },
   primaryButton: { minHeight: 48, borderRadius: 15, backgroundColor: '#21182F', borderWidth: 1, borderColor: '#38284D', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginTop: 15 },
   primaryButtonText: { color: '#A985FF', fontSize: 14, fontWeight: '900' },
   primaryButtonArrow: { color: '#A985FF', fontSize: 25, lineHeight: 26, marginLeft: 8 },
