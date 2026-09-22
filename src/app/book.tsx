@@ -20,9 +20,9 @@ type Book = BookCoverData & {
   key?: string;
   title?: string;
   authors?: Author[];
-  description?: string | { value?: string };
-  covers?: number[];
-  first_publish_year?: number;
+  description?: string | { value?: string } | null;
+  covers?: (number | string)[] | null;
+  first_publish_year?: number | null;
   status?: BookStatus;
 };
 
