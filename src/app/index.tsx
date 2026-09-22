@@ -395,11 +395,55 @@ export default function HomeScreen() {
     }
   }
 
+  async function deleteOwnFeedPost(post: Post) {
+    if (!currentUserId || !post.user_id || post.user_id !== currentUserId || post.isReview || post.isQuote) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('posts')
+      .delete()
+      .eq('id', post.id)
+      .eq('user_id', currentUserId);
+
+    if (error) {
+      Alert.alert('Hata', error.message);
+      return;
+    }
+
+    setPosts((current) => current.filter((item) => item.id !== post.id));
+    if (commentingPostId === post.id) closeCommentSheet();
+  }
+
   function openFeedContentMenu(post: Post) {
     if (post.user_id && post.user_id === currentUserId) {
-      Alert.alert('İçerik seçenekleri', 'Bu içerik sana ait.', [
-        { text: 'Tamam', style: 'cancel' },
-      ]);
+      if (!post.isReview && !post.isQuote) {
+        Alert.alert('Gönderi seçenekleri', undefined, [
+          {
+            text: 'Gönderiyi Sil',
+            style: 'destructive',
+            onPress: () => {
+              Alert.alert(
+                'Gönderiyi sil',
+                'Bu gönderi kalıcı olarak silinsin mi?',
+                [
+                  { text: 'Vazgeç', style: 'cancel' },
+                  {
+                    text: 'Sil',
+                    style: 'destructive',
+                    onPress: () => { void deleteOwnFeedPost(post); },
+                  },
+                ]
+              );
+            },
+          },
+          { text: 'Vazgeç', style: 'cancel' },
+        ]);
+      } else {
+        Alert.alert('İçerik seçenekleri', 'Bu içerik sana ait.', [
+          { text: 'Vazgeç', style: 'cancel' },
+        ]);
+      }
       return;
     }
 
