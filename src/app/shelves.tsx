@@ -1,3 +1,4 @@
+import { Feather } from '@expo/vector-icons';
 import { BookCoverData, existingBookCover, loadOpenLibraryBookMetadata } from '@/lib/open-library-cover';
 import BookCover from '@/components/BookCover';
 import RetryNotice from '@/components/RetryNotice';
@@ -523,78 +524,51 @@ export default function ShelvesScreen() {
                     </Text>
 
                     <View style={styles.statusButtons}>
-                      <Pressable
-                        onPress={() => {
-                          if (book.key) {
-                            changeStatus(
-                              book.key,
-                              'want'
-                            );
-                          }
-                        }}
-                        style={[
-                          styles.smallStatusButton,
-                          book.status === 'want' &&
-                            styles.selectedSmallStatus,
-                        ]}
-                      >
-                        <Text
-                          style={
-                            styles.smallStatusText
-                          }
-                        >
-                          📚
-                        </Text>
-                      </Pressable>
+                      {([
+                        ['want', 'bookmark', shelfLabels.want],
+                        ['reading', 'book-open', shelfLabels.reading],
+                        ['read', 'check-circle', shelfLabels.read],
+                        ['abandoned', 'pause-circle', 'Yarım Bıraktım'],
+                      ] as const).map(([nextStatus, icon, label]) => {
+                        const selected = book.status === nextStatus;
 
-                      <Pressable
-                        onPress={() => {
-                          if (book.key) {
-                            changeStatus(
-                              book.key,
-                              'reading'
-                            );
-                          }
-                        }}
-                        style={[
-                          styles.smallStatusButton,
-                          book.status ===
-                            'reading' &&
-                            styles.selectedSmallStatus,
-                        ]}
-                      >
-                        <Text
-                          style={
-                            styles.smallStatusText
-                          }
-                        >
-                          📖
-                        </Text>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={() => {
-                          if (book.key) {
-                            changeStatus(
-                              book.key,
-                              'read'
-                            );
-                          }
-                        }}
-                        style={[
-                          styles.smallStatusButton,
-                          book.status === 'read' &&
-                            styles.selectedSmallStatus,
-                        ]}
-                      >
-                        <Text
-                          style={
-                            styles.smallStatusText
-                          }
-                        >
-                          ✅
-                        </Text>
-                      </Pressable>
+                        return (
+                          <Pressable
+                            key={nextStatus}
+                            onPress={() => {
+                              if (book.key) {
+                                void changeStatus(book.key, nextStatus);
+                              }
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={label}
+                            style={[
+                              styles.smallStatusButton,
+                              selected && styles.selectedSmallStatus,
+                            ]}
+                          >
+                            <View style={[
+                              styles.smallStatusIcon,
+                              selected && styles.selectedSmallStatusIcon,
+                            ]}>
+                              <Feather
+                                name={icon}
+                                size={16}
+                                color={selected ? '#F4F5F7' : '#8F96A3'}
+                              />
+                            </View>
+                            <Text
+                              numberOfLines={1}
+                              style={[
+                                styles.smallStatusLabel,
+                                selected && styles.selectedSmallStatusLabel,
+                              ]}
+                            >
+                              {label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
                     </View>
                   </View>
 
@@ -866,23 +840,45 @@ const baseStyles = StyleSheet.create({
   },
 
   smallStatusButton: {
-    flex: 1,
-    height: 42,
-    borderRadius: 12,
+    width: '48.5%',
+    minHeight: 58,
+    borderRadius: 14,
     backgroundColor: '#1B1C24',
     borderWidth: 1,
     borderColor: '#2B2C35',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+
+  selectedSmallStatus: {
+    backgroundColor: '#221A31',
+    borderColor: '#5D4384',
+  },
+
+  smallStatusIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#23242D',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  selectedSmallStatus: {
-    backgroundColor: '#2B2140',
-    borderColor: '#8B5CF6',
+  selectedSmallStatusIcon: {
+    backgroundColor: '#4A376B',
   },
 
-  smallStatusText: {
-    fontSize: 18,
+  smallStatusLabel: {
+    flex: 1,
+    color: '#9298A3',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  selectedSmallStatusLabel: {
+    color: '#E8DEFF',
   },
 
   deleteButton: {
