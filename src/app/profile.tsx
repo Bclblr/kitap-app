@@ -227,7 +227,7 @@ function ProfileCardActions({
         <Text style={[styles.profileActionCount, reposted && { color: '#66D19E' }]}>{reposts}</Text>
       </Pressable>
       <View style={styles.profileActionButton}>
-        <Feather name="eye" size={20} color={colors.textSecondary} />
+        <Feather name="bar-chart-2" size={20} color={colors.textSecondary} />
         <Text style={styles.profileActionCount}>{viewCount}</Text>
       </View>
     </View>
