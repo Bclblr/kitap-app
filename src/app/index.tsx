@@ -1624,7 +1624,7 @@ export default function HomeScreen() {
                         <Text style={[styles.postActionCount, feedReposted && styles.repostedPostAction]}>{feedReposts ?? 0}</Text>
                       </Pressable>
                       <View style={styles.postAction} accessibilityLabel={`${post.view_count ?? 0} kişiye erişti`}>
-                        <Feather name="eye" size={20} color={colors.textSecondary} />
+                        <Feather name="bar-chart-2" size={20} color={colors.textSecondary} />
                         <Text style={styles.postActionCount}>{post.view_count ?? 0}</Text>
                       </View>
                     </View>
