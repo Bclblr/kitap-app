@@ -1,5 +1,5 @@
 import { safeBack } from '@/lib/navigation';
-import { BookCoverData, existingBookCover } from '@/lib/open-library-cover';
+import { BookCoverData, existingBookCover, loadOpenLibraryBookMetadata } from '@/lib/open-library-cover';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
@@ -484,11 +484,29 @@ export default function ReadScreen() {
         status: row.status,
       }));
 
-      setReadingBooks(activeBooks);
-      await loadProgress(activeBooks[0]);
+      const enrichedBooks = await Promise.all(
+        activeBooks.map(async (book) => {
+          if (!book.key) return book;
+
+          const metadata = await loadOpenLibraryBookMetadata(book.key, book);
+          if (!metadata) return book;
+
+          return {
+            ...book,
+            ...metadata,
+            key: book.key,
+            title: metadata.title ?? book.title,
+            authors: metadata.authors?.length ? metadata.authors : book.authors,
+            status: book.status,
+          } as Book;
+        })
+      );
+
+      setReadingBooks(enrichedBooks);
+      await loadProgress(enrichedBooks[0]);
       await Promise.all([
-        loadBookPageCount(activeBooks[0]),
-        loadSameBookReaders(activeBooks[0]?.key),
+        loadBookPageCount(enrichedBooks[0]),
+        loadSameBookReaders(enrichedBooks[0]?.key),
       ]);
     } catch (error) {
       console.error('Okunan kitaplar yüklenemedi:', error);
