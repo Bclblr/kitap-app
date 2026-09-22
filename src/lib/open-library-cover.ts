@@ -6,6 +6,9 @@ const bookCoverRequests = new Map<string, Promise<string | null>>();
 export type BookCoverData = {
   title?: string | null;
   book_title?: string | null;
+  authors?: (string | { name?: string })[] | null;
+  description?: string | { value?: string } | null;
+  first_publish_year?: number | null;
   coverUrl?: string | null;
   cover_url?: string | null;
   cover_i?: number | string | null;
@@ -109,4 +112,149 @@ export async function loadBookCover(bookKey: string, fallback: string | null): P
 
 export function existingBookCover(data: BookCoverData): string | null {
   return resolveBookCover(data);
+}
+
+
+type OpenLibraryMetadata = BookCoverData & {
+  key?: string | null;
+};
+
+const bookMetadataCache = new Map<string, { value: OpenLibraryMetadata | null; expiresAt: number }>();
+const bookMetadataRequests = new Map<string, Promise<OpenLibraryMetadata | null>>();
+
+function normalizedOpenLibraryKey(value?: string | null): string | null {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) return null;
+
+  if (/^OL\d+W$/i.test(raw)) return `/works/${raw}`;
+  if (/^OL\d+M$/i.test(raw)) return `/books/${raw}`;
+  if (/^\/(?:works\/OL\d+W|books\/OL\d+M)(?:\.json)?$/i.test(raw)) {
+    return raw.replace(/\.json$/i, '');
+  }
+
+  try {
+    const url = new URL(raw);
+    if (url.hostname === 'openlibrary.org') {
+      const match = url.pathname.match(/^\/(works\/OL\d+W|books\/OL\d+M)(?:\.json)?$/i);
+      if (match) return `/${match[1]}`;
+    }
+  } catch {
+    // Not a URL; unsupported keys are ignored.
+  }
+
+  return null;
+}
+
+async function fetchOpenLibraryJson(url: string): Promise<any | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function resolveAuthorNames(rawAuthors: any): Promise<string[]> {
+  if (!Array.isArray(rawAuthors)) return [];
+
+  const direct = rawAuthors
+    .map((entry) => typeof entry === 'string' ? entry : entry?.name)
+    .filter((value): value is string => typeof value === 'string' && !!value.trim());
+
+  if (direct.length) return direct;
+
+  const authorKeys = rawAuthors
+    .map((entry) => entry?.author?.key ?? entry?.key)
+    .filter((value): value is string => typeof value === 'string' && /^\/authors\/OL\d+A$/i.test(value));
+
+  if (!authorKeys.length) return [];
+
+  const authorRows = await Promise.all(
+    authorKeys.slice(0, 5).map((authorKey) =>
+      fetchOpenLibraryJson(`https://openlibrary.org${authorKey}.json`)
+    )
+  );
+
+  return authorRows
+    .map((row) => typeof row?.name === 'string' ? row.name.trim() : '')
+    .filter(Boolean);
+}
+
+export async function loadOpenLibraryBookMetadata(
+  bookKey: string,
+  fallback?: OpenLibraryMetadata | null
+): Promise<OpenLibraryMetadata | null> {
+  const normalizedKey = normalizedOpenLibraryKey(bookKey);
+  if (!normalizedKey) return fallback ?? null;
+
+  const cacheKey = normalizedKey.toLowerCase();
+  const cached = bookMetadataCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value ? { ...fallback, ...cached.value } : fallback ?? null;
+  }
+  if (cached) bookMetadataCache.delete(cacheKey);
+
+  const inFlight = bookMetadataRequests.get(cacheKey);
+  if (inFlight) {
+    const value = await inFlight;
+    return value ? { ...fallback, ...value } : fallback ?? null;
+  }
+
+  const request = (async (): Promise<OpenLibraryMetadata | null> => {
+    const row = await fetchOpenLibraryJson(`https://openlibrary.org${normalizedKey}.json`);
+    if (!row || typeof row !== 'object') return null;
+
+    let source = row;
+
+    if (normalizedKey.startsWith('/books/')) {
+      const workKey = Array.isArray(row.works) ? row.works[0]?.key : null;
+      if (typeof workKey === 'string' && /^\/works\/OL\d+W$/i.test(workKey)) {
+        const workRow = await fetchOpenLibraryJson(`https://openlibrary.org${workKey}.json`);
+        if (workRow && typeof workRow === 'object') {
+          source = {
+            ...workRow,
+            ...row,
+            authors: row.authors?.length ? row.authors : workRow.authors,
+            covers: row.covers?.length ? row.covers : workRow.covers,
+            description: row.description ?? workRow.description,
+            first_publish_year: row.first_publish_year ?? workRow.first_publish_year,
+          };
+        }
+      }
+    }
+
+    const authorNames = await resolveAuthorNames(source.authors);
+    const metadata: OpenLibraryMetadata = {
+      key: normalizedKey,
+      title: typeof source.title === 'string' ? source.title : undefined,
+      authors: authorNames,
+      description: source.description,
+      covers: Array.isArray(source.covers) ? source.covers : undefined,
+      cover_i: source.cover_i,
+      coverUrl: source.coverUrl,
+      cover_url: source.cover_url,
+      edition_key: source.edition_key,
+      isbn: source.isbn,
+      first_publish_year: Number.isFinite(Number(source.first_publish_year))
+        ? Number(source.first_publish_year)
+        : undefined,
+    };
+
+    return metadata;
+  })()
+    .then((value) => {
+      bookMetadataCache.set(cacheKey, {
+        value,
+        expiresAt: Date.now() + BOOK_COVER_CACHE_MS,
+      });
+      return value;
+    })
+    .finally(() => {
+      bookMetadataRequests.delete(cacheKey);
+    });
+
+  bookMetadataRequests.set(cacheKey, request);
+  const value = await request;
+  return value ? { ...fallback, ...value } : fallback ?? null;
 }
