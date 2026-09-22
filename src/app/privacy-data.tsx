@@ -55,11 +55,11 @@ type CountTable = 'posts' | 'reviews' | 'quotes' | 'comments' | 'saved_posts' | 
 async function countRows(table: CountTable, column: string, userId: string) {
   const { count, error } = await (supabase
     .from(table) as any)
-    .select('id', { count: 'exact', head: true })
+    .select('*', { count: 'exact', head: true })
     .eq(column, userId);
 
   if (error) {
-    console.warn(`${table} sayımı alınamadı:`, error.message);
+    console.warn(`${table} sayımı alınamadı:`, error.message || error.code || 'Bilinmeyen veritabanı hatası');
     return 0;
   }
 
