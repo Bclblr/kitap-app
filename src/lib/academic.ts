@@ -202,10 +202,85 @@ export function normalizeAcademicWork(value: any): AcademicWork {
   };
 }
 
+const academicResponseCache = new Map<string, { expiresAt: number; data: any }>();
+let nextOpenAlexRequestAt = 0;
+
+function abortError() {
+  const error = new Error('Aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+function wait(ms: number, signal?: AbortSignal) {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(abortError());
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+      reject(abortError());
+    };
+
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+async function waitForOpenAlexSlot(signal?: AbortSignal) {
+  const now = Date.now();
+  const scheduledAt = Math.max(now, nextOpenAlexRequestAt);
+  nextOpenAlexRequestAt = scheduledAt + 350;
+  await wait(scheduledAt - now, signal);
+}
+
 async function fetchJson(url: string, signal?: AbortSignal) {
-  const response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
-  if (!response.ok) throw new Error(`Academic API HTTP ${response.status}`);
-  return response.json();
+  const cached = academicResponseCache.get(url);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+  const isOpenAlex = url.startsWith(OPENALEX_BASE);
+  const maxAttempts = isOpenAlex ? 4 : 2;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    if (signal?.aborted) throw abortError();
+    if (isOpenAlex) await waitForOpenAlexSlot(signal);
+
+    const response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
+
+    if (response.ok) {
+      const data = await response.json();
+      academicResponseCache.set(url, {
+        data,
+        expiresAt: Date.now() + (isOpenAlex ? 5 * 60_000 : 10 * 60_000),
+      });
+      return data;
+    }
+
+    if (response.status === 429 && attempt < maxAttempts - 1) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      const delayMs = Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : 1200 * (attempt + 1);
+      await wait(delayMs, signal);
+      continue;
+    }
+
+    if (response.status >= 500 && attempt < maxAttempts - 1) {
+      await wait(700 * (attempt + 1), signal);
+      continue;
+    }
+
+    throw new Error(`Academic API HTTP ${response.status}`);
+  }
+
+  throw new Error('Academic API request failed');
 }
 
 export async function searchAcademicWorks(query: string, limit = 20, signal?: AbortSignal): Promise<AcademicWork[]> {
