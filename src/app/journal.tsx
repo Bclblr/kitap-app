@@ -21,15 +21,14 @@ export default function JournalScreen() {
 
   useEffect(() => {
     const journalId = typeof id === 'string' ? id : '';
-    if (!journalId) {
-      setLoading(false);
-      return;
-    }
+    if (!journalId) return;
 
     let active = true;
     const controller = new AbortController();
 
     async function load() {
+      await Promise.resolve();
+      if (!active) return;
       setLoading(true);
       try {
         const [loadedJournal, loadedWorks] = await Promise.all([
