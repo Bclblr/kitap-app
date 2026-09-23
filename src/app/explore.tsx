@@ -12,7 +12,7 @@ import { useReaderSocial } from '@/hooks/use-reader-social';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 type Book = BookCoverData & {
@@ -43,7 +43,6 @@ type FeaturedAuthor = Author & {
   featuredScore: number;
 };
 
-type SearchType = 'books' | 'authors' | 'users' | 'academicWorks' | 'academicAuthors' | 'journals' | 'institutions';
 
 type PopularBook = BookCoverData & {
   book_key: string;
@@ -97,7 +96,6 @@ export default function ExploreScreen() {
   const [academicAuthors, setAcademicAuthors] = useState<AcademicAuthorSummary[]>([]);
   const [journals, setJournals] = useState<AcademicJournalSummary[]>([]);
   const [institutions, setInstitutions] = useState<AcademicInstitutionSummary[]>([]);
-  const [activeSearchType, setActiveSearchType] = useState<SearchType>('books');
   const [loading, setLoading] = useState(false);
   const [academicLoading, setAcademicLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -439,6 +437,38 @@ export default function ExploreScreen() {
         p_scope: 'explore',
         p_result_count: nextBooks.length + nextUsers.length + nextAuthors.length,
       });
+
+      setAcademicLoading(true);
+      void Promise.allSettled([
+        searchAcademicWorks(searchText, 8, controller.signal),
+        searchAcademicAuthors(searchText, 6, controller.signal),
+        searchAcademicJournals(searchText, 6, controller.signal),
+        searchAcademicInstitutions(searchText, 6, controller.signal),
+      ]).then(([workResult, academicAuthorResult, journalResult, institutionResult]) => {
+        if (requestId !== searchRequestIdRef.current) return;
+
+        const nextAcademicWorks = workResult.status === 'fulfilled' ? workResult.value : [];
+        const nextAcademicAuthors = academicAuthorResult.status === 'fulfilled' ? academicAuthorResult.value : [];
+        const nextJournals = journalResult.status === 'fulfilled' ? journalResult.value : [];
+        const nextInstitutions = institutionResult.status === 'fulfilled' ? institutionResult.value : [];
+
+        setAcademicWorks(nextAcademicWorks);
+        setAcademicAuthors(nextAcademicAuthors);
+        setJournals(nextJournals);
+        setInstitutions(nextInstitutions);
+
+        searchCacheRef.current.set(normalizedQuery, {
+          books: nextBooks,
+          users: nextUsers,
+          authors: nextAuthors,
+          academicWorks: nextAcademicWorks,
+          academicAuthors: nextAcademicAuthors,
+          journals: nextJournals,
+          institutions: nextInstitutions,
+        });
+      }).finally(() => {
+        if (requestId === searchRequestIdRef.current) setAcademicLoading(false);
+      });
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Genel arama hatası:', error);
@@ -447,51 +477,6 @@ export default function ExploreScreen() {
     }
   }, [query]);
 
-  const loadAcademicTab = useCallback(async (type: SearchType, searchText: string) => {
-    if (!['academicWorks', 'academicAuthors', 'journals', 'institutions'].includes(type)) return;
-    const clean = searchText.trim();
-    if (!clean) return;
-
-    const normalizedQuery = clean.toLocaleLowerCase('tr-TR');
-    const cached = searchCacheRef.current.get(normalizedQuery);
-    const hasCached =
-      (type === 'academicWorks' && (cached?.academicWorks.length ?? 0) > 0) ||
-      (type === 'academicAuthors' && (cached?.academicAuthors.length ?? 0) > 0) ||
-      (type === 'journals' && (cached?.journals.length ?? 0) > 0) ||
-      (type === 'institutions' && (cached?.institutions.length ?? 0) > 0);
-    if (hasCached) return;
-
-    setAcademicLoading(true);
-    try {
-      if (type === 'academicWorks') {
-        const rows = await searchAcademicWorks(clean, 20);
-        setAcademicWorks(rows);
-        if (cached) searchCacheRef.current.set(normalizedQuery, { ...cached, academicWorks: rows });
-      } else if (type === 'academicAuthors') {
-        const rows = await searchAcademicAuthors(clean, 16);
-        setAcademicAuthors(rows);
-        if (cached) searchCacheRef.current.set(normalizedQuery, { ...cached, academicAuthors: rows });
-      } else if (type === 'journals') {
-        const rows = await searchAcademicJournals(clean, 16);
-        setJournals(rows);
-        if (cached) searchCacheRef.current.set(normalizedQuery, { ...cached, journals: rows });
-      } else {
-        const rows = await searchAcademicInstitutions(clean, 16);
-        setInstitutions(rows);
-        if (cached) searchCacheRef.current.set(normalizedQuery, { ...cached, institutions: rows });
-      }
-    } catch (error) {
-      if ((error as Error)?.name !== 'AbortError') console.warn('Akademik arama geçici olarak kullanılamıyor:', error);
-    } finally {
-      setAcademicLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!searched || !query.trim()) return;
-    if (!['academicWorks', 'academicAuthors', 'journals', 'institutions'].includes(activeSearchType)) return;
-    void loadAcademicTab(activeSearchType, query);
-  }, [activeSearchType, loadAcademicTab, query, searched]);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -544,20 +529,7 @@ export default function ExploreScreen() {
   });
 }
 
-  const selectedCount =
-    activeSearchType === 'books'
-      ? books.length
-      : activeSearchType === 'authors'
-        ? authors.length
-        : activeSearchType === 'users'
-          ? users.length
-          : activeSearchType === 'academicWorks'
-            ? academicWorks.length
-            : activeSearchType === 'academicAuthors'
-              ? academicAuthors.length
-              : activeSearchType === 'journals'
-                ? journals.length
-                : institutions.length;
+
 
   return (
     <View style={styles.safeArea}>
@@ -774,35 +746,52 @@ export default function ExploreScreen() {
             </View>
           ) : (
             <View style={styles.resultsArea}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tabs}
-              >
-                <SearchTab label="Kitaplar" active={activeSearchType === 'books'} onPress={() => setActiveSearchType('books')} />
-                <SearchTab label="Yazarlar" active={activeSearchType === 'authors'} onPress={() => setActiveSearchType('authors')} />
-                <SearchTab label="Kullanıcılar" active={activeSearchType === 'users'} onPress={() => setActiveSearchType('users')} />
-                <SearchTab label="Makaleler" active={activeSearchType === 'academicWorks'} onPress={() => setActiveSearchType('academicWorks')} />
-                <SearchTab label="Akademisyenler" active={activeSearchType === 'academicAuthors'} onPress={() => setActiveSearchType('academicAuthors')} />
-                <SearchTab label="Dergiler" active={activeSearchType === 'journals'} onPress={() => setActiveSearchType('journals')} />
-                <SearchTab label="Kurumlar" active={activeSearchType === 'institutions'} onPress={() => setActiveSearchType('institutions')} />
-              </ScrollView>
-
-              {loading || (academicLoading && ['academicWorks', 'academicAuthors', 'journals', 'institutions'].includes(activeSearchType)) ? (
+              {loading ? (
                 <View style={styles.messageCard}>
                   <ActivityIndicator color="#9B72F2" />
-                  <Text style={styles.loadingText}>{loading ? 'Aranıyor...' : 'Akademik sonuçlar getiriliyor...'}</Text>
-                </View>
-              ) : searched && selectedCount === 0 ? (
-                <View style={styles.messageCard}>
-                  <Text style={styles.emptyTitle}>Sonuç bulunamadı.</Text>
-                  <Text style={styles.emptyText}>Farklı bir arama ifadesi deneyebilirsin.</Text>
+                  <Text style={styles.loadingText}>Aranıyor...</Text>
                 </View>
               ) : (
                 <>
-                  {activeSearchType === 'users' &&
-                    users
+                  <SearchSection title="Kitaplar" count={books.length}>
+                    {books.slice(0, 8).map((book, index) => {
+                      const authorName = book.author_name?.join(', ') || 'Bilinmeyen yazar';
+                      return (
+                        <Pressable key={book.key || `${book.title}-${index}`} onPress={() => openBook(book, authorName)} style={styles.bookCard}>
+                          <BookCover uri={existingBookCover(book)} style={styles.cover}>
+                            <View style={[styles.cover, styles.coverFallback]}>
+                              <Feather name="book-open" size={24} color="#9870EA" />
+                            </View>
+                          </BookCover>
+                          <View style={styles.flexOne}>
+                            <Text style={styles.bookTitle} numberOfLines={2}>{book.title ?? 'Bilinmeyen kitap'}</Text>
+                            <Text style={styles.bookAuthor} numberOfLines={2}>{authorName}</Text>
+                            {!!book.first_publish_year && <Text style={styles.year}>İlk yayın: {book.first_publish_year}</Text>}
+                          </View>
+                          <Feather name="chevron-right" size={18} color="#777983" />
+                        </Pressable>
+                      );
+                    })}
+                  </SearchSection>
+
+                  <SearchSection title="Yazarlar" count={authors.length}>
+                    {authors.slice(0, 6).map((author, index) => (
+                      <Pressable key={author.key || `${author.name}-${index}`} onPress={() => void openAuthor(author)} style={styles.resultCard}>
+                        <AuthorAvatar author={author} style={styles.authorMark} textStyle={styles.authorMarkText} />
+                        <View style={styles.flexOne}>
+                          <Text style={styles.resultTitle}>{author.name || 'Bilinmeyen yazar'}</Text>
+                          {!!author.birth_date && <Text style={styles.rowDescription}>Doğum: {author.birth_date}</Text>}
+                          {!!author.top_work && <Text style={styles.rowDescription}>En bilinen eseri: {author.top_work}</Text>}
+                        </View>
+                        <Feather name="chevron-right" size={18} color="#777983" />
+                      </Pressable>
+                    ))}
+                  </SearchSection>
+
+                  <SearchSection title="Kullanıcılar" count={users.length}>
+                    {users
                       .filter((user) => !social.error && !social.blocked.includes(user.id))
+                      .slice(0, 6)
                       .map((user) => {
                         const name = user.username?.trim() || 'Kitap Okuru';
                         return (
@@ -822,111 +811,111 @@ export default function ExploreScreen() {
                           </Pressable>
                         );
                       })}
+                  </SearchSection>
 
-                  {activeSearchType === 'authors' && authors.map((author, index) => (
-                    <Pressable key={author.key || `${author.name}-${index}`} onPress={() => void openAuthor(author)} style={styles.resultCard}>
-                      <AuthorAvatar author={author} style={styles.authorMark} textStyle={styles.authorMarkText} />
-                      <View style={styles.flexOne}>
-                        <Text style={styles.resultTitle}>{author.name || 'Bilinmeyen yazar'}</Text>
-                        {!!author.birth_date && <Text style={styles.rowDescription}>Doğum: {author.birth_date}</Text>}
-                        {!!author.top_work && <Text style={styles.rowDescription}>En bilinen eseri: {author.top_work}</Text>}
-                      </View>
-                      <Feather name="chevron-right" size={18} color="#777983" />
-                    </Pressable>
-                  ))}
+                  {academicLoading ? (
+                    <View style={styles.academicLoadingRow}>
+                      <ActivityIndicator color="#9B72F2" size="small" />
+                      <Text style={styles.loadingText}>Akademik sonuçlar getiriliyor...</Text>
+                    </View>
+                  ) : null}
 
-                  {activeSearchType === 'academicWorks' && academicWorks.map((work) => (
-                    <Pressable
-                      key={work.id}
-                      onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })}
-                      style={styles.resultCard}
-                    >
-                      <View style={styles.academicResultIcon}>
-                        <Feather name="file-text" size={19} color="#B79AF2" />
-                      </View>
-                      <View style={styles.flexOne}>
-                        <Text style={styles.resultTitle} numberOfLines={2}>{work.title}</Text>
-                        <Text style={styles.rowDescription} numberOfLines={2}>
-                          {work.authors.map((item) => item.name).slice(0, 3).join(', ') || 'Yazar bilgisi yok'}
-                        </Text>
-                        <Text style={styles.rowDescription} numberOfLines={1}>
-                          {[work.publicationYear, work.journal?.name, `${work.citedByCount} atıf`].filter(Boolean).join(' · ')}
-                        </Text>
-                      </View>
-                      <Feather name="chevron-right" size={18} color="#777983" />
-                    </Pressable>
-                  ))}
-
-                  {activeSearchType === 'academicAuthors' && academicAuthors.map((academicAuthor) => (
-                    <Pressable
-                      key={academicAuthor.id}
-                      onPress={() => router.push({ pathname: '/academic-author' as any, params: { id: academicAuthor.id } })}
-                      style={styles.resultCard}
-                    >
-                      <AcademicAuthorAvatar name={academicAuthor.name} size={44} style={styles.authorMark} textStyle={styles.authorMarkText} />
-                      <View style={styles.flexOne}>
-                        <Text style={styles.resultTitle}>{academicAuthor.name}</Text>
-                        <Text style={styles.rowDescription}>{academicAuthor.institutionName || 'Kurum bilgisi yok'}</Text>
-                        <Text style={styles.rowDescription}>{academicAuthor.worksCount} yayın · {academicAuthor.citedByCount} atıf</Text>
-                      </View>
-                      <Feather name="chevron-right" size={18} color="#777983" />
-                    </Pressable>
-                  ))}
-
-                  {activeSearchType === 'journals' && journals.map((journal) => (
-                    <Pressable
-                      key={journal.id}
-                      onPress={() => router.push({ pathname: '/journal' as any, params: { id: journal.id } })}
-                      style={styles.resultCard}
-                    >
-                      <View style={styles.academicResultIcon}>
-                        <Feather name="layers" size={19} color="#B79AF2" />
-                      </View>
-                      <View style={styles.flexOne}>
-                        <Text style={styles.resultTitle}>{journal.name}</Text>
-                        <Text style={styles.rowDescription}>{journal.publisher || 'Yayıncı bilgisi yok'}</Text>
-                        <Text style={styles.rowDescription}>{journal.worksCount} çalışma · {journal.citedByCount} atıf</Text>
-                      </View>
-                      <Feather name="chevron-right" size={18} color="#777983" />
-                    </Pressable>
-                  ))}
-
-                  {activeSearchType === 'institutions' && institutions.map((institution) => (
-                    <Pressable
-                      key={institution.id}
-                      onPress={() => router.push({ pathname: '/academic-institution' as any, params: { id: institution.id } })}
-                      style={styles.resultCard}
-                    >
-                      <View style={styles.academicResultIcon}>
-                        <Feather name="briefcase" size={19} color="#B79AF2" />
-                      </View>
-                      <View style={styles.flexOne}>
-                        <Text style={styles.resultTitle}>{institution.name}</Text>
-                        <Text style={styles.rowDescription}>{[institution.city, institution.countryCode].filter(Boolean).join(' · ') || 'Konum bilgisi yok'}</Text>
-                        <Text style={styles.rowDescription}>{institution.worksCount} çalışma · {institution.citedByCount} atıf</Text>
-                      </View>
-                      <Feather name="chevron-right" size={18} color="#777983" />
-                    </Pressable>
-                  ))}
-
-                  {activeSearchType === 'books' && books.map((book, index) => {
-                    const authorName = book.author_name?.join(', ') || 'Bilinmeyen yazar';
-                    return (
-                      <Pressable key={book.key || `${book.title}-${index}`} onPress={() => openBook(book, authorName)} style={styles.bookCard}>
-                        <BookCover uri={existingBookCover(book)} style={styles.cover}>
-                          <View style={[styles.cover, styles.coverFallback]}>
-                            <Feather name="book-open" size={24} color="#9870EA" />
-                          </View>
-                        </BookCover>
+                  <SearchSection title="Makaleler" count={academicWorks.length}>
+                    {academicWorks.map((work) => (
+                      <Pressable
+                        key={work.id}
+                        onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })}
+                        style={styles.resultCard}
+                      >
+                        <View style={styles.academicResultIcon}>
+                          <Feather name="file-text" size={19} color="#B79AF2" />
+                        </View>
                         <View style={styles.flexOne}>
-                          <Text style={styles.bookTitle} numberOfLines={2}>{book.title ?? 'Bilinmeyen kitap'}</Text>
-                          <Text style={styles.bookAuthor} numberOfLines={2}>{authorName}</Text>
-                          {!!book.first_publish_year && <Text style={styles.year}>İlk yayın: {book.first_publish_year}</Text>}
+                          <Text style={styles.resultTitle} numberOfLines={2}>{work.title}</Text>
+                          <Text style={styles.rowDescription} numberOfLines={2}>
+                            {work.authors.map((item) => item.name).slice(0, 3).join(', ') || 'Yazar bilgisi yok'}
+                          </Text>
+                          <Text style={styles.rowDescription} numberOfLines={1}>
+                            {[work.publicationYear, work.journal?.name, `${work.citedByCount} atıf`].filter(Boolean).join(' · ')}
+                          </Text>
                         </View>
                         <Feather name="chevron-right" size={18} color="#777983" />
                       </Pressable>
-                    );
-                  })}
+                    ))}
+                  </SearchSection>
+
+                  <SearchSection title="Akademisyenler" count={academicAuthors.length}>
+                    {academicAuthors.map((academicAuthor) => (
+                      <Pressable
+                        key={academicAuthor.id}
+                        onPress={() => router.push({ pathname: '/academic-author' as any, params: { id: academicAuthor.id } })}
+                        style={styles.resultCard}
+                      >
+                        <AcademicAuthorAvatar name={academicAuthor.name} size={44} style={styles.authorMark} textStyle={styles.authorMarkText} />
+                        <View style={styles.flexOne}>
+                          <Text style={styles.resultTitle}>{academicAuthor.name}</Text>
+                          <Text style={styles.rowDescription}>{academicAuthor.institutionName || 'Kurum bilgisi yok'}</Text>
+                          <Text style={styles.rowDescription}>{academicAuthor.worksCount} yayın · {academicAuthor.citedByCount} atıf</Text>
+                        </View>
+                        <Feather name="chevron-right" size={18} color="#777983" />
+                      </Pressable>
+                    ))}
+                  </SearchSection>
+
+                  <SearchSection title="Dergiler" count={journals.length}>
+                    {journals.map((journal) => (
+                      <Pressable
+                        key={journal.id}
+                        onPress={() => router.push({ pathname: '/journal' as any, params: { id: journal.id } })}
+                        style={styles.resultCard}
+                      >
+                        <View style={styles.academicResultIcon}>
+                          <Feather name="layers" size={19} color="#B79AF2" />
+                        </View>
+                        <View style={styles.flexOne}>
+                          <Text style={styles.resultTitle}>{journal.name}</Text>
+                          <Text style={styles.rowDescription}>{journal.publisher || 'Yayıncı bilgisi yok'}</Text>
+                          <Text style={styles.rowDescription}>{journal.worksCount} çalışma · {journal.citedByCount} atıf</Text>
+                        </View>
+                        <Feather name="chevron-right" size={18} color="#777983" />
+                      </Pressable>
+                    ))}
+                  </SearchSection>
+
+                  <SearchSection title="Kurumlar" count={institutions.length}>
+                    {institutions.map((institution) => (
+                      <Pressable
+                        key={institution.id}
+                        onPress={() => router.push({ pathname: '/academic-institution' as any, params: { id: institution.id } })}
+                        style={styles.resultCard}
+                      >
+                        <View style={styles.academicResultIcon}>
+                          <Feather name="briefcase" size={19} color="#B79AF2" />
+                        </View>
+                        <View style={styles.flexOne}>
+                          <Text style={styles.resultTitle}>{institution.name}</Text>
+                          <Text style={styles.rowDescription}>{[institution.city, institution.countryCode].filter(Boolean).join(' · ') || 'Konum bilgisi yok'}</Text>
+                          <Text style={styles.rowDescription}>{institution.worksCount} çalışma · {institution.citedByCount} atıf</Text>
+                        </View>
+                        <Feather name="chevron-right" size={18} color="#777983" />
+                      </Pressable>
+                    ))}
+                  </SearchSection>
+
+                  {searched &&
+                  !books.length &&
+                  !authors.length &&
+                  !users.length &&
+                  !academicLoading &&
+                  !academicWorks.length &&
+                  !academicAuthors.length &&
+                  !journals.length &&
+                  !institutions.length ? (
+                    <View style={styles.messageCard}>
+                      <Text style={styles.emptyTitle}>Sonuç bulunamadı.</Text>
+                      <Text style={styles.emptyText}>Farklı bir arama ifadesi deneyebilirsin.</Text>
+                    </View>
+                  ) : null}
                 </>
               )}
             </View>
@@ -1068,14 +1057,29 @@ function SectionHeader({
   );
 }
 
-function SearchTab({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function SearchSection({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count: number;
+  children: ReactNode;
+}) {
   const styles = useThemedStyles(baseStyles);
+  if (!count) return null;
+
   return (
-    <Pressable onPress={onPress} style={[styles.tab, active && styles.activeTab]}>
-      <Text style={[styles.tabText, active && styles.activeTabText]}>{label}</Text>
-    </Pressable>
+    <View style={styles.searchSection}>
+      <View style={styles.searchSectionHeader}>
+        <Text style={styles.searchSectionTitle}>{title}</Text>
+        <Text style={styles.searchSectionCount}>{count}</Text>
+      </View>
+      {children}
+    </View>
   );
 }
+
 
 const baseStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#08090D' },
@@ -1131,11 +1135,11 @@ const baseStyles = StyleSheet.create({
   rowDescription: { color: '#777983', fontSize: 10, lineHeight: 15, marginTop: 4 },
   resultTitle: { color: '#F0F0F3', fontSize: 15, fontWeight: '900' },
   resultsArea: { marginTop: 18 },
-  tabs: { flexDirection: 'row', gap: 6, borderRadius: 15, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#101116', padding: 4, marginBottom: 16 },
-  tab: { minWidth: 88, height: 38, paddingHorizontal: 12, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
-  activeTab: { backgroundColor: '#302345', borderWidth: 1, borderColor: '#684CA0' },
-  tabText: { color: '#777983', fontSize: 11, fontWeight: '700' },
-  activeTabText: { color: '#D7C4FA', fontWeight: '900' },
+  searchSection: { marginBottom: 22 },
+  searchSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
+  searchSectionTitle: { color: '#ECECF0', fontSize: 15, fontWeight: '900' },
+  searchSectionCount: { minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, backgroundColor: '#241B36', color: '#CDBBFF', fontSize: 10, fontWeight: '900', textAlign: 'center', textAlignVertical: 'center', lineHeight: 24 },
+  academicLoadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginBottom: 8 },
   messageCard: { minHeight: 140, borderRadius: 18, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', justifyContent: 'center', alignItems: 'center', padding: 20 },
   loadingText: { color: '#858791', fontSize: 11, marginTop: 10 },
   emptyTitle: { color: '#ECECF0', fontSize: 14, fontWeight: '900' },
