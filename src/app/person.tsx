@@ -41,19 +41,18 @@ function normalizePersonName(value: string) {
   return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('tr-TR');
 }
 
-async function loadOpenLibraryAuthor(authorKey: string, name: string, signal: AbortSignal) {
+async function loadOpenLibraryIdentity(authorKey: string, name: string, signal: AbortSignal): Promise<OpenLibraryAuthor | null> {
   let author: OpenLibraryAuthor | null = null;
-  let resolvedKey = authorKey;
 
-  if (resolvedKey) {
-    const normalized = resolvedKey.startsWith('/') ? resolvedKey : `/authors/${resolvedKey}`;
+  if (authorKey) {
+    const normalized = authorKey.startsWith('/') ? authorKey : `/authors/${authorKey}`;
     const response = await fetch(`https://openlibrary.org${normalized}.json`, { signal }).catch(() => null);
     if (response?.ok) author = await response.json();
   }
 
   if (!author && name) {
     const response = await fetch(
-      `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(name)}&limit=8`,
+      `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(name)}&limit=5`,
       { signal }
     ).catch(() => null);
     if (response?.ok) {
@@ -62,9 +61,8 @@ async function loadOpenLibraryAuthor(authorKey: string, name: string, signal: Ab
         (item: any) => normalizePersonName(String(item?.name ?? '')) === normalizePersonName(name)
       );
       if (exact) {
-        resolvedKey = typeof exact.key === 'string' ? exact.key : '';
         author = {
-          key: resolvedKey,
+          key: typeof exact.key === 'string' ? exact.key : undefined,
           name: exact.name,
           birth_date: exact.birth_date,
         };
@@ -72,38 +70,31 @@ async function loadOpenLibraryAuthor(authorKey: string, name: string, signal: Ab
     }
   }
 
-  const resolvedName = author?.name || name;
-  let books: OpenLibraryBook[] = [];
-  if (resolvedName) {
-    const response = await fetch(
-      `https://openlibrary.org/search.json?author=${encodeURIComponent(resolvedName)}&limit=40&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`,
-      { signal }
-    ).catch(() => null);
-    if (response?.ok) {
-      const data = await response.json();
-      books = (Array.isArray(data?.docs) ? data.docs : [])
-        .filter((book: OpenLibraryBook, index: number, all: OpenLibraryBook[]) =>
-          !!book.key && all.findIndex((item) => item.key === book.key) === index
-        )
-        .slice(0, 30);
-    }
-  }
-
-  return { author, books, authorKey: resolvedKey };
+  return author;
 }
 
-async function loadAcademicAuthor(academicId: string, name: string, signal: AbortSignal) {
-  if (academicId) {
-    const author = await getAcademicAuthor(academicId, signal);
-    const works = author ? await getAuthorWorks(author.id, 30, signal) : [];
-    return { author, works };
-  }
+async function loadOpenLibraryBooks(name: string, signal: AbortSignal): Promise<OpenLibraryBook[]> {
+  if (!name) return [];
+  const response = await fetch(
+    `https://openlibrary.org/search.json?author=${encodeURIComponent(name)}&limit=24&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`,
+    { signal }
+  ).catch(() => null);
+  if (!response?.ok) return [];
 
-  if (!name) return { author: null, works: [] as AcademicWork[] };
-  const candidates = await searchAcademicAuthors(name, 8, signal);
-  const exact = candidates.find((item) => normalizePersonName(item.name) === normalizePersonName(name)) ?? null;
-  const works = exact ? await getAuthorWorks(exact.id, 30, signal) : [];
-  return { author: exact, works };
+  const data = await response.json();
+  return (Array.isArray(data?.docs) ? data.docs : [])
+    .filter((book: OpenLibraryBook, index: number, all: OpenLibraryBook[]) =>
+      !!book.key && all.findIndex((item) => item.key === book.key) === index
+    )
+    .slice(0, 20);
+}
+
+async function loadAcademicIdentity(academicId: string, name: string, signal: AbortSignal): Promise<AcademicAuthorSummary | null> {
+  if (academicId) return getAcademicAuthor(academicId, signal);
+  if (!name) return null;
+
+  const candidates = await searchAcademicAuthors(name, 5, signal);
+  return candidates.find((item) => normalizePersonName(item.name) === normalizePersonName(name)) ?? null;
 }
 
 export default function PersonScreen() {
@@ -121,37 +112,85 @@ export default function PersonScreen() {
   const [academicAuthor, setAcademicAuthor] = useState<AcademicAuthorSummary | null>(null);
   const [academicWorks, setAcademicWorks] = useState<AcademicWork[]>([]);
   const [loading, setLoading] = useState(true);
+  const [booksLoading, setBooksLoading] = useState(false);
+  const [academicWorksLoading, setAcademicWorksLoading] = useState(false);
 
   useEffect(() => {
     if (!name && !authorKey && !academicId) return;
+
     let active = true;
     const controller = new AbortController();
 
     async function load() {
       await Promise.resolve();
       if (!active) return;
-      setLoading(true);
 
-      try {
-        const [literary, academic] = await Promise.all([
-          loadOpenLibraryAuthor(authorKey, name, controller.signal),
-          loadAcademicAuthor(academicId, name, controller.signal),
-        ]);
+      setLoading(false);
+
+      const literaryPromise = loadOpenLibraryIdentity(authorKey, name, controller.signal)
+        .then((loadedAuthor) => {
+          if (!active) return null;
+          if (loadedAuthor) setAuthor(loadedAuthor);
+          return loadedAuthor;
+        })
+        .catch((error) => {
+          if ((error as Error)?.name !== 'AbortError') console.warn('Yazar kimliği yüklenemedi:', error);
+          return null;
+        });
+
+      const academicPromise = loadAcademicIdentity(academicId, name, controller.signal)
+        .then((loadedAcademicAuthor) => {
+          if (!active) return null;
+          if (loadedAcademicAuthor) setAcademicAuthor(loadedAcademicAuthor);
+          return loadedAcademicAuthor;
+        })
+        .catch((error) => {
+          if ((error as Error)?.name !== 'AbortError') console.warn('Akademik kimlik yüklenemedi:', error);
+          return null;
+        });
+
+      void literaryPromise.then((loadedAuthor) => {
         if (!active) return;
-        setAuthor(literary.author);
-        setBooks(literary.books);
-        setAcademicAuthor(academic.author);
-        setAcademicWorks(academic.works);
-      } catch (error) {
-        if ((error as Error)?.name !== 'AbortError') {
-          console.warn('Kişi profili yüklenemedi:', error);
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
+        const resolvedName = loadedAuthor?.name || name;
+        if (!resolvedName) return;
+
+        setBooksLoading(true);
+        void loadOpenLibraryBooks(resolvedName, controller.signal)
+          .then((rows) => {
+            if (active) setBooks(rows);
+          })
+          .catch((error) => {
+            if ((error as Error)?.name !== 'AbortError') console.warn('Yazar eserleri yüklenemedi:', error);
+          })
+          .finally(() => {
+            if (active) setBooksLoading(false);
+          });
+      });
+
+      void academicPromise.then((loadedAcademicAuthor) => {
+        if (!active || !loadedAcademicAuthor) return;
+
+        setAcademicWorksLoading(true);
+        const guard = setTimeout(() => {
+          if (active) setAcademicWorksLoading(false);
+        }, 5000);
+
+        void getAuthorWorks(loadedAcademicAuthor.id, 20, controller.signal)
+          .then((rows) => {
+            if (active) setAcademicWorks(rows);
+          })
+          .catch((error) => {
+            if ((error as Error)?.name !== 'AbortError') console.warn('Akademik yayınlar yüklenemedi:', error);
+          })
+          .finally(() => {
+            clearTimeout(guard);
+            if (active) setAcademicWorksLoading(false);
+          });
+      });
     }
 
     void load();
+
     return () => {
       active = false;
       controller.abort();
@@ -163,7 +202,7 @@ export default function PersonScreen() {
   const isAcademic = !!academicAuthor;
   const biography = typeof author?.bio === 'string' ? author.bio : author?.bio?.value ?? null;
 
-  if (loading) {
+  if (loading && !displayName) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
@@ -244,6 +283,13 @@ export default function PersonScreen() {
           </View>
         ) : null}
 
+        {booksLoading && !books.length ? (
+          <View style={styles.inlineLoading}>
+            <ActivityIndicator color={colors.primary} size="small" />
+            <Text style={styles.loadingText}>Eserler yükleniyor...</Text>
+          </View>
+        ) : null}
+
         {books.length ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Kitapları ve Eserleri</Text>
@@ -276,6 +322,13 @@ export default function PersonScreen() {
           </View>
         ) : null}
 
+        {academicWorksLoading && !academicWorks.length ? (
+          <View style={styles.inlineLoading}>
+            <ActivityIndicator color={colors.primary} size="small" />
+            <Text style={styles.loadingText}>Akademik yayınlar yükleniyor...</Text>
+          </View>
+        ) : null}
+
         {academicWorks.length ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Akademik Yayınları</Text>
@@ -289,7 +342,7 @@ export default function PersonScreen() {
           </View>
         ) : null}
 
-        {!books.length && !academicWorks.length ? (
+        {!booksLoading && !academicWorksLoading && !books.length && !academicWorks.length ? (
           <View style={styles.empty}>
             <Text style={styles.emptyText}>Bu kişi için eser veya akademik yayın bulunamadı.</Text>
           </View>
@@ -321,6 +374,7 @@ const baseStyles = StyleSheet.create({
   metric: { flex: 1, borderRadius: 13, backgroundColor: '#171820', borderWidth: 1, borderColor: '#292A33', padding: 10, alignItems: 'center' },
   metricValue: { color: '#F1F1F4', fontSize: 16, fontWeight: '900' },
   metricLabel: { color: '#747680', fontSize: 9, marginTop: 3, textAlign: 'center' },
+  inlineLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 18, paddingVertical: 10 },
   section: { marginTop: 22 },
   sectionTitle: { color: '#F0F0F3', fontSize: 16, fontWeight: '900', marginBottom: 11 },
   bio: { color: '#C1C2CA', fontSize: 13, lineHeight: 21 },
