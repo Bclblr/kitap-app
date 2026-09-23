@@ -1293,7 +1293,7 @@ const baseStyles = StyleSheet.create({
   progressCard: { borderRadius: 18, padding: 16, backgroundColor: '#111218', borderWidth: 1, borderColor: '#292A33' },
   progressLoadingRow: { minHeight: 90, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   progressLoadingText: { color: '#8A8B94', fontSize: 12, marginLeft: 10 },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-start' },
   inputGroup: { flex: 1 },
   inputDivider: { width: 10 },
   inputLabel: { color: '#9A9CA5', fontSize: 10, fontWeight: '700', marginBottom: 7 },
