@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
@@ -17,7 +18,6 @@ import {
 
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 function readRecoveryParams(url: string) {
   const normalized = url.replace('#', '?');
@@ -32,6 +32,7 @@ function readRecoveryParams(url: string) {
 }
 
 export default function ResetPasswordScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors, scheme } = useAppTheme();
@@ -129,7 +130,7 @@ export default function ResetPasswordScreen() {
   if (preparing) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#A985FF" />
+        <ActivityIndicator color={lightColor('primary', '#A985FF')} />
         <Text style={styles.loadingText}>Güvenli bağlantı hazırlanıyor...</Text>
       </View>
     );
@@ -150,7 +151,7 @@ export default function ResetPasswordScreen() {
         </Pressable>
 
         <View style={styles.iconWrap}>
-          <Feather name="shield" size={28} color="#A985FF" />
+          <Feather name="shield" size={28} color={lightColor('primary', '#A985FF')} />
         </View>
 
         <Text style={styles.title}>Yeni şifre oluştur</Text>
@@ -160,7 +161,7 @@ export default function ResetPasswordScreen() {
 
         {!ready ? (
           <View style={styles.errorCard}>
-            <Feather name="alert-circle" size={21} color="#FFB7BE" />
+            <Feather name="alert-circle" size={21} color={lightColor('danger', '#FFB7BE')} />
             <View style={styles.errorCopy}>
               <Text style={styles.errorTitle}>Bağlantı geçersiz veya süresi dolmuş</Text>
               <Text style={styles.errorText}>Giriş ekranından yeni bir şifre yenileme bağlantısı iste.</Text>
@@ -170,13 +171,13 @@ export default function ResetPasswordScreen() {
           <>
             <Text style={styles.label}>Yeni şifre</Text>
             <View style={styles.inputWrap}>
-              <Feather name="lock" size={18} color="#777783" />
+              <Feather name="lock" size={18} color={lightColor('textSecondary', '#777783')} />
               <TextInput
                 value={password}
                 keyboardAppearance={scheme}
                 onChangeText={setPassword}
                 placeholder="En az 8 karakter"
-                placeholderTextColor="#686873"
+                placeholderTextColor={lightColor('textMuted', '#686873')}
                 secureTextEntry
                 style={styles.input}
               />
@@ -184,13 +185,13 @@ export default function ResetPasswordScreen() {
 
             <Text style={styles.label}>Yeni şifreyi tekrar yaz</Text>
             <View style={styles.inputWrap}>
-              <Feather name="check-circle" size={18} color="#777783" />
+              <Feather name="check-circle" size={18} color={lightColor('textSecondary', '#777783')} />
               <TextInput
                 value={confirmPassword}
                 keyboardAppearance={scheme}
                 onChangeText={setConfirmPassword}
                 placeholder="Şifreni tekrar yaz"
-                placeholderTextColor="#686873"
+                placeholderTextColor={lightColor('textMuted', '#686873')}
                 secureTextEntry
                 style={styles.input}
               />

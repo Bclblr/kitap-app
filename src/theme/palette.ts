@@ -23,9 +23,13 @@ export type AppColors = {
   error: string;
   overlay: string;
   focusRing: string;
+  warning: string;
+  warningSoft: string;
+  dangerSoft: string;
+  successSoft: string;
 };
 
-/** Original purple theme, restored. */
+/** Shared semantic palette. Existing dark-mode values are intentionally preserved. */
 export const palette: Record<'dark' | 'light', AppColors> = {
   dark: {
     background: '#0A0A0E',
@@ -50,31 +54,39 @@ export const palette: Record<'dark' | 'light', AppColors> = {
     error: '#FFB2B2',
     overlay: 'rgba(0,0,0,0.72)',
     focusRing: '#C8B5FF',
+    warning: '#F2B36C',
+    warningSoft: '#1C1712',
+    dangerSoft: '#241217',
+    successSoft: '#101B16',
   },
   light: {
     // High-contrast light theme. Keep the purple identity, but avoid the
     // washed-out grey-on-white look on cards, filters and secondary text.
-    background: '#ECE8F2',
+    background: '#F6F3FA',
     surface: '#FFFFFF',
-    surfaceElevated: '#DDD6E8',
-    surfaceSecondary: '#E4DDEB',
-    input: '#E2DCE9',
+    surfaceElevated: '#EEE8F5',
+    surfaceSecondary: '#F0ECF5',
+    input: '#F8F6FC',
     text: '#17121F',
     textPrimary: '#17121F',
     textSecondary: '#453B54',
     textMuted: '#5F556C',
-    border: '#B7ABBE',
-    divider: '#CCC2D2',
+    border: '#91859F',
+    divider: '#C4BACF',
     primary: '#6232B5',
     accent: '#6232B5',
-    primarySoft: '#CDB8EB',
-    accentSoft: '#CDB8EB',
-    secondaryAccent: '#6F46BE',
+    primarySoft: '#EDE3FA',
+    accentSoft: '#EDE3FA',
+    secondaryAccent: '#6232B5',
     onPrimary: '#FFFFFF',
     success: '#356948',
     danger: '#9F1830',
     error: '#9F1830',
     overlay: 'rgba(22,16,35,0.66)',
     focusRing: '#6232B5',
+    warning: '#865000',
+    warningSoft: '#FFF2DB',
+    dangerSoft: '#FCE9EF',
+    successSoft: '#E5F3EA',
   },
 };

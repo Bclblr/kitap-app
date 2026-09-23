@@ -15,7 +15,7 @@ import {
 import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useThemedStyles, useLightColor } from '@/theme/use-themed-styles';
 
 type Preferences = {
   likes_enabled: boolean;
@@ -50,6 +50,7 @@ const ROWS: {
 ];
 
 export default function NotificationSettingsScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -161,8 +162,8 @@ export default function NotificationSettingsScreen() {
                   value={preferences[row.key]}
                   onValueChange={(value) => void updatePreference(row.key, value)}
                   disabled={savingKey === row.key}
-                  trackColor={{ false: '#32323C', true: colors.primary }}
-                  thumbColor="#F5F5F7"
+                  trackColor={{ false: lightColor('border', '#32323C'), true: colors.primary }}
+                  thumbColor={lightColor('onPrimary', '#F5F5F7')}
                   accessibilityLabel={`${row.title} bildirimleri`}
                 />
               </View>

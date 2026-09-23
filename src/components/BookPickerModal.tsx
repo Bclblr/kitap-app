@@ -1,6 +1,7 @@
 import BookCover from '@/components/BookCover';
 import { existingBookCover } from '@/lib/open-library-cover';
 import { useAppTheme } from '@/providers/ThemeProvider';
+import { useLightColor } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export default function BookPickerModal({ visible, onClose, onSelect, title = 'Kitap seç' }: Props) {
+  const lightColor = useLightColor();
   const { colors } = useAppTheme();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ComposerBook[]>([]);
@@ -146,7 +148,7 @@ export default function BookPickerModal({ visible, onClose, onSelect, title = 'K
           </View>
 
           <View style={styles.hintRow}>
-            <Text style={[styles.hint, { color: error ? '#E98992' : colors.textMuted }]}>{error || hint}</Text>
+            <Text style={[styles.hint, { color: error ? lightColor('danger', '#E98992') : colors.textMuted }]}>{error || hint}</Text>
             {loading ? <ActivityIndicator size="small" color={colors.primary} /> : null}
           </View>
 

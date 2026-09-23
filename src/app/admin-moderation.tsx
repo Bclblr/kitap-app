@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -16,7 +17,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type ReportStatus = 'pending' | 'reviewing' | 'actioned' | 'rejected';
 
@@ -82,6 +82,7 @@ function targetLabel(target: string) {
 }
 
 export default function AdminModerationScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -241,7 +242,7 @@ export default function AdminModerationScreen() {
                     value={resolutionById[report.id] ?? ''}
                     onChangeText={(text) => setResolutionById((old) => ({ ...old, [report.id]: text }))}
                     placeholder="İşlemin nedenini veya sonucu yaz..."
-                    placeholderTextColor="#6F6F7B"
+                    placeholderTextColor={lightColor('textMuted', '#6F6F7B')}
                     multiline
                     style={styles.resolutionInput}
                   />
@@ -253,7 +254,7 @@ export default function AdminModerationScreen() {
                         onPress={() => void updateReport(report, 'reviewing')}
                         style={[styles.actionButton, styles.reviewButton, busy && styles.disabled]}
                       >
-                        <Feather name="eye" size={16} color="#D8C9FF" />
+                        <Feather name="eye" size={16} color={lightColor('primary', '#D8C9FF')} />
                         <Text style={styles.reviewButtonText}>İncelemeye al</Text>
                       </Pressable>
                     ) : null}
@@ -263,7 +264,7 @@ export default function AdminModerationScreen() {
                       onPress={() => void updateReport(report, 'actioned')}
                       style={[styles.actionButton, styles.successButton, busy && styles.disabled]}
                     >
-                      <Feather name="check" size={16} color="#D9FFE8" />
+                      <Feather name="check" size={16} color={lightColor('textPrimary', '#D9FFE8')} />
                       <Text style={styles.successButtonText}>İşlem yapıldı</Text>
                     </Pressable>
 
@@ -272,7 +273,7 @@ export default function AdminModerationScreen() {
                       onPress={() => void updateReport(report, 'rejected')}
                       style={[styles.actionButton, styles.rejectButton, busy && styles.disabled]}
                     >
-                      <Feather name="x" size={16} color="#FFD5D8" />
+                      <Feather name="x" size={16} color={lightColor('textPrimary', '#FFD5D8')} />
                       <Text style={styles.rejectButtonText}>Reddet</Text>
                     </Pressable>
                   </View>

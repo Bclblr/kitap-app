@@ -1,9 +1,9 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { safeBack } from '@/lib/navigation';
 import BookCover from '@/components/BookCover';
 import BookPickerModal, { ComposerBook } from '@/components/BookPickerModal';
 import Image from '@/components/SafeImage';
 import { supabase } from '@/lib/supabase';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -44,6 +44,7 @@ const TOPICS: Topic[] = [
 const TAG_SUGGESTIONS = ['klasik', 'roman', 'edebiyat', 'karakter', 'psikoloji', 'tarih', 'felsefe', 'toplum'];
 
 export default function ReviewScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -195,14 +196,14 @@ export default function ReviewScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
         <Pressable onPress={closeComposer} style={styles.headerIcon} accessibilityLabel="İncelemeyi kapat">
-          <Feather name="x" size={25} color="#F5F5F7" />
+          <Feather name="x" size={25} color={lightColor('textPrimary', '#F5F5F7')} />
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={styles.headerTitle}>İnceleme Yaz</Text>
           <Text style={styles.headerSubtitle}>Düşüncelerini okurlarla paylaş</Text>
         </View>
         <Pressable onPress={() => setPreviewSheet(true)} style={styles.headerIcon} accessibilityLabel="Önizleme">
-          <Feather name="eye" size={21} color="#C8B6FF" />
+          <Feather name="eye" size={21} color={lightColor('primary', '#C8B6FF')} />
         </Pressable>
       </View>
 
@@ -214,7 +215,7 @@ export default function ReviewScreen() {
         <Pressable onPress={() => setRating((current) => current || 5)} style={styles.ratingCard}>
           <View style={styles.ratingTopRow}>
             <View style={styles.ratingIconWrap}>
-              <Feather name="star" size={18} color="#D9CBFF" />
+              <Feather name="star" size={18} color={lightColor('primary', '#D9CBFF')} />
             </View>
             <View style={styles.ratingCopy}>
               <Text style={styles.ratingTitle}>{rating ? `${rating}/5 puan verdin` : 'Kitabı puanla'}</Text>
@@ -224,7 +225,7 @@ export default function ReviewScreen() {
           <View style={styles.starsRow}>
             {[1, 2, 3, 4, 5].map((star) => (
               <Pressable key={star} onPress={() => setRating(star)} style={styles.starButton}>
-                <Feather name="star" size={29} color={star <= rating ? '#A985FF' : '#555A66'} />
+                <Feather name="star" size={29} color={star <= rating ? lightColor('primary', '#A985FF') : lightColor('textSecondary', '#555A66')} />
               </Pressable>
             ))}
           </View>
@@ -241,7 +242,7 @@ export default function ReviewScreen() {
             <Text style={styles.authorHandle}>@{username}</Text>
           </View>
           <View style={styles.publicPill}>
-            <Feather name="globe" size={13} color="#A9AFBB" />
+            <Feather name="globe" size={13} color={lightColor('textSecondary', '#A9AFBB')} />
             <Text style={styles.publicText}>Herkese açık</Text>
           </View>
         </View>
@@ -251,7 +252,7 @@ export default function ReviewScreen() {
             value={reviewTitle}
             onChangeText={setReviewTitle}
             placeholder="İncelemene bir başlık ekle"
-            placeholderTextColor="#656B76"
+            placeholderTextColor={lightColor('textMuted', '#656B76')}
             maxLength={120}
             style={styles.titleInput}
           />
@@ -260,7 +261,7 @@ export default function ReviewScreen() {
             value={reviewText}
             onChangeText={setReviewText}
             placeholder="Bu kitap sende ne bıraktı? Beğendiğin, eleştirdiğin veya üzerinde düşündüğün noktaları yaz..."
-            placeholderTextColor="#656B76"
+            placeholderTextColor={lightColor('textMuted', '#656B76')}
             multiline
             maxLength={4000}
             textAlignVertical="top"
@@ -269,10 +270,10 @@ export default function ReviewScreen() {
           <View style={styles.editorFooter}>
             <View style={styles.quickActions}>
               <Pressable onPress={() => setTagSheet(true)} style={styles.quickAction}>
-                <Feather name="at-sign" size={20} color="#B9A4F7" />
+                <Feather name="at-sign" size={20} color={lightColor('primary', '#B9A4F7')} />
               </Pressable>
               <Pressable onPress={() => setTagSheet(true)} style={styles.quickAction}>
-                <Feather name="hash" size={20} color="#B9A4F7" />
+                <Feather name="hash" size={20} color={lightColor('primary', '#B9A4F7')} />
               </Pressable>
             </View>
             <Text style={styles.characterCount}>{reviewText.length}/4000</Text>
@@ -280,40 +281,40 @@ export default function ReviewScreen() {
         </View>
 
         <Pressable onPress={() => setTopicSheet(true)} style={styles.selectionCard}>
-          <View style={styles.selectionIcon}><Feather name="layers" size={19} color="#C8B6FF" /></View>
+          <View style={styles.selectionIcon}><Feather name="layers" size={19} color={lightColor('primary', '#C8B6FF')} /></View>
           <View style={styles.selectionCopy}>
             <Text style={styles.selectionLabel}>Konu</Text>
             <Text style={[styles.selectionValue, !topic && styles.selectionPlaceholder]}>{topic || 'İncelemenin konusunu seç'}</Text>
           </View>
-          <Feather name="chevron-right" size={20} color="#717784" />
+          <Feather name="chevron-right" size={20} color={lightColor('textSecondary', '#717784')} />
         </Pressable>
 
         <Pressable onPress={() => setTagSheet(true)} style={styles.selectionCard}>
-          <View style={styles.selectionIcon}><Feather name="tag" size={19} color="#C8B6FF" /></View>
+          <View style={styles.selectionIcon}><Feather name="tag" size={19} color={lightColor('primary', '#C8B6FF')} /></View>
           <View style={styles.selectionCopy}>
             <Text style={styles.selectionLabel}>Etiketler</Text>
             <Text style={[styles.selectionValue, tags.length === 0 && styles.selectionPlaceholder]} numberOfLines={1}>
               {tags.length ? tags.map((item) => `#${item}`).join('  ') : 'Okur, kitap veya tema ekle'}
             </Text>
           </View>
-          <Feather name="chevron-right" size={20} color="#717784" />
+          <Feather name="chevron-right" size={20} color={lightColor('textSecondary', '#717784')} />
         </Pressable>
 
         <Pressable onPress={() => setBookPickerOpen(true)} style={styles.bookCard}>
           <BookCover uri={selectedBookCover || null} style={styles.bookCover}>
-            <View style={styles.bookCoverFallback}><Feather name="book-open" size={22} color="#797F8B" /></View>
+            <View style={styles.bookCoverFallback}><Feather name="book-open" size={22} color={lightColor('textSecondary', '#797F8B')} /></View>
           </BookCover>
           <View style={styles.bookCopy}>
             <Text style={styles.bookEyebrow}>İNCELEME YAPILAN KİTAP</Text>
             <Text style={styles.bookTitle} numberOfLines={2}>{selectedBookTitle || 'Kitap seç'}</Text>
             <Text style={styles.bookAuthor} numberOfLines={1}>{selectedBookAuthor || 'Kitap veya yazar adıyla ara'}</Text>
           </View>
-          <Feather name={selectedBookKey ? "check-circle" : "plus-circle"} size={20} color="#8C70E8" />
+          <Feather name={selectedBookKey ? "check-circle" : "plus-circle"} size={20} color={lightColor('primary', '#8C70E8')} />
         </Pressable>
 
         {containsSpoiler ? (
           <View style={styles.spoilerNotice}>
-            <Feather name="alert-triangle" size={16} color="#F2B36C" />
+            <Feather name="alert-triangle" size={16} color={lightColor('warning', '#F2B36C')} />
             <Text style={styles.spoilerNoticeText}>Bu inceleme spoiler içeriyor olarak işaretlenecek.</Text>
           </View>
         ) : null}
@@ -321,15 +322,15 @@ export default function ReviewScreen() {
 
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <Pressable onPress={() => setOptionsSheet(true)} style={styles.optionsButton}>
-          <Feather name="sliders" size={19} color="#B4BBC6" />
+          <Feather name="sliders" size={19} color={lightColor('textSecondary', '#B4BBC6')} />
           <Text style={styles.optionsText}>Gönderi seçenekleri</Text>
         </Pressable>
         <Pressable onPress={() => setPreviewSheet(true)} style={styles.previewButton} accessibilityLabel="Önizleme">
-          <Feather name="eye" size={21} color="#A9AFBB" />
+          <Feather name="eye" size={21} color={lightColor('textSecondary', '#A9AFBB')} />
         </Pressable>
         <Pressable onPress={saveReview} disabled={saving} style={[styles.publishButton, saving && styles.disabledButton]}>
           <Text style={styles.publishText}>{saving ? 'Yayınlanıyor...' : 'Yayınla'}</Text>
-          {!saving ? <Feather name="arrow-up-right" size={17} color="#0A0910" /> : null}
+          {!saving ? <Feather name="arrow-up-right" size={17} color={lightColor('onPrimary', '#0A0910')} /> : null}
         </Pressable>
       </View>
 
@@ -352,18 +353,18 @@ export default function ReviewScreen() {
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <View><Text style={styles.sheetTitle}>Konu Seçimi</Text><Text style={styles.sheetSubtitle}>İncelemenin keşfedilmesini kolaylaştır</Text></View>
-              <Pressable onPress={() => setTopicSheet(false)} style={styles.sheetClose}><Feather name="x" size={20} color="#D7DBE2" /></Pressable>
+              <Pressable onPress={() => setTopicSheet(false)} style={styles.sheetClose}><Feather name="x" size={20} color={lightColor('textPrimary', '#D7DBE2')} /></Pressable>
             </View>
             <View style={styles.searchBox}>
-              <Feather name="search" size={19} color="#7D8490" />
-              <TextInput value={topicQuery} onChangeText={setTopicQuery} placeholder="Konularda ara" placeholderTextColor="#676D78" style={styles.searchInput} />
+              <Feather name="search" size={19} color={lightColor('textSecondary', '#7D8490')} />
+              <TextInput value={topicQuery} onChangeText={setTopicQuery} placeholder="Konularda ara" placeholderTextColor={lightColor('textMuted', '#676D78')} style={styles.searchInput} />
             </View>
             <ScrollView showsVerticalScrollIndicator={false} style={styles.sheetList}>
               {filteredTopics.map((item) => (
                 <Pressable key={item.name} onPress={() => { setTopic(item.name); setTopicSheet(false); }} style={[styles.topicRow, topic === item.name && styles.topicRowSelected]}>
-                  <View style={styles.topicIcon}><Feather name={item.icon} size={18} color="#BDAAF8" /></View>
+                  <View style={styles.topicIcon}><Feather name={item.icon} size={18} color={lightColor('primary', '#BDAAF8')} /></View>
                   <View style={styles.topicCopy}><Text style={styles.topicName}>{item.name}</Text><Text style={styles.topicDescription}>{item.description}</Text></View>
-                  {topic === item.name ? <Feather name="check" size={19} color="#A985FF" /> : <Feather name="chevron-right" size={18} color="#606672" />}
+                  {topic === item.name ? <Feather name="check" size={19} color={lightColor('primary', '#A985FF')} /> : <Feather name="chevron-right" size={18} color={lightColor('textSecondary', '#606672')} />}
                 </Pressable>
               ))}
             </ScrollView>
@@ -378,16 +379,16 @@ export default function ReviewScreen() {
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <View><Text style={styles.sheetTitle}>Etiket Ekle</Text><Text style={styles.sheetSubtitle}>İncelemeni doğru okurlarla buluştur</Text></View>
-              <Pressable onPress={() => setTagSheet(false)} style={styles.sheetClose}><Feather name="x" size={20} color="#D7DBE2" /></Pressable>
+              <Pressable onPress={() => setTagSheet(false)} style={styles.sheetClose}><Feather name="x" size={20} color={lightColor('textPrimary', '#D7DBE2')} /></Pressable>
             </View>
             <View style={styles.searchBox}>
-              <Feather name="search" size={19} color="#7D8490" />
+              <Feather name="search" size={19} color={lightColor('textSecondary', '#7D8490')} />
               <TextInput
                 value={tagQuery}
                 onChangeText={setTagQuery}
                 onSubmitEditing={() => addTag(tagQuery)}
                 placeholder="Etiket ara veya yeni etiket yaz"
-                placeholderTextColor="#676D78"
+                placeholderTextColor={lightColor('textMuted', '#676D78')}
                 style={styles.searchInput}
                 returnKeyType="done"
               />
@@ -396,14 +397,14 @@ export default function ReviewScreen() {
               <Pressable onPress={() => addTag(tagQuery)} style={styles.createTagRow}>
                 <View style={styles.tagHash}><Text style={styles.tagHashText}>#</Text></View>
                 <Text style={styles.createTagText}>“{tagQuery.trim().replace(/^#/, '')}” etiketini ekle</Text>
-                <Feather name="plus" size={19} color="#BDAAF8" />
+                <Feather name="plus" size={19} color={lightColor('primary', '#BDAAF8')} />
               </Pressable>
             ) : null}
             {tags.length ? (
               <View style={styles.selectedTags}>
                 {tags.map((item) => (
                   <Pressable key={item} onPress={() => removeTag(item)} style={styles.tagChip}>
-                    <Text style={styles.tagChipText}>#{item}</Text><Feather name="x" size={14} color="#CFC4ED" />
+                    <Text style={styles.tagChipText}>#{item}</Text><Feather name="x" size={14} color={lightColor('textPrimary', '#CFC4ED')} />
                   </Pressable>
                 ))}
               </View>
@@ -427,12 +428,12 @@ export default function ReviewScreen() {
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <View><Text style={styles.sheetTitle}>Gönderi Seçenekleri</Text><Text style={styles.sheetSubtitle}>İncelemenin nasıl gösterileceğini belirle</Text></View>
-              <Pressable onPress={() => setOptionsSheet(false)} style={styles.sheetClose}><Feather name="x" size={20} color="#D7DBE2" /></Pressable>
+              <Pressable onPress={() => setOptionsSheet(false)} style={styles.sheetClose}><Feather name="x" size={20} color={lightColor('textPrimary', '#D7DBE2')} /></Pressable>
             </View>
             <View style={styles.optionRow}>
-              <View style={styles.optionIcon}><Feather name="alert-triangle" size={19} color="#E8B475" /></View>
+              <View style={styles.optionIcon}><Feather name="alert-triangle" size={19} color={lightColor('warning', '#E8B475')} /></View>
               <View style={styles.optionCopy}><Text style={styles.optionTitle}>Spoiler içeriyor</Text><Text style={styles.optionDescription}>Okurlar incelemeyi açmadan önce uyarı görür.</Text></View>
-              <Switch value={containsSpoiler} onValueChange={setContainsSpoiler} trackColor={{ false: '#353A44', true: '#7656D7' }} thumbColor="#F4F1FA" />
+              <Switch value={containsSpoiler} onValueChange={setContainsSpoiler} trackColor={{ false: lightColor('border', '#353A44'), true: lightColor('primary', '#7656D7') }} thumbColor={lightColor('onPrimary', '#F4F1FA')} />
             </View>
           </View>
         </View>
@@ -444,18 +445,18 @@ export default function ReviewScreen() {
           <View style={styles.previewCard}>
             <View style={styles.previewHeader}>
               <Text style={styles.previewTitle}>Yayın Önizlemesi</Text>
-              <Pressable onPress={() => setPreviewSheet(false)}><Feather name="x" size={22} color="#F0F1F4" /></Pressable>
+              <Pressable onPress={() => setPreviewSheet(false)}><Feather name="x" size={22} color={lightColor('textPrimary', '#F0F1F4')} /></Pressable>
             </View>
             <View style={styles.previewUserRow}>
               {profile?.profile_image ? <Image source={{ uri: profile.profile_image }} style={styles.previewAvatar} /> : <View style={styles.previewAvatarFallback}><Text style={styles.previewAvatarText}>{initial}</Text></View>}
               <View><Text style={styles.previewUser}>{displayName}</Text><Text style={styles.previewMeta}>{rating ? `${rating}/5` : 'Puan verilmedi'} · İnceleme</Text></View>
             </View>
-            {containsSpoiler ? <View style={styles.previewSpoiler}><Feather name="alert-triangle" size={14} color="#E8B475" /><Text style={styles.previewSpoilerText}>Spoiler içeriyor</Text></View> : null}
+            {containsSpoiler ? <View style={styles.previewSpoiler}><Feather name="alert-triangle" size={14} color={lightColor('warning', '#E8B475')} /><Text style={styles.previewSpoilerText}>Spoiler içeriyor</Text></View> : null}
             {reviewTitle.trim() ? <Text style={styles.previewReviewTitle}>{reviewTitle.trim()}</Text> : null}
             <Text style={styles.previewBody}>{reviewText.trim() || 'İnceleme metnin burada görünecek.'}</Text>
             {topic ? <Text style={styles.previewTopic}>{topic}</Text> : null}
             {tags.length ? <Text style={styles.previewTags}>{tags.map((item) => `#${item}`).join('  ')}</Text> : null}
-            <View style={styles.previewBook}><Feather name="book" size={16} color="#BDAAF8" /><Text style={styles.previewBookText} numberOfLines={1}>{title || 'Bilinmeyen kitap'}</Text></View>
+            <View style={styles.previewBook}><Feather name="book" size={16} color={lightColor('primary', '#BDAAF8')} /><Text style={styles.previewBookText} numberOfLines={1}>{title || 'Bilinmeyen kitap'}</Text></View>
           </View>
         </View>
       </Modal>

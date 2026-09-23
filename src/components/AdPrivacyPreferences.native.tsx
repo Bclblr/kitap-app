@@ -3,8 +3,10 @@ import { useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 
 import { showAdPrivacyOptions } from '@/lib/ads';
+import { useLightColor } from '@/theme/use-themed-styles';
 
 export default function AdPrivacyPreferences() {
+  const lightColor = useLightColor();
   const [opening, setOpening] = useState(false);
   const enabled = process.env.EXPO_PUBLIC_ADS_ENABLED === 'true';
   const supported = Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
@@ -36,9 +38,9 @@ export default function AdPrivacyPreferences() {
       style={{
         minHeight: 76,
         borderRadius: 17,
-        backgroundColor: '#15151D',
+        backgroundColor: lightColor('surface', '#15151D'),
         borderWidth: 1,
-        borderColor: '#292934',
+        borderColor: lightColor('border', '#292934'),
         padding: 14,
         marginBottom: 10,
         justifyContent: 'center',
@@ -46,10 +48,10 @@ export default function AdPrivacyPreferences() {
       }}
     >
       <View>
-        <Text style={{ color: '#F5F5F8', fontSize: 14, fontWeight: '800' }}>
+        <Text style={{ color: lightColor('textPrimary', '#F5F5F8'), fontSize: 14, fontWeight: '800' }}>
           Reklam gizlilik tercihleri
         </Text>
-        <Text style={{ color: '#8E8E9D', fontSize: 12, lineHeight: 17, marginTop: 3 }}>
+        <Text style={{ color: lightColor('textSecondary', '#8E8E9D'), fontSize: 12, lineHeight: 17, marginTop: 3 }}>
           Kişiselleştirilmiş reklam ve onay tercihlerini görüntüle veya değiştir.
         </Text>
       </View>

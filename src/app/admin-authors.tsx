@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -17,7 +18,6 @@ import Image from '@/components/SafeImage';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type AuthorRow = {
   user_id: string;
@@ -35,6 +35,7 @@ type AuthorRow = {
 };
 
 export default function AdminAuthorsScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -164,7 +165,7 @@ export default function AdminAuthorsScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="Kullanıcı adı, yazar adı veya UUID ara"
-            placeholderTextColor="#747483"
+            placeholderTextColor={lightColor('textMuted', '#747483')}
             style={styles.searchInput}
             autoCapitalize="none"
             autoCorrect={false}
@@ -190,7 +191,7 @@ export default function AdminAuthorsScreen() {
                   </View>
                   {author.verified ? (
                     <View style={styles.verifiedBadge}>
-                      <Feather name="check" size={12} color="#D9CCFF" />
+                      <Feather name="check" size={12} color={lightColor('primary', '#D9CCFF')} />
                       <Text style={styles.verifiedText}>Doğrulandı</Text>
                     </View>
                   ) : null}
@@ -206,7 +207,7 @@ export default function AdminAuthorsScreen() {
                   value={penNames[author.user_id] ?? ''}
                   onChangeText={(value) => setPenNames((current) => ({ ...current, [author.user_id]: value }))}
                   placeholder="Yazar / mahlas adı"
-                  placeholderTextColor="#747483"
+                  placeholderTextColor={lightColor('textMuted', '#747483')}
                   style={styles.penInput}
                 />
 

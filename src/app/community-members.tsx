@@ -1,8 +1,8 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -25,6 +25,7 @@ type InviteCandidate = {
 };
 
 export default function CommunityMembersScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const router = useRouter();
@@ -270,7 +271,7 @@ export default function CommunityMembersScreen() {
                   value={inviteQuery}
                   onChangeText={setInviteQuery}
                   placeholder="Kullanıcı ara"
-                  placeholderTextColor="#777983"
+                  placeholderTextColor={lightColor('textMuted', '#777983')}
                   style={styles.searchInput}
                   autoCapitalize="none"
                 />
@@ -350,7 +351,7 @@ export default function CommunityMembersScreen() {
                         accessibilityRole="button"
                         accessibilityLabel={member.role === 'admin' ? 'Yönetici yetkisini kaldır' : 'Yönetici yap'}
                       >
-                        <Feather name="shield" size={15} color="#C7B3FF" />
+                        <Feather name="shield" size={15} color={lightColor('primary', '#C7B3FF')} />
                         <Text style={styles.roleButtonText}>
                           {isManaging ? 'İşleniyor...' : member.role === 'admin' ? 'Admin Yetkisini Kaldır' : 'Admin Yap'}
                         </Text>
@@ -362,7 +363,7 @@ export default function CommunityMembersScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="Üyeyi topluluktan çıkar"
                       >
-                        <Feather name="user-x" size={15} color="#E18B94" />
+                        <Feather name="user-x" size={15} color={lightColor('danger', '#E18B94')} />
                         <Text style={styles.removeButtonText}>Çıkar</Text>
                       </Pressable>
                     </View>

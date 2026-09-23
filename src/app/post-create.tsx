@@ -1,3 +1,4 @@
+import { useLightColor } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -15,15 +16,15 @@ type Profile = { full_name: string | null; username: string | null; profile_imag
 const MAX_POST_IMAGES = 6;
 
 export default function PostCreateScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors, scheme } = useAppTheme();
+  const { colors } = useAppTheme();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [posting, setPosting] = useState(false);
-  const dark = scheme === 'dark';
   const name = profile?.full_name?.trim() || profile?.username?.trim() || 'Kitap Okuru';
   const username = profile?.username?.trim() || 'kitapokuru';
   const ready = !!(title.trim() || body.trim() || images.length) && !posting;
@@ -191,7 +192,7 @@ export default function PostCreateScreen() {
         <View style={s.options}><Feather name="sliders" size={21} color={colors.textSecondary} /><Text style={[s.optionsText, { color: colors.textSecondary }]}>Gönderi seçenekleri</Text></View>
         <Feather name="eye" size={22} color={colors.textSecondary} />
         <Pressable onPress={publish} disabled={!ready} style={[s.publish, { backgroundColor: ready ? colors.primary : colors.primarySoft }]}>
-          {posting ? <ActivityIndicator color={dark ? '#0D0913' : '#FFF'} /> : <Text style={[s.publishText, { color: ready ? (dark ? '#0D0913' : '#FFF') : colors.textSecondary }]}>Yayınla</Text>}
+          {posting ? <ActivityIndicator color={lightColor('onPrimary', '#0D0913')} /> : <Text style={[s.publishText, { color: ready ? lightColor('onPrimary', '#0D0913') : colors.textSecondary }]}>Yayınla</Text>}
         </Pressable>
       </View>
     </KeyboardAvoidingView>

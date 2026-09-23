@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -15,7 +16,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type ContentKind = 'post' | 'review' | 'quote' | 'post_comment' | 'comment';
 
@@ -53,6 +53,7 @@ function formatDate(value?: string | null) {
 }
 
 export default function AdminContentScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -178,7 +179,7 @@ export default function AdminContentScreen() {
               onPress={() => setActiveTab(item.key)}
               style={[styles.tabButton, active && styles.tabButtonActive]}
             >
-              <Feather name={item.icon} size={15} color={active ? '#F5F5F8' : '#8E8E9D'} />
+              <Feather name={item.icon} size={15} color={active ? lightColor('textPrimary', '#F5F5F8') : lightColor('textSecondary', '#8E8E9D')} />
               <Text style={[styles.tabText, active && styles.tabTextActive]}>{item.label}</Text>
             </Pressable>
           );
@@ -235,7 +236,7 @@ export default function AdminContentScreen() {
                     disabled={deletingId === item.id}
                     style={[styles.deleteButton, deletingId === item.id && styles.disabledButton]}
                   >
-                    <Feather name="trash-2" size={16} color="#FF7D86" />
+                    <Feather name="trash-2" size={16} color={lightColor('danger', '#FF7D86')} />
                     <Text style={styles.deleteText}>
                       {deletingId === item.id ? 'Taşınıyor...' : 'Çöp Kutusuna Taşı'}
                     </Text>

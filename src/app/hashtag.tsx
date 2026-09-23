@@ -1,5 +1,5 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { safeBack } from '@/lib/navigation';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import HashtagText from '@/components/HashtagText';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -133,6 +133,7 @@ function formatRelativeTime(value: string) {
 }
 
 export default function HashtagScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const { tag } = useLocalSearchParams<{ tag?: string | string[] }>();
@@ -896,7 +897,7 @@ export default function HashtagScreen() {
             <Feather
     name="message-circle"
     size={18}
-    color={commentPanelOpen ? '#A985FF' : '#858792'}
+    color={commentPanelOpen ? lightColor('primary', '#A985FF') : lightColor('textSecondary', '#858792')}
   />
             <Text style={[styles.actionText, commentPanelOpen && styles.commentActive]}>
               {item.comments_count}
@@ -927,7 +928,7 @@ export default function HashtagScreen() {
                 value={commentText}
                 onChangeText={setCommentText}
                 placeholder="Yorum yaz..."
-                placeholderTextColor="#686A74"
+                placeholderTextColor={lightColor('textMuted', '#686A74')}
                 style={styles.commentInput}
                 multiline
                 maxLength={500}
@@ -951,7 +952,7 @@ export default function HashtagScreen() {
 
             {commentsLoadingKey === contentKey ? (
               <View style={styles.commentsLoading}>
-                <ActivityIndicator size="small" color="#9B72F2" />
+                <ActivityIndicator size="small" color={lightColor('primary', '#9B72F2')} />
               </View>
             ) : comments.length > 0 ? (
               <View style={styles.commentsList}>
@@ -1003,7 +1004,7 @@ export default function HashtagScreen() {
           <ScreenMessage title="Geçersiz hashtag." />
         ) : loading ? (
           <View style={styles.centerState}>
-            <ActivityIndicator color="#9B72F2" />
+            <ActivityIndicator color={lightColor('primary', '#9B72F2')} />
             <Text style={styles.loadingText}>Paylaşımlar yükleniyor...</Text>
           </View>
         ) : error && content.length === 0 ? (
@@ -1039,7 +1040,7 @@ export default function HashtagScreen() {
             ListFooterComponent={
               loadingMore ? (
                 <View style={styles.footerLoading}>
-                  <ActivityIndicator size="small" color="#9B72F2" />
+                  <ActivityIndicator size="small" color={lightColor('primary', '#9B72F2')} />
                 </View>
               ) : null
             }

@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -7,7 +8,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type TrashType='all'|'post'|'review'|'quote'|'post_comment'|'comment';
 type TrashRow={id:string;target_type:string;target_id:string;snapshot:any;reason:string|null;deleted_by:string|null;deleted_username:string|null;deleted_at:string};
@@ -19,6 +19,7 @@ function formatDate(value:string){const d=new Date(value);return Number.isNaN(d.
 function preview(snapshot:any){return String(snapshot?.text??snapshot?.book_title??snapshot?.title??'Metin içeriği yok')}
 
 export default function AdminTrashScreen(){
+  const lightColor = useLightColor();
   const router=useRouter();
   const styles=useThemedStyles(baseStyles);
   const{colors}=useAppTheme();
@@ -82,7 +83,7 @@ export default function AdminTrashScreen(){
         <View style={styles.cardTop}><View style={styles.badge}><Text style={styles.badgeText}>{labelFor(item.target_type)}</Text></View><Text style={styles.date}>{formatDate(item.deleted_at)}</Text></View>
         <Text style={styles.preview} numberOfLines={6}>{preview(item.snapshot)}</Text>
         <View style={styles.metaBox}><Text style={styles.meta}>İçerik ID: {item.target_id}</Text><Text style={styles.meta}>Silen: {item.deleted_username||item.deleted_by||'Bilinmiyor'}</Text>{item.reason?<Text style={styles.meta}>Neden: {item.reason}</Text>:null}</View>
-        <Pressable disabled={restoringId===item.id} onPress={()=>askRestore(item)} style={[styles.restoreButton,restoringId===item.id&&styles.disabled]}><Feather name="rotate-ccw" size={16} color="#BDA8FF"/><Text style={styles.restoreText}>{restoringId===item.id?'Geri yükleniyor...':'Geri Yükle'}</Text></Pressable>
+        <Pressable disabled={restoringId===item.id} onPress={()=>askRestore(item)} style={[styles.restoreButton,restoringId===item.id&&styles.disabled]}><Feather name="rotate-ccw" size={16} color={lightColor('primary', '#BDA8FF')}/><Text style={styles.restoreText}>{restoringId===item.id?'Geri yükleniyor...':'Geri Yükle'}</Text></Pressable>
       </View>)}
     </ScrollView>}
   </View>

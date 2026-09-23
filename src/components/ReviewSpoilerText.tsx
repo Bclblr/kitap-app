@@ -1,3 +1,4 @@
+import { useLightStyles, useLightColor } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, type TextStyle, View, type ViewStyle } from 'react-native';
@@ -21,6 +22,8 @@ export default function ReviewSpoilerText({
   textStyle,
   containerStyle,
 }: Props) {
+  const styles = useLightStyles(baseStyles, lightTokens);
+  const lightColor = useLightColor();
   const [revealed, setRevealed] = useState(!containsSpoiler);
   const normalizedTags = Array.isArray(tags) ? tags.filter(Boolean) : [];
 
@@ -40,7 +43,7 @@ export default function ReviewSpoilerText({
       {containsSpoiler && !revealed ? (
         <View style={styles.warning}>
           <View style={styles.warningTitleRow}>
-            <Feather name="alert-triangle" size={16} color="#F2B36C" />
+            <Feather name="alert-triangle" size={16} color={lightColor('warning', '#F2B36C')} />
             <Text style={styles.warningTitle}>Spoiler içeren inceleme</Text>
           </View>
           <Text style={styles.warningText}>
@@ -55,7 +58,7 @@ export default function ReviewSpoilerText({
             accessibilityRole="button"
             accessibilityLabel="Spoiler içeriğini göster"
           >
-            <Feather name="eye" size={15} color="#D8C8FF" />
+            <Feather name="eye" size={15} color={lightColor('primary', '#D8C8FF')} />
             <Text style={styles.revealText}>İncelemeyi göster</Text>
           </Pressable>
         </View>
@@ -72,7 +75,7 @@ export default function ReviewSpoilerText({
               accessibilityRole="button"
               accessibilityLabel="Spoiler içeriğini yeniden gizle"
             >
-              <Feather name="eye-off" size={14} color="#A9AFBB" />
+              <Feather name="eye-off" size={14} color={lightColor('textSecondary', '#A9AFBB')} />
               <Text style={styles.hideText}>Spoileri yeniden gizle</Text>
             </Pressable>
           ) : null}
@@ -82,7 +85,7 @@ export default function ReviewSpoilerText({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   title: {
     color: '#F5F5F8',
     fontSize: 16,
@@ -164,3 +167,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+// Semantic light overrides; authored dark styles stay unchanged.
+const lightTokens = {
+  "title": {
+    "color": "textPrimary"
+  },
+  "topic": {
+    "color": "primary",
+    "backgroundColor": "primarySoft"
+  },
+  "tag": {
+    "color": "textSecondary",
+    "backgroundColor": "surfaceSecondary"
+  },
+  "warning": {
+    "borderColor": "warning",
+    "backgroundColor": "warningSoft"
+  },
+  "warningTitle": {
+    "color": "warning"
+  },
+  "warningText": {
+    "color": "textSecondary"
+  },
+  "revealButton": {
+    "backgroundColor": "primarySoft"
+  },
+  "revealText": {
+    "color": "primary"
+  },
+  "hideText": {
+    "color": "textSecondary"
+  }
+} as const;

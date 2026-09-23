@@ -1,3 +1,4 @@
+import { useLightStyles } from '@/theme/use-themed-styles';
 import Constants from 'expo-constants';
 import { usePathname, useRouter } from 'expo-router';
 import { PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
@@ -26,6 +27,7 @@ function isOlder(current: string, minimum: string) {
 }
 
 export default function RuntimeGate({ children }: PropsWithChildren) {
+  const styles = useLightStyles(baseStyles, lightTokens);
   const { colors } = useAppTheme();
   const { session } = useAuth();
   const router = useRouter();
@@ -120,9 +122,16 @@ export default function RuntimeGate({ children }: PropsWithChildren) {
   </View>;
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   fill:{flex:1},center:{flex:1,alignItems:'center',justifyContent:'center',padding:28},
   blockTitle:{fontSize:24,fontWeight:'900',textAlign:'center'},blockBody:{fontSize:14,lineHeight:21,textAlign:'center',marginTop:10,maxWidth:520},
   button:{marginTop:20,paddingHorizontal:18,paddingVertical:12,borderRadius:12},buttonText:{color:'#fff',fontWeight:'800'},
   banner:{marginHorizontal:12,marginTop:8,padding:12,borderRadius:14,borderWidth:1,backgroundColor:'#15151D'},bannerTitle:{fontSize:13,fontWeight:'900'},bannerBody:{marginTop:3,fontSize:12,lineHeight:17},
 });
+
+// Semantic light overrides; authored dark styles stay unchanged.
+const lightTokens = {
+  "banner": {
+    "backgroundColor": "surface"
+  }
+} as const;

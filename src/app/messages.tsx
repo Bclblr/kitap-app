@@ -1,4 +1,4 @@
-import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -39,6 +39,7 @@ type ConversationItem = {
 };
 
 export default function MessagesScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -299,7 +300,7 @@ export default function MessagesScreen() {
           {item.profileImage ? (
             <Image source={{ uri: item.profileImage }} style={styles.avatarImage} />
           ) : (
-            <Feather name="user" size={21} color="#A8A8B3" />
+            <Feather name="user" size={21} color={lightColor('textSecondary', '#A8A8B3')} />
           )}
         </View>
 
@@ -330,7 +331,7 @@ export default function MessagesScreen() {
               </Text>
             </View>
           ) : (
-            <Feather name="chevron-right" size={18} color="#5F5F69" style={styles.chevron} />
+            <Feather name="chevron-right" size={18} color={lightColor('textSecondary', '#5F5F69')} style={styles.chevron} />
           )}
         </View>
       </Pressable>
@@ -345,7 +346,7 @@ export default function MessagesScreen() {
           <Text style={styles.title}>Mesajlar</Text>
         </View>
         <View style={styles.headerIconWrap}>
-          <Feather name="message-circle" size={21} color="#A985FF" />
+          <Feather name="message-circle" size={21} color={lightColor('primary', '#A985FF')} />
         </View>
       </View>
 
@@ -355,7 +356,7 @@ export default function MessagesScreen() {
         value={query}
         onChangeText={setQuery}
         placeholder="Ad veya kullanıcı adı ara"
-        placeholderTextColor="#999"
+        placeholderTextColor={lightColor('textMuted', '#999')}
         style={styles.searchInput}
       />
 
@@ -383,13 +384,13 @@ export default function MessagesScreen() {
         </ScrollView>
       ) : loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color="#A985FF" />
+          <ActivityIndicator color={lightColor('primary', '#A985FF')} />
           <Text style={styles.loadingText}>Mesajlar yükleniyor...</Text>
         </View>
       ) : conversations.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconWrap}>
-            <Feather name="message-circle" size={30} color="#A985FF" />
+            <Feather name="message-circle" size={30} color={lightColor('primary', '#A985FF')} />
           </View>
           <Text style={styles.emptyTitle}>Henüz mesajın yok</Text>
           <Text style={styles.emptyText}>

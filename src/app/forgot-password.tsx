@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
@@ -17,9 +18,9 @@ import {
 import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 export default function ForgotPasswordScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors, scheme } = useAppTheme();
@@ -86,7 +87,7 @@ export default function ForgotPasswordScreen() {
         </Pressable>
 
         <View style={styles.iconWrap}>
-          <Feather name="key" size={28} color="#A985FF" />
+          <Feather name="key" size={28} color={lightColor('primary', '#A985FF')} />
         </View>
 
         <Text style={styles.title}>Şifreni mi unuttun?</Text>
@@ -96,7 +97,7 @@ export default function ForgotPasswordScreen() {
 
         {sent ? (
           <View style={styles.successCard}>
-            <Feather name="mail" size={22} color="#B8F3D1" />
+            <Feather name="mail" size={22} color={lightColor('success', '#B8F3D1')} />
             <View style={styles.successCopy}>
               <Text style={styles.successTitle}>E-postanı kontrol et</Text>
               <Text style={styles.successText}>
@@ -108,13 +109,13 @@ export default function ForgotPasswordScreen() {
           <>
             <Text style={styles.label}>E-posta</Text>
             <View style={styles.inputWrap}>
-              <Feather name="mail" size={18} color="#777783" />
+              <Feather name="mail" size={18} color={lightColor('textSecondary', '#777783')} />
               <TextInput
                 value={email}
                 keyboardAppearance={scheme}
                 onChangeText={setEmail}
                 placeholder="ornek@email.com"
-                placeholderTextColor="#686873"
+                placeholderTextColor={lightColor('textMuted', '#686873')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}

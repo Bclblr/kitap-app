@@ -1,12 +1,13 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 export default function AccountDeletionScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -116,7 +117,7 @@ export default function AccountDeletionScreen() {
               autoCapitalize="characters"
               autoCorrect={false}
               placeholder="SİL"
-              placeholderTextColor="#6F6F7B"
+              placeholderTextColor={lightColor('textMuted', '#6F6F7B')}
               style={styles.confirmInput}
             />
             <View style={styles.confirmActions}>

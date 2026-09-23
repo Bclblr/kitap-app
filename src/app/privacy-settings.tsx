@@ -1,6 +1,7 @@
 import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useAppTheme } from '@/providers/ThemeProvider';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -8,6 +9,8 @@ import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 're
 type MessagePermission = 'everyone' | 'followers' | 'nobody';
 
 export default function PrivacySettingsScreen() {
+  const { scheme, colors } = useAppTheme();
+  const trackColor = scheme === 'light' ? { false: colors.border, true: colors.primary } : undefined;
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const [discoverable, setDiscoverable] = useState(true);
@@ -136,7 +139,7 @@ export default function PrivacySettingsScreen() {
                 <Text style={styles.cardTitle}>Özel hesap</Text>
                 <Text style={styles.cardDescription}>Açık olduğunda yeni takipçiler önce istek gönderir. İçeriklerini yalnızca onayladığın takipçiler görür.</Text>
               </View>
-              <Switch value={isPrivate} onValueChange={changePrivate} disabled={saving} />
+              <Switch value={isPrivate} onValueChange={changePrivate} disabled={saving} trackColor={trackColor} />
             </View>
 
             <Pressable
@@ -157,7 +160,7 @@ export default function PrivacySettingsScreen() {
                 <Text style={styles.cardTitle}>Arama ve Keşfet’te görün</Text>
                 <Text style={styles.cardDescription}>Kapalı olduğunda kullanıcı adı aramalarında hesabın gösterilmez.</Text>
               </View>
-              <Switch value={discoverable} onValueChange={changeDiscoverable} disabled={saving} />
+              <Switch value={discoverable} onValueChange={changeDiscoverable} disabled={saving} trackColor={trackColor} />
             </View>
 
             <Text style={styles.sectionTitle}>Kimler mesaj gönderebilir?</Text>

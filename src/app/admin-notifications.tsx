@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -6,11 +7,11 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type TargetType = 'all' | 'user' | 'role';
 
 export default function AdminNotificationsScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -66,9 +67,9 @@ export default function AdminNotificationsScreen() {
 
         <View style={styles.card}>
           <Text style={styles.label}>Başlık</Text>
-          <TextInput value={title} onChangeText={setTitle} maxLength={120} placeholder="Bildirim başlığı" placeholderTextColor="#747483" style={styles.input} />
+          <TextInput value={title} onChangeText={setTitle} maxLength={120} placeholder="Bildirim başlığı" placeholderTextColor={lightColor('textMuted', '#747483')} style={styles.input} />
           <Text style={styles.label}>Mesaj</Text>
-          <TextInput value={message} onChangeText={setMessage} maxLength={1000} multiline placeholder="Kullanıcılara gösterilecek mesaj" placeholderTextColor="#747483" style={[styles.input, styles.messageInput]} />
+          <TextInput value={message} onChangeText={setMessage} maxLength={1000} multiline placeholder="Kullanıcılara gösterilecek mesaj" placeholderTextColor={lightColor('textMuted', '#747483')} style={[styles.input, styles.messageInput]} />
 
           <Text style={styles.label}>Hedef</Text>
           <View style={styles.row}>
@@ -79,11 +80,11 @@ export default function AdminNotificationsScreen() {
             ))}
           </View>
 
-          {targetType === 'user' && <TextInput value={targetValue} onChangeText={setTargetValue} autoCapitalize="none" placeholder="Kullanıcı UUID" placeholderTextColor="#747483" style={styles.input} />}
+          {targetType === 'user' && <TextInput value={targetValue} onChangeText={setTargetValue} autoCapitalize="none" placeholder="Kullanıcı UUID" placeholderTextColor={lightColor('textMuted', '#747483')} style={styles.input} />}
           {targetType === 'role' && <View style={styles.row}>{roles.map((roleName) => <Pressable key={roleName} onPress={() => setTargetValue(roleName)} style={[styles.chip,targetValue===roleName && styles.chipActive]}><Text style={[styles.chipText,targetValue===roleName && styles.chipTextActive]}>{roleName}</Text></Pressable>)}</View>}
 
           <Text style={styles.label}>Yönlendirme (isteğe bağlı)</Text>
-          <TextInput value={route} onChangeText={setRoute} autoCapitalize="none" placeholder="Örn. /explore" placeholderTextColor="#747483" style={styles.input} />
+          <TextInput value={route} onChangeText={setRoute} autoCapitalize="none" placeholder="Örn. /explore" placeholderTextColor={lightColor('textMuted', '#747483')} style={styles.input} />
 
           <Pressable disabled={sending} onPress={() => void send()} style={[styles.sendButton,sending && styles.disabled]}>
             <Feather name="send" size={17} color="#fff" /><Text style={styles.sendText}>{sending ? 'Gönderiliyor...' : 'Bildirimi gönder'}</Text>

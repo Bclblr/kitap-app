@@ -1,10 +1,10 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { safeBack } from '@/lib/navigation';
 import AppLoadingState from '@/components/AppLoadingState';
 import Image from '@/components/SafeImage';
 import { useScreenRefresh, ScreenRefreshSource } from '@/hooks/use-screen-refresh';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, View as SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -20,6 +20,7 @@ type EventDetail = {
 };
 
 export default function EventScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const router = useRouter();
@@ -250,7 +251,7 @@ export default function EventScreen() {
                 ]}
               >
                 {attendanceLoading ? (
-                  <ActivityIndicator size="small" color={isAttending ? colors.primary : '#08090D'} />
+                  <ActivityIndicator size="small" color={isAttending ? colors.primary : lightColor('onPrimary', '#08090D')} />
                 ) : (
                   <Text style={[styles.attendanceButtonText, isAttending && { color: colors.primary }]}>
                     {isAttending ? 'Katılıyorsun ✓' : 'Katılacağım'}

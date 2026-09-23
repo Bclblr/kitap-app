@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -15,7 +16,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type AuditAction = 'premium_admin_granted' | 'premium_admin_revoked';
 
@@ -76,6 +76,7 @@ function formatDuration(row: HistoryRow) {
 }
 
 export default function AdminPremiumHistoryScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -196,7 +197,7 @@ export default function AdminPremiumHistoryScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="Kullanıcı, admin, UUID veya neden ara"
-            placeholderTextColor="#747483"
+            placeholderTextColor={lightColor('textMuted', '#747483')}
             autoCapitalize="none"
             autoCorrect={false}
             style={styles.searchInput}
@@ -215,7 +216,7 @@ export default function AdminPremiumHistoryScreen() {
                     <Feather
                       name={granted ? 'gift' : 'x-circle'}
                       size={18}
-                      color={granted ? '#D7CAFF' : '#FFB4BC'}
+                      color={granted ? lightColor('primary', '#D7CAFF') : lightColor('danger', '#FFB4BC')}
                     />
                   </View>
                   <View style={styles.historyCopy}>

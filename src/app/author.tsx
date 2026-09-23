@@ -1,8 +1,8 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import BookCover from '@/components/BookCover';
 import Image from '@/components/SafeImage';
 import { safeBack } from '@/lib/navigation';
 import { existingBookCover } from '@/lib/open-library-cover';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -106,6 +106,7 @@ async function fetchWikipediaAuthorInfo(name: string): Promise<WikipediaAuthorIn
 }
 
 export default function AuthorScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ key?: string; name?: string }>();
@@ -204,7 +205,7 @@ export default function AuthorScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#A985FF" />
+        <ActivityIndicator size="large" color={lightColor('primary', '#A985FF')} />
         <Text style={styles.loadingText}>Yazar bilgileri hazırlanıyor...</Text>
       </View>
     );
@@ -230,7 +231,7 @@ export default function AuthorScreen() {
           accessibilityRole="button"
           accessibilityLabel="Geri dön"
         >
-          <Feather name="arrow-left" size={20} color="#D8C8FA" />
+          <Feather name="arrow-left" size={20} color={lightColor('primary', '#D8C8FA')} />
         </Pressable>
         <Text style={styles.topTitle}>Yazar Profili</Text>
         <View style={styles.topSpacer} />
@@ -258,7 +259,7 @@ export default function AuthorScreen() {
           )}
           {(author.birth_date || author.death_date) && (
             <View style={styles.lifeRow}>
-              <Feather name="calendar" size={13} color="#9A9CA7" />
+              <Feather name="calendar" size={13} color={lightColor('textSecondary', '#9A9CA7')} />
               <Text style={styles.meta}>
                 {[author.birth_date, author.death_date].filter(Boolean).join(' – ')}
               </Text>
@@ -281,7 +282,7 @@ export default function AuthorScreen() {
       {(biography || alternateNames.length > 0) && (
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <Feather name="user" size={17} color="#B58AF6" />
+            <Feather name="user" size={17} color={lightColor('primary', '#B58AF6')} />
             <Text style={styles.section}>Biyografi</Text>
           </View>
 
@@ -302,7 +303,7 @@ export default function AuthorScreen() {
 
       <View style={styles.sectionHeaderBooks}>
         <View style={styles.sectionHeader}>
-          <Feather name="book-open" size={17} color="#F29A45" />
+          <Feather name="book-open" size={17} color={lightColor('warning', '#F29A45')} />
           <Text style={styles.section}>Kitapları ve Eserleri</Text>
         </View>
         <Text style={styles.bookCount}>{knownBookCount} eser</Text>
@@ -310,7 +311,7 @@ export default function AuthorScreen() {
 
       {books.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Feather name="book" size={24} color="#777983" />
+          <Feather name="book" size={24} color={lightColor('textSecondary', '#777983')} />
           <Text style={styles.muted}>Bu yazar için eser bulunamadı.</Text>
         </View>
       ) : (
@@ -351,7 +352,7 @@ export default function AuthorScreen() {
               )}
             </View>
 
-            <Feather name="chevron-right" size={20} color="#A985FF" />
+            <Feather name="chevron-right" size={20} color={lightColor('primary', '#A985FF')} />
           </Pressable>
         ))
       )}

@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -16,7 +17,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type AuditRow = {
   id: string;
@@ -58,6 +58,7 @@ function prettyJson(value: unknown) {
 }
 
 export default function AdminAuditScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -156,7 +157,7 @@ export default function AdminAuditScreen() {
             onChangeText={setQuery}
             onSubmitEditing={() => void load()}
             placeholder="İşlem, hedef, kullanıcı adı veya UUID ara"
-            placeholderTextColor="#747483"
+            placeholderTextColor={lightColor('textMuted', '#747483')}
             autoCapitalize="none"
             autoCorrect={false}
             style={styles.searchInput}

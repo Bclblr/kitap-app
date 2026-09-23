@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -16,7 +17,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type HashtagRow = {
   tag: string;
@@ -30,6 +30,7 @@ type HashtagRow = {
 };
 
 export default function AdminHashtagsScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -134,7 +135,7 @@ export default function AdminHashtagsScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder="Hashtag ara..."
-          placeholderTextColor="#686875"
+          placeholderTextColor={lightColor('textMuted', '#686875')}
           autoCapitalize="none"
           style={styles.searchInput}
         />
@@ -191,7 +192,7 @@ export default function AdminHashtagsScreen() {
                       onPress={() => void updateControl(item, { featured: !item.featured })}
                       style={[styles.actionButton, item.featured && styles.actionButtonActive, (!canManage || busy) && styles.disabled]}
                     >
-                      <Feather name="star" size={15} color={item.featured ? '#F5F5F8' : '#A985FF'} />
+                      <Feather name="star" size={15} color={item.featured ? lightColor('textPrimary', '#F5F5F8') : lightColor('primary', '#A985FF')} />
                       <Text style={[styles.actionText, item.featured && styles.actionTextActive]}>
                         {item.featured ? 'Öne Çıkarmayı Kaldır' : 'Öne Çıkar'}
                       </Text>
@@ -202,7 +203,7 @@ export default function AdminHashtagsScreen() {
                       onPress={() => void updateControl(item, { blocked: !item.blocked })}
                       style={[styles.actionButton, item.blocked && styles.dangerButton, (!canManage || busy) && styles.disabled]}
                     >
-                      <Feather name={item.blocked ? 'check-circle' : 'slash'} size={15} color={item.blocked ? '#FF8B94' : '#A985FF'} />
+                      <Feather name={item.blocked ? 'check-circle' : 'slash'} size={15} color={item.blocked ? lightColor('danger', '#FF8B94') : lightColor('primary', '#A985FF')} />
                       <Text style={[styles.actionText, item.blocked && styles.dangerText]}>
                         {item.blocked ? 'Engeli Kaldır' : 'Engelle'}
                       </Text>

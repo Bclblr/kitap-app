@@ -1,3 +1,4 @@
+import { useLightStyles } from '@/theme/use-themed-styles';
 import { StyleSheet, Text, View } from 'react-native';
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export default function QuoteMetadata({ title, topic, pageNumber, note }: Props) {
+  const styles = useLightStyles(baseStyles, lightTokens);
   if (!title && !topic && !pageNumber && !note) return null;
 
   return (
@@ -22,7 +24,7 @@ export default function QuoteMetadata({ title, topic, pageNumber, note }: Props)
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     marginTop: 8,
     gap: 7,
@@ -53,3 +55,17 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 });
+
+// Semantic light overrides; authored dark styles stay unchanged.
+const lightTokens = {
+  "title": {
+    "color": "textPrimary"
+  },
+  "chip": {
+    "color": "primary",
+    "backgroundColor": "primarySoft"
+  },
+  "note": {
+    "color": "textSecondary"
+  }
+} as const;

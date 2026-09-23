@@ -1,6 +1,6 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { safeBack } from '@/lib/navigation';
 import { BookCoverData, existingBookCover, loadOpenLibraryBookMetadata } from '@/lib/open-library-cover';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -112,6 +112,7 @@ function getDeviceTimezone() {
 }
 
 export default function ReadScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const { key: routeBookKey } = useLocalSearchParams<{ key?: string | string[] }>();
@@ -819,7 +820,7 @@ export default function ReadScreen() {
 
         {loading ? (
           <View style={styles.loadingCard}>
-            <ActivityIndicator color="#9B72F2" />
+            <ActivityIndicator color={lightColor('primary', '#9B72F2')} />
             <Text style={styles.loadingText}>Kitapların yükleniyor...</Text>
           </View>
         ) : currentBook ? (
@@ -895,7 +896,7 @@ export default function ReadScreen() {
             <View style={styles.progressCard}>
               {progressLoading ? (
                 <View style={styles.progressLoadingRow}>
-                  <ActivityIndicator size="small" color="#9B72F2" />
+                  <ActivityIndicator size="small" color={lightColor('primary', '#9B72F2')} />
                   <Text style={styles.progressLoadingText}>İlerlemen yükleniyor...</Text>
                 </View>
               ) : (
@@ -903,14 +904,14 @@ export default function ReadScreen() {
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Mevcut sayfa</Text>
-                      <TextInput value={currentPageInput} onChangeText={setCurrentPageInput} keyboardType="number-pad" placeholder="0" placeholderTextColor="#5F616B" style={styles.progressInput} />
+                      <TextInput value={currentPageInput} onChangeText={setCurrentPageInput} keyboardType="number-pad" placeholder="0" placeholderTextColor={lightColor('textMuted', '#5F616B')} style={styles.progressInput} />
                     </View>
                     <View style={styles.inputDivider} />
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Toplam sayfa</Text>
                       <View style={styles.pageCountBox}>
                         {pageCountLoading ? (
-                          <ActivityIndicator size="small" color="#9B72F2" />
+                          <ActivityIndicator size="small" color={lightColor('primary', '#9B72F2')} />
                         ) : (
                           <Text style={styles.pageCountValue}>
                             {totalPages ? totalPages : '—'}
@@ -1010,7 +1011,7 @@ export default function ReadScreen() {
                 <View style={styles.goalEditor}>
                   <View style={styles.goalInputGroup}>
                     <Text style={styles.inputLabel}>Günlük sayfa hedefi</Text>
-                    <TextInput value={dailyPageGoalInput} onChangeText={setDailyPageGoalInput} keyboardType="number-pad" placeholder="Örn. 20" placeholderTextColor="#5F616B" style={styles.goalInput} />
+                    <TextInput value={dailyPageGoalInput} onChangeText={setDailyPageGoalInput} keyboardType="number-pad" placeholder="Örn. 20" placeholderTextColor={lightColor('textMuted', '#5F616B')} style={styles.goalInput} />
                   </View>
                   <Pressable onPress={saveDailyPageGoal} disabled={goalSaving} style={[styles.goalSaveButton, goalSaving && styles.updateButtonDisabled]}>
                     {goalSaving ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.goalSaveButtonText}>Kaydet</Text>}
@@ -1127,7 +1128,7 @@ export default function ReadScreen() {
           <View style={styles.sameReadersCard}>
             {sameBookReadersLoading ? (
               <View style={styles.sameReadersLoading}>
-                <ActivityIndicator size="small" color="#9B72F2" />
+                <ActivityIndicator size="small" color={lightColor('primary', '#9B72F2')} />
                 <Text style={styles.sameReadersLoadingText}>Okuyucular yükleniyor...</Text>
               </View>
             ) : sameBookReaders.length > 0 ? (
@@ -1181,10 +1182,11 @@ type EmptyFeatureCardProps = {
 };
 
 function DashboardLoading() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   return (
     <View style={styles.dashboardLoading}>
-      <ActivityIndicator size="small" color="#9B72F2" />
+      <ActivityIndicator size="small" color={lightColor('primary', '#9B72F2')} />
       <Text style={styles.dashboardLoadingText}>Okuma verilerin yükleniyor...</Text>
     </View>
   );

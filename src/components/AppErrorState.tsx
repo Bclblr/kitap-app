@@ -1,3 +1,4 @@
+import { useLightStyles, useLightColor } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -20,6 +21,8 @@ export default function AppErrorState({
   fullScreen = false,
   icon = 'alert-circle',
 }: AppErrorStateProps) {
+  const styles = useLightStyles(baseStyles, lightTokens);
+  const lightColor = useLightColor();
   return (
     <View
       accessibilityRole="alert"
@@ -27,7 +30,7 @@ export default function AppErrorState({
     >
       <View style={styles.card}>
         <View style={styles.iconWrap}>
-          <Feather name={icon} size={24} color="#A985FF" />
+          <Feather name={icon} size={24} color={lightColor('primary', '#A985FF')} />
         </View>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.message}>{message}</Text>
@@ -52,7 +55,7 @@ export default function AppErrorState({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     width: '100%',
   },
@@ -112,3 +115,29 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 });
+
+// Semantic light overrides; authored dark styles stay unchanged.
+const lightTokens = {
+  "fullScreen": {
+    "backgroundColor": "background"
+  },
+  "card": {
+    "backgroundColor": "surface",
+    "borderColor": "border"
+  },
+  "iconWrap": {
+    "backgroundColor": "primarySoft"
+  },
+  "title": {
+    "color": "textPrimary"
+  },
+  "message": {
+    "color": "textSecondary"
+  },
+  "button": {
+    "backgroundColor": "primary"
+  },
+  "buttonText": {
+    "color": "onPrimary"
+  }
+} as const;

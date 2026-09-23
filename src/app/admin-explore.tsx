@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -16,7 +17,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type TargetType = 'post' | 'review' | 'book' | 'author' | 'community' | 'event' | 'hashtag';
 
@@ -42,6 +42,7 @@ const TYPES: { key: TargetType; label: string }[] = [
 ];
 
 export default function AdminExploreScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -173,13 +174,13 @@ export default function AdminExploreScreen() {
             })}
           </ScrollView>
 
-          <TextInput value={targetId} onChangeText={setTargetId} placeholder="Hedef ID / kitap key / hashtag" placeholderTextColor="#666674" style={styles.input} autoCapitalize="none" />
-          <TextInput value={title} onChangeText={setTitle} placeholder="Başlık (opsiyonel)" placeholderTextColor="#666674" style={styles.input} />
-          <TextInput value={subtitle} onChangeText={setSubtitle} placeholder="Alt başlık (opsiyonel)" placeholderTextColor="#666674" style={styles.input} />
-          <TextInput value={priority} onChangeText={setPriority} placeholder="Öncelik" placeholderTextColor="#666674" keyboardType="number-pad" style={styles.input} />
+          <TextInput value={targetId} onChangeText={setTargetId} placeholder="Hedef ID / kitap key / hashtag" placeholderTextColor={lightColor('textMuted', '#666674')} style={styles.input} autoCapitalize="none" />
+          <TextInput value={title} onChangeText={setTitle} placeholder="Başlık (opsiyonel)" placeholderTextColor={lightColor('textMuted', '#666674')} style={styles.input} />
+          <TextInput value={subtitle} onChangeText={setSubtitle} placeholder="Alt başlık (opsiyonel)" placeholderTextColor={lightColor('textMuted', '#666674')} style={styles.input} />
+          <TextInput value={priority} onChangeText={setPriority} placeholder="Öncelik" placeholderTextColor={lightColor('textMuted', '#666674')} keyboardType="number-pad" style={styles.input} />
 
           <Pressable onPress={() => void saveItem()} disabled={saving} style={[styles.saveButton, saving && styles.disabled]}>
-            <Feather name="plus" size={17} color="#0B0710" />
+            <Feather name="plus" size={17} color={lightColor('onPrimary', '#0B0710')} />
             <Text style={styles.saveText}>{saving ? 'Kaydediliyor...' : 'Keşfete Ekle'}</Text>
           </Pressable>
         </View>
@@ -211,7 +212,7 @@ export default function AdminExploreScreen() {
                   <Text style={styles.secondaryText}>{item.active ? 'Pasife Al' : 'Aktifleştir'}</Text>
                 </Pressable>
                 <Pressable onPress={() => void removeItem(item)} style={styles.deleteButton}>
-                  <Feather name="trash-2" size={15} color="#FF7D86" />
+                  <Feather name="trash-2" size={15} color={lightColor('danger', '#FF7D86')} />
                   <Text style={styles.deleteText}>Kaldır</Text>
                 </Pressable>
               </View>

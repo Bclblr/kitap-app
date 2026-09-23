@@ -1,3 +1,4 @@
+import { useLightStyles } from '@/theme/use-themed-styles';
 import { safeBack } from '@/lib/navigation';
 import BookCover from '@/components/BookCover';
 import BookPickerModal, { ComposerBook } from '@/components/BookPickerModal';
@@ -27,6 +28,7 @@ const TOPICS = ['Edebiyat', 'Karakterler', 'Yazar ve Üslup', 'Fikirler', 'Tarih
 const TEMPLATES: QuoteCardTemplate[] = ['classic', 'editorial', 'noir', 'minimal'];
 
 export default function QuoteCreate() {
+  const styles = useLightStyles(baseStyles, lightTokens);
   const router = useRouter();
   const premium = usePremium();
   const { session } = useAuth();
@@ -257,7 +259,7 @@ export default function QuoteCreate() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   root: { flex: 1 },
   header: { height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12 },
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
@@ -297,3 +299,9 @@ const styles = StyleSheet.create({
   sheetRowText: { fontSize: 16, fontWeight: '700' },
   premiumLabel: { fontSize: 11, fontWeight: '800', marginTop: 2 },
 });
+// Semantic light overrides; authored dark styles stay unchanged.
+const lightTokens = {
+  "publishText": {
+    "color": "onPrimary"
+  }
+} as const;

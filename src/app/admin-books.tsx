@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -16,7 +17,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type WorkStatus = 'all' | 'draft' | 'published';
 
@@ -54,6 +54,7 @@ function formatDate(value?: string | null) {
 }
 
 export default function AdminBooksScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -173,7 +174,7 @@ export default function AdminBooksScreen() {
           onChangeText={setSearch}
           onSubmitEditing={() => void loadWorks()}
           placeholder="Kitap, yazar veya tür ara"
-          placeholderTextColor="#666676"
+          placeholderTextColor={lightColor('textMuted', '#666676')}
           style={styles.searchInput}
           returnKeyType="search"
         />
@@ -263,7 +264,7 @@ export default function AdminBooksScreen() {
                   onPress={() => void updateState(item, item.status, !item.completed)}
                   style={styles.actionButton}
                 >
-                  <Feather name={item.completed ? 'check-circle' : 'circle'} size={15} color={item.completed ? '#8ED0A3' : colors.primary} />
+                  <Feather name={item.completed ? 'check-circle' : 'circle'} size={15} color={item.completed ? lightColor('success', '#8ED0A3') : colors.primary} />
                   <Text style={styles.actionText}>{item.completed ? 'Tamamlandı' : 'Devam Ediyor'}</Text>
                 </Pressable>
               </View>

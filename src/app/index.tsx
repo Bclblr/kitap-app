@@ -1,6 +1,6 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import BookCover from '@/components/BookCover';
 import HashtagText from '@/components/HashtagText';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -250,6 +250,7 @@ const galleryStyles = StyleSheet.create({
 });
 
 export default function HomeScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const ui = useReaderStyles();
@@ -1518,7 +1519,7 @@ export default function HomeScreen() {
                         style={[styles.postAction, feedLiked && styles.postActionActive]}
                         accessibilityLabel={feedLiked ? 'Beğeniyi kaldır' : 'Beğen'}
                       >
-                        <Feather name="heart" size={20} color={feedLiked ? '#FF6B7A' : colors.textSecondary} />
+                        <Feather name="heart" size={20} color={feedLiked ? lightColor('danger', '#FF6B7A') : colors.textSecondary} />
                         <Text style={[styles.postActionCount, feedLiked && styles.likedPostAction]}>{feedLikes ?? 0}</Text>
                       </Pressable>
                       <Pressable
@@ -1526,7 +1527,7 @@ export default function HomeScreen() {
                         style={[styles.postAction, feedReposted && styles.postActionActive]}
                         accessibilityLabel={feedReposted ? 'Repostu kaldır' : 'Repost'}
                       >
-                        <Feather name="repeat" size={20} color={feedReposted ? '#66D19E' : colors.textSecondary} />
+                        <Feather name="repeat" size={20} color={feedReposted ? lightColor('success', '#66D19E') : colors.textSecondary} />
                         <Text style={[styles.postActionCount, feedReposted && styles.repostedPostAction]}>{feedReposts ?? 0}</Text>
                       </Pressable>
                       <View style={styles.postAction} accessibilityLabel={`${post.view_count ?? 0} kişiye erişti`}>
@@ -1616,7 +1617,7 @@ export default function HomeScreen() {
                     accessibilityRole="button"
                   >
                     <View style={[styles.reportCategoryIcon, selected && styles.reportCategoryIconSelected]}>
-                      <Feather name={item.icon as any} size={19} color={selected ? '#DCCFFF' : colors.textSecondary} />
+                      <Feather name={item.icon as any} size={19} color={selected ? lightColor('primary', '#DCCFFF') : colors.textSecondary} />
                     </View>
                     <Text style={[styles.reportCategoryText, selected && styles.reportCategoryTextSelected]}>{item.label}</Text>
                     <Feather name={selected ? 'check-circle' : 'chevron-right'} size={19} color={selected ? colors.primary : colors.textMuted} />
@@ -1749,7 +1750,7 @@ export default function HomeScreen() {
                         style={styles.commentSheetDelete}
                         accessibilityLabel="Yorumu sil"
                       >
-                        <Feather name="trash-2" size={16} color="#FF6B7A" />
+                        <Feather name="trash-2" size={16} color={lightColor('danger', '#FF6B7A')} />
                       </Pressable>
                     ) : null}
                   </View>

@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -19,7 +20,6 @@ import { getCurrentAdminAccess } from '@/lib/admin';
 import { resolvePremiumAccess, type PremiumEntitlement } from '@/lib/premium';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type GrantDuration = '7_days' | '30_days' | '1_year' | 'unlimited';
 
@@ -67,6 +67,7 @@ function durationLabel(value: GrantDuration) {
 }
 
 export default function AdminPremiumScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -272,7 +273,7 @@ export default function AdminPremiumScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="Kullanıcı adı, ad soyad veya UUID ara"
-            placeholderTextColor="#747483"
+            placeholderTextColor={lightColor('textMuted', '#747483')}
             autoCapitalize="none"
             autoCorrect={false}
             style={styles.searchInput}
@@ -312,7 +313,7 @@ export default function AdminPremiumScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısının admin Premium hakkını geri al`}
                   >
-                    {updating ? <ActivityIndicator size="small" color="#FFB4BC" /> : <Feather name="x-circle" size={17} color="#FFB4BC" />}
+                    {updating ? <ActivityIndicator size="small" color={lightColor('danger', '#FFB4BC')} /> : <Feather name="x-circle" size={17} color={lightColor('danger', '#FFB4BC')} />}
                     <Text style={styles.revokeButtonText}>Admin Premium’u Geri Al</Text>
                   </Pressable>
                 ) : (

@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -12,9 +13,9 @@ import {
 } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 export default function VerifyEmailScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string }>();
@@ -84,7 +85,7 @@ export default function VerifyEmailScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.iconWrap}>
-          <Feather name="mail" size={30} color="#A985FF" />
+          <Feather name="mail" size={30} color={lightColor('primary', '#A985FF')} />
         </View>
 
         <Text style={styles.title}>E-postanı doğrula</Text>

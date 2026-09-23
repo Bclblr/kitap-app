@@ -1,3 +1,5 @@
+import { useLightStyles, useLightColor } from '@/theme/use-themed-styles';
+import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,6 +14,9 @@ import { cleanupUploadedMedia } from '@/lib/media-cleanup';
 import { supabase } from '@/lib/supabase';
 
 export default function StoryCreateScreen() {
+  const lightColor = useLightColor();
+  const { colors, scheme } = useAppTheme();
+  const styles = useLightStyles(baseStyles, lightTokens);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
@@ -121,7 +126,7 @@ export default function StoryCreateScreen() {
           <View style={styles.settingsHeader}>
             <Text style={styles.settingsTitle}>Hikâye ayarları</Text>
             <Pressable onPress={() => setSettingsVisible(false)} style={styles.settingsClose} accessibilityRole="button" accessibilityLabel="Hikâye ayarlarını kapat">
-              <Feather name="x" size={20} color="#fff" />
+              <Feather name="x" size={20} color={lightColor('textPrimary', '#fff')} />
             </Pressable>
           </View>
           <View style={styles.settingsRow}>
@@ -129,7 +134,7 @@ export default function StoryCreateScreen() {
               <Text style={styles.settingsLabel}>Beğenilere izin ver</Text>
               <Text style={styles.settingsDescription}>Kapalıysa diğer kullanıcılar bu hikâyeyi beğenemez.</Text>
             </View>
-            <Switch value={allowLikes} onValueChange={setAllowLikes} />
+            <Switch value={allowLikes} onValueChange={setAllowLikes} trackColor={scheme === 'light' ? { false: colors.border, true: colors.primary } : undefined} />
           </View>
           <View style={styles.settingsDivider} />
           <View style={styles.settingsRow}>
@@ -137,7 +142,7 @@ export default function StoryCreateScreen() {
               <Text style={styles.settingsLabel}>Yanıtlara izin ver</Text>
               <Text style={styles.settingsDescription}>Kapalıysa hikâye görüntüleyicisinde Yanıtla seçeneği gösterilmez.</Text>
             </View>
-            <Switch value={allowReplies} onValueChange={setAllowReplies} />
+            <Switch value={allowReplies} onValueChange={setAllowReplies} trackColor={scheme === 'light' ? { false: colors.border, true: colors.primary } : undefined} />
           </View>
           <Pressable onPress={() => setSettingsVisible(false)} style={styles.settingsDone}>
             <Text style={styles.settingsDoneText}>Tamam</Text>
@@ -148,4 +153,39 @@ export default function StoryCreateScreen() {
     <View style={[styles.bottomLabel, { paddingBottom: Math.max(insets.bottom, 12) }]}><Text style={styles.bottomActive}>HİKÂYE</Text></View>
   </View>;
 }
-const styles = StyleSheet.create({ root:{flex:1,backgroundColor:'#080B0F'},stage:{flex:1,marginHorizontal:8,marginBottom:10,borderRadius:32,overflow:'hidden',backgroundColor:'#050607'},blankStage:{position:'absolute',left:0,right:0,top:0,bottom:0,backgroundColor:'#050607'},textCanvas:{position:'absolute',left:0,right:0,top:0,bottom:0,alignItems:'center',justifyContent:'center',padding:28,backgroundColor:'#11131A'},storyTextInput:{width:'100%',color:'#fff',fontSize:30,lineHeight:39,fontWeight:'800',textAlign:'center',maxHeight:'70%'},topBar:{position:'absolute',left:18,right:18,top:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},iconButton:{width:48,height:48,borderRadius:24,backgroundColor:'rgba(0,0,0,0.24)',alignItems:'center',justifyContent:'center'},toolRail:{position:'absolute',left:25,top:'35%',gap:22},tool:{minWidth:150,flexDirection:'row',alignItems:'center',gap:18},aa:{color:'#fff',fontSize:31,fontWeight:'500'},toolText:{color:'#fff',fontSize:15,fontWeight:'800'},captureRow:{position:'absolute',left:24,right:24,bottom:28,flexDirection:'row',alignItems:'center',justifyContent:'space-around'},shutterOuter:{width:84,height:84,borderRadius:42,borderWidth:5,borderColor:'#fff',alignItems:'center',justifyContent:'center'},shutterInner:{width:68,height:68,borderRadius:34,backgroundColor:'#E8E9EB'},galleryButton:{width:52,height:52,borderRadius:16,backgroundColor:'rgba(20,22,28,0.82)',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#3A3D45'},flipButton:{width:52,height:52,borderRadius:26,backgroundColor:'rgba(45,48,56,0.82)',alignItems:'center',justifyContent:'center'},captionWrap:{position:'absolute',left:22,right:22,bottom:98},captionInput:{color:'#fff',backgroundColor:'rgba(0,0,0,0.48)',borderRadius:18,paddingHorizontal:16,paddingVertical:12,fontSize:17,textAlign:'center'},editFooter:{position:'absolute',left:18,right:18,bottom:22,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12},retake:{height:48,paddingHorizontal:20,borderRadius:24,backgroundColor:'rgba(0,0,0,0.52)',alignItems:'center',justifyContent:'center'},retakeText:{color:'#fff',fontWeight:'800'},share:{flex:1,height:50,borderRadius:25,backgroundColor:'#7957E8',flexDirection:'row',gap:8,alignItems:'center',justifyContent:'center'},shareText:{color:'#fff',fontWeight:'900',fontSize:15},disabled:{opacity:.45},settingsOverlay:{flex:1,backgroundColor:'rgba(0,0,0,0.58)',justifyContent:'flex-end',padding:14},settingsCard:{backgroundColor:'#15171E',borderRadius:24,borderWidth:1,borderColor:'#2B2E38',padding:18,paddingBottom:22},settingsHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:10},settingsTitle:{color:'#fff',fontSize:19,fontWeight:'900'},settingsClose:{width:38,height:38,borderRadius:19,alignItems:'center',justifyContent:'center',backgroundColor:'#23262F'},settingsRow:{minHeight:78,flexDirection:'row',alignItems:'center',gap:14},settingsTextWrap:{flex:1},settingsLabel:{color:'#F7F7F8',fontSize:15,fontWeight:'800'},settingsDescription:{color:'#969BA6',fontSize:12,lineHeight:18,marginTop:4},settingsDivider:{height:1,backgroundColor:'#292C35'},settingsDone:{height:48,borderRadius:24,backgroundColor:'#7957E8',alignItems:'center',justifyContent:'center',marginTop:14},settingsDoneText:{color:'#fff',fontSize:14,fontWeight:'900'},bottomLabel:{minHeight:58,flexDirection:'row',justifyContent:'center',alignItems:'center'},bottomActive:{color:'#fff',fontWeight:'900',letterSpacing:1.5} });
+const baseStyles = StyleSheet.create({ root:{flex:1,backgroundColor:'#080B0F'},stage:{flex:1,marginHorizontal:8,marginBottom:10,borderRadius:32,overflow:'hidden',backgroundColor:'#050607'},blankStage:{position:'absolute',left:0,right:0,top:0,bottom:0,backgroundColor:'#050607'},textCanvas:{position:'absolute',left:0,right:0,top:0,bottom:0,alignItems:'center',justifyContent:'center',padding:28,backgroundColor:'#11131A'},storyTextInput:{width:'100%',color:'#fff',fontSize:30,lineHeight:39,fontWeight:'800',textAlign:'center',maxHeight:'70%'},topBar:{position:'absolute',left:18,right:18,top:18,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},iconButton:{width:48,height:48,borderRadius:24,backgroundColor:'rgba(0,0,0,0.24)',alignItems:'center',justifyContent:'center'},toolRail:{position:'absolute',left:25,top:'35%',gap:22},tool:{minWidth:150,flexDirection:'row',alignItems:'center',gap:18},aa:{color:'#fff',fontSize:31,fontWeight:'500'},toolText:{color:'#fff',fontSize:15,fontWeight:'800'},captureRow:{position:'absolute',left:24,right:24,bottom:28,flexDirection:'row',alignItems:'center',justifyContent:'space-around'},shutterOuter:{width:84,height:84,borderRadius:42,borderWidth:5,borderColor:'#fff',alignItems:'center',justifyContent:'center'},shutterInner:{width:68,height:68,borderRadius:34,backgroundColor:'#E8E9EB'},galleryButton:{width:52,height:52,borderRadius:16,backgroundColor:'rgba(20,22,28,0.82)',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#3A3D45'},flipButton:{width:52,height:52,borderRadius:26,backgroundColor:'rgba(45,48,56,0.82)',alignItems:'center',justifyContent:'center'},captionWrap:{position:'absolute',left:22,right:22,bottom:98},captionInput:{color:'#fff',backgroundColor:'rgba(0,0,0,0.48)',borderRadius:18,paddingHorizontal:16,paddingVertical:12,fontSize:17,textAlign:'center'},editFooter:{position:'absolute',left:18,right:18,bottom:22,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12},retake:{height:48,paddingHorizontal:20,borderRadius:24,backgroundColor:'rgba(0,0,0,0.52)',alignItems:'center',justifyContent:'center'},retakeText:{color:'#fff',fontWeight:'800'},share:{flex:1,height:50,borderRadius:25,backgroundColor:'#7957E8',flexDirection:'row',gap:8,alignItems:'center',justifyContent:'center'},shareText:{color:'#fff',fontWeight:'900',fontSize:15},disabled:{opacity:.45},settingsOverlay:{flex:1,backgroundColor:'rgba(0,0,0,0.58)',justifyContent:'flex-end',padding:14},settingsCard:{backgroundColor:'#15171E',borderRadius:24,borderWidth:1,borderColor:'#2B2E38',padding:18,paddingBottom:22},settingsHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:10},settingsTitle:{color:'#fff',fontSize:19,fontWeight:'900'},settingsClose:{width:38,height:38,borderRadius:19,alignItems:'center',justifyContent:'center',backgroundColor:'#23262F'},settingsRow:{minHeight:78,flexDirection:'row',alignItems:'center',gap:14},settingsTextWrap:{flex:1},settingsLabel:{color:'#F7F7F8',fontSize:15,fontWeight:'800'},settingsDescription:{color:'#969BA6',fontSize:12,lineHeight:18,marginTop:4},settingsDivider:{height:1,backgroundColor:'#292C35'},settingsDone:{height:48,borderRadius:24,backgroundColor:'#7957E8',alignItems:'center',justifyContent:'center',marginTop:14},settingsDoneText:{color:'#fff',fontSize:14,fontWeight:'900'},bottomLabel:{minHeight:58,flexDirection:'row',justifyContent:'center',alignItems:'center'},bottomActive:{color:'#fff',fontWeight:'900',letterSpacing:1.5} });
+
+// Semantic light overrides; authored dark styles stay unchanged.
+const lightTokens = {
+  "root": {
+    "backgroundColor": "background"
+  },
+  "settingsCard": {
+    "backgroundColor": "surface",
+    "borderColor": "border"
+  },
+  "settingsTitle": {
+    "color": "textPrimary"
+  },
+  "settingsClose": {
+    "backgroundColor": "surfaceSecondary"
+  },
+  "settingsLabel": {
+    "color": "textPrimary"
+  },
+  "settingsDescription": {
+    "color": "textSecondary"
+  },
+  "settingsDivider": {
+    "backgroundColor": "divider"
+  },
+  "settingsDone": {
+    "backgroundColor": "primary"
+  },
+  "share": {
+    "backgroundColor": "primary"
+  },
+  "bottomActive": {
+    "color": "primary"
+  }
+} as const;

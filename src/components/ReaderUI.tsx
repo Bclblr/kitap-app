@@ -1,9 +1,9 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { PropsWithChildren } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useAppTheme } from '@/providers/ThemeProvider';
 export function ReaderScreen({ title, children, onBack, fullSafeArea = false }: PropsWithChildren<{ title: string; onBack?: () => void; fullSafeArea?: boolean }>) {
   const ui = useReaderStyles();
@@ -15,14 +15,16 @@ export function ReaderScreen({ title, children, onBack, fullSafeArea = false }: 
 }
 export function Action({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
   const ui = useReaderStyles();
-  return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={[ui.button, disabled && { opacity: .45 }]}><Text style={ui.text}>{label}</Text></Pressable>;
+  const { scheme } = useAppTheme();
+  return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={[ui.button, disabled && { opacity: scheme === 'light' ? .8 : .45 }]}><Text style={ui.text}>{label}</Text></Pressable>;
 }
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
   const ui = useReaderStyles();
   const { colors, scheme } = useAppTheme();
   return <View style={{ gap: 6 }}><Text style={ui.muted}>{label}</Text><TextInput accessibilityLabel={label} placeholderTextColor={colors.textSecondary} keyboardAppearance={scheme} {...props} style={[ui.input, props.multiline && { minHeight: 100, textAlignVertical: 'top' }, props.style]} /></View>;
 }
-export function Busy() { return <ActivityIndicator color="#A985FF" style={{ padding: 20 }} />; }
+export function Busy() {
+  const lightColor = useLightColor(); return <ActivityIndicator color={lightColor('primary', '#A985FF')} style={{ padding: 20 }} />; }
 export function useReaderStyles() { return useThemedStyles(baseUI); }
 const baseUI = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#0A0A0E' },

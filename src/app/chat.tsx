@@ -1,5 +1,5 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { safeBack } from '@/lib/navigation';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -34,6 +34,7 @@ type Message = {
 };
 
 export default function ChatScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const insets = useSafeAreaInsets();
   const list = useRef<FlatList<Message>>(null);
@@ -732,7 +733,7 @@ export default function ChatScreen() {
             : styles.otherMessageRow,
         ]}
       >
-        {(index === 0 || new Date(messages[index - 1].created_at).toDateString() !== new Date(item.created_at).toDateString()) && <Text style={{ color: '#999', alignSelf: 'center', marginVertical: 12 }}>{new Date(item.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>}
+        {(index === 0 || new Date(messages[index - 1].created_at).toDateString() !== new Date(item.created_at).toDateString()) && <Text style={{ color: lightColor('textMuted', '#999'), alignSelf: 'center', marginVertical: 12 }}>{new Date(item.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>}
         <View
           style={[
             styles.messageBubble,
@@ -963,7 +964,7 @@ export default function ChatScreen() {
         />
       )}
 
-      {sendError && <Pressable accessibilityRole="button" onPress={sendMessage} disabled={sending || blocked} style={{ padding: 12 }}><Text style={{ color: '#FFB2B2' }}>Mesaj gönderilemedi. Yeniden göndermek için dokun.</Text></Pressable>}
+      {sendError && <Pressable accessibilityRole="button" onPress={sendMessage} disabled={sending || blocked} style={{ padding: 12 }}><Text style={{ color: lightColor('danger', '#FFB2B2') }}>Mesaj gönderilemedi. Yeniden göndermek için dokun.</Text></Pressable>}
       <View style={styles.inputContainer}>
         <TextInput
           value={text}
@@ -972,7 +973,7 @@ export default function ChatScreen() {
           }
           editable={!blocked}
           placeholder={blocked ? 'Mesaj gönderme kapalı' : 'Mesaj yaz...'}
-          placeholderTextColor="#777782"
+          placeholderTextColor={lightColor('textMuted', '#777782')}
           multiline
           returnKeyType="send"
           submitBehavior="submit"

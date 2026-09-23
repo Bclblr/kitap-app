@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -16,7 +17,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type AnnouncementKind = 'info' | 'warning' | 'maintenance' | 'feature' | 'event';
 
@@ -42,6 +42,7 @@ const KINDS: { key: AnnouncementKind; label: string }[] = [
 ];
 
 export default function AdminAnnouncementsScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -220,15 +221,15 @@ export default function AdminAnnouncementsScreen() {
 
         <View style={styles.formCard}>
           <Text style={styles.formTitle}>{editingId ? 'Duyuruyu düzenle' : 'Yeni duyuru'}</Text>
-          <TextInput value={title} onChangeText={setTitle} placeholder="Başlık" placeholderTextColor="#747483" style={styles.input} maxLength={120} />
-          <TextInput value={body} onChangeText={setBody} placeholder="Duyuru metni" placeholderTextColor="#747483" style={[styles.input, styles.multiline]} multiline textAlignVertical="top" maxLength={2000} />
+          <TextInput value={title} onChangeText={setTitle} placeholder="Başlık" placeholderTextColor={lightColor('textMuted', '#747483')} style={styles.input} maxLength={120} />
+          <TextInput value={body} onChangeText={setBody} placeholder="Duyuru metni" placeholderTextColor={lightColor('textMuted', '#747483')} style={[styles.input, styles.multiline]} multiline textAlignVertical="top" maxLength={2000} />
 
           <Text style={styles.label}>Tür</Text>
           <View style={styles.chips}>{KINDS.map((x) => <Pressable key={x.key} onPress={() => setKind(x.key)} style={[styles.chip, kind === x.key && styles.chipActive]}><Text style={[styles.chipText, kind === x.key && styles.chipTextActive]}>{x.label}</Text></Pressable>)}</View>
 
-          <TextInput value={route} onChangeText={setRoute} placeholder="Yönlendirme yolu (isteğe bağlı), örn. /community" placeholderTextColor="#747483" style={styles.input} autoCapitalize="none" />
-          <TextInput value={startsAt} onChangeText={setStartsAt} placeholder="Başlangıç: 2026-09-12T20:00 (boş = şimdi)" placeholderTextColor="#747483" style={styles.input} autoCapitalize="none" />
-          <TextInput value={endsAt} onChangeText={setEndsAt} placeholder="Bitiş: 2026-09-15T20:00 (isteğe bağlı)" placeholderTextColor="#747483" style={styles.input} autoCapitalize="none" />
+          <TextInput value={route} onChangeText={setRoute} placeholder="Yönlendirme yolu (isteğe bağlı), örn. /community" placeholderTextColor={lightColor('textMuted', '#747483')} style={styles.input} autoCapitalize="none" />
+          <TextInput value={startsAt} onChangeText={setStartsAt} placeholder="Başlangıç: 2026-09-12T20:00 (boş = şimdi)" placeholderTextColor={lightColor('textMuted', '#747483')} style={styles.input} autoCapitalize="none" />
+          <TextInput value={endsAt} onChangeText={setEndsAt} placeholder="Bitiş: 2026-09-15T20:00 (isteğe bağlı)" placeholderTextColor={lightColor('textMuted', '#747483')} style={styles.input} autoCapitalize="none" />
 
           <Pressable onPress={() => setActive((v) => !v)} style={styles.switchRow}>
             <View><Text style={styles.switchTitle}>Aktif</Text><Text style={styles.switchText}>Kapalıysa kullanıcılara görünmez.</Text></View>

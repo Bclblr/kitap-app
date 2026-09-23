@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -16,7 +17,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type CommunityRow = {
   id: string;
@@ -45,6 +45,7 @@ type CommunityMember = {
 };
 
 export default function AdminCommunitiesScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -228,7 +229,7 @@ export default function AdminCommunitiesScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="Topluluk, sahip veya UUID ara"
-            placeholderTextColor="#747483"
+            placeholderTextColor={lightColor('textMuted', '#747483')}
             style={styles.searchInput}
             autoCapitalize="none"
             autoCorrect={false}

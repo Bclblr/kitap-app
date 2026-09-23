@@ -14,6 +14,7 @@ import {
 } from '@/lib/revenuecat';
 import { usePremium } from '@/providers/PremiumProvider';
 import { useAppTheme } from '@/providers/ThemeProvider';
+import { useLightColor } from '@/theme/use-themed-styles';
 
 const BENEFITS = [
   ['slash', 'Reklamsız deneyim', 'Premium aktifken uygulamadaki reklam alanları gösterilmez.'],
@@ -39,6 +40,7 @@ function formatDate(value: string | null) {
 }
 
 export default function PremiumScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const { colors } = useAppTheme();
   const premium = usePremium();
@@ -285,8 +287,8 @@ export default function PremiumScreen() {
               <Text style={[styles.statusTitle, { color: colors.text }]}> 
                 {premium.isPremium ? 'Premium aktif' : 'Ücretsiz hesap'}
               </Text>
-              <View style={[styles.statusPill, { backgroundColor: premium.isPremium ? colors.primary : colors.border }]}> 
-                <Text style={styles.statusPillText}>{premium.isPremium ? 'AKTİF' : 'FREE'}</Text>
+              <View style={[styles.statusPill, { backgroundColor: premium.isPremium ? colors.primary : lightColor('surfaceSecondary', colors.border) }]}>
+                <Text style={[styles.statusPillText, { color: premium.isPremium ? colors.onPrimary : lightColor('textSecondary', '#FFFFFF') }]}>{premium.isPremium ? 'AKTİF' : 'FREE'}</Text>
               </View>
             </View>
             <Text style={[styles.statusBody, { color: colors.textSecondary }]}> 

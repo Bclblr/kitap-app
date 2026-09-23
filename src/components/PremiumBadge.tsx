@@ -1,7 +1,9 @@
 import { Feather } from '@expo/vector-icons';
 import { View } from 'react-native';
+import { useLightColor } from '@/theme/use-themed-styles';
 
 export default function PremiumBadge({ size = 16 }: { size?: number }) {
+  const lightColor = useLightColor();
   return (
     <View
       accessible
@@ -12,7 +14,7 @@ export default function PremiumBadge({ size = 16 }: { size?: number }) {
         borderRadius: size / 2,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#8058D9',
+        backgroundColor: lightColor('primary', '#8058D9'),
         flexShrink: 0,
       }}
     >

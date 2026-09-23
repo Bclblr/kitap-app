@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -7,7 +8,6 @@ import { safeBack } from '@/lib/navigation';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type BucketStat = {
   bucket_id: string;
@@ -46,6 +46,7 @@ function formatBytes(value: number | null | undefined) {
 }
 
 export default function AdminStorageScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -173,7 +174,7 @@ export default function AdminStorageScreen() {
         </ScrollView>
 
         <View style={styles.searchRow}>
-          <TextInput value={search} onChangeText={setSearch} onSubmitEditing={() => void load()} placeholder="Dosya adı veya bucket ara" placeholderTextColor="#747483" style={styles.searchInput} autoCapitalize="none" />
+          <TextInput value={search} onChangeText={setSearch} onSubmitEditing={() => void load()} placeholder="Dosya adı veya bucket ara" placeholderTextColor={lightColor('textMuted', '#747483')} style={styles.searchInput} autoCapitalize="none" />
           <Pressable onPress={() => void load()} style={styles.searchButton}><Feather name="search" size={18} color="#fff" /></Pressable>
         </View>
 

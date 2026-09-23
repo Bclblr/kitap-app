@@ -1,6 +1,6 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import ReviewSpoilerText from '@/components/ReviewSpoilerText';
 import QuoteMetadata from '@/components/QuoteMetadata';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import ReadersList from '@/components/ReadersList';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -110,6 +110,7 @@ function ProfileCardActions({
   viewCount?: number;
   onComment: () => void;
 }) {
+  const lightColor = useLightColor();
   const { colors } = useAppTheme();
   const styles = useThemedStyles(baseStyles);
   const [liked, setLiked] = useState(false);
@@ -219,12 +220,12 @@ function ProfileCardActions({
         <Text style={styles.profileActionCount}>{comments}</Text>
       </Pressable>
       <Pressable onPress={() => void toggleLike()} style={styles.profileActionButton} accessibilityLabel={liked ? 'Beğeniyi kaldır' : 'Beğen'}>
-        <Feather name="heart" size={20} color={liked ? '#FF6B7A' : colors.textSecondary} />
-        <Text style={[styles.profileActionCount, liked && { color: '#FF6B7A' }]}>{likes}</Text>
+        <Feather name="heart" size={20} color={liked ? lightColor('danger', '#FF6B7A') : colors.textSecondary} />
+        <Text style={[styles.profileActionCount, liked && { color: lightColor('danger', '#FF6B7A') }]}>{likes}</Text>
       </Pressable>
       <Pressable onPress={() => void toggleRepost()} style={styles.profileActionButton} accessibilityLabel={reposted ? 'Repostu kaldır' : 'Repost'}>
-        <Feather name="repeat" size={20} color={reposted ? '#66D19E' : colors.textSecondary} />
-        <Text style={[styles.profileActionCount, reposted && { color: '#66D19E' }]}>{reposts}</Text>
+        <Feather name="repeat" size={20} color={reposted ? lightColor('success', '#66D19E') : colors.textSecondary} />
+        <Text style={[styles.profileActionCount, reposted && { color: lightColor('success', '#66D19E') }]}>{reposts}</Text>
       </Pressable>
       <View style={styles.profileActionButton}>
         <Feather name="bar-chart-2" size={20} color={colors.textSecondary} />
@@ -245,6 +246,7 @@ const DEFAULT_PROFILE: ProfileData = {
 };
 
 export default function ProfileScreen() {
+  const lightColor = useLightColor();
   const [profileTab, setProfileTab] = useState<'post'|'review'|'quote'|'repost'>('post');
   const styles = useThemedStyles(baseStyles);
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -2612,7 +2614,7 @@ export default function ProfileScreen() {
                         style={styles.commentSheetDelete}
                         accessibilityLabel="Yorumu sil"
                       >
-                        <Feather name="trash-2" size={16} color="#FF6B7A" />
+                        <Feather name="trash-2" size={16} color={lightColor('danger', '#FF6B7A')} />
                       </Pressable>
                     ) : null}
                   </View>

@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { clearAccountLocalState } from '@/lib/account-local-state';
 import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
@@ -5,7 +6,6 @@ import { getCurrentAdminAccess } from '@/lib/admin';
 import { permanentImageUrl } from '@/lib/image-policy';
 import { clearSignedImageUrlCache } from '@/lib/image-cache';
 import { supabase } from '@/lib/supabase';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -38,6 +38,7 @@ const EMPTY_PROFILE: Profile = {
 };
 
 export default function ProfileSettingsScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
@@ -328,7 +329,7 @@ export default function ProfileSettingsScreen() {
             onChangeText={setFullName}
             style={styles.input}
             placeholder="Adın ve soyadın"
-            placeholderTextColor="#74747E"
+            placeholderTextColor={lightColor('textMuted', '#74747E')}
             maxLength={60}
             editable={!saving}
           />
@@ -339,7 +340,7 @@ export default function ProfileSettingsScreen() {
             onChangeText={setUsername}
             style={styles.input}
             placeholder="Kullanıcı adın"
-            placeholderTextColor="#74747E"
+            placeholderTextColor={lightColor('textMuted', '#74747E')}
             maxLength={30}
             editable={!saving}
           />
@@ -350,7 +351,7 @@ export default function ProfileSettingsScreen() {
             onChangeText={setBio}
             style={[styles.input, styles.bioInput]}
             placeholder="Kendinden bahset..."
-            placeholderTextColor="#74747E"
+            placeholderTextColor={lightColor('textMuted', '#74747E')}
             multiline
             maxLength={150}
             editable={!saving}

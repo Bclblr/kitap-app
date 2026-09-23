@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -17,7 +18,6 @@ import Image from '@/components/SafeImage';
 import { getCurrentAdminAccess, type AppRole } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 type UserRow = {
   id: string;
@@ -38,6 +38,7 @@ const ROLE_LABELS: Record<AppRole, string> = {
 };
 
 export default function AdminUsersScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -275,7 +276,7 @@ export default function AdminUsersScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="Kullanıcı adı, ad soyad veya UUID ara"
-            placeholderTextColor="#747483"
+            placeholderTextColor={lightColor('textMuted', '#747483')}
             autoCapitalize="none"
             autoCorrect={false}
             style={styles.searchInput}
@@ -336,9 +337,9 @@ export default function AdminUsersScreen() {
                       accessibilityLabel={`${user.username || 'Kullanıcı'} kullanıcısının doğrulanmış hesap rozetini kaldır`}
                     >
                       {updating ? (
-                        <ActivityIndicator size="small" color="#FFB4BC" />
+                        <ActivityIndicator size="small" color={lightColor('danger', '#FFB4BC')} />
                       ) : (
-                        <Feather name="x-circle" size={16} color="#FFB4BC" />
+                        <Feather name="x-circle" size={16} color={lightColor('danger', '#FFB4BC')} />
                       )}
                       <Text style={styles.revokeVerifyButtonText}>Rozeti Kaldır</Text>
                     </Pressable>

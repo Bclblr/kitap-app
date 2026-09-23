@@ -1,8 +1,8 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { BookCoverData, existingBookCover, loadOpenLibraryBookMetadata } from '@/lib/open-library-cover';
 import BookCover from '@/components/BookCover';
 import RetryNotice from '@/components/RetryNotice';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -33,6 +33,7 @@ type UserBookStatusRow = {
 };
 
 export default function ShelvesScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
   const premium = usePremium();
@@ -339,7 +340,7 @@ export default function ShelvesScreen() {
             ]}
           >
             <View style={styles.filterContent}>
-              <Feather name="book-open" size={14} color={filter === 'reading' ? '#D9CCFF' : '#A0A0AA'} />
+              <Feather name="book-open" size={14} color={filter === 'reading' ? lightColor('primary', '#D9CCFF') : lightColor('textSecondary', '#A0A0AA')} />
               <Text style={[styles.filterText, filter === 'reading' && styles.activeFilterText]}>
                 {shelfLabels.reading}{activeCustomization?.show_counts ? ` (${shelfCounts.reading})` : ''}
               </Text>
@@ -356,7 +357,7 @@ export default function ShelvesScreen() {
             ]}
           >
             <View style={styles.filterContent}>
-              <Feather name="check-circle" size={14} color={filter === 'read' ? '#D9CCFF' : '#A0A0AA'} />
+              <Feather name="check-circle" size={14} color={filter === 'read' ? lightColor('primary', '#D9CCFF') : lightColor('textSecondary', '#A0A0AA')} />
               <Text style={[styles.filterText, filter === 'read' && styles.activeFilterText]}>
                 {shelfLabels.read}{activeCustomization?.show_counts ? ` (${shelfCounts.read})` : ''}
               </Text>
@@ -373,7 +374,7 @@ export default function ShelvesScreen() {
             ]}
           >
             <View style={styles.filterContent}>
-              <Feather name="bookmark" size={14} color={filter === 'want' ? '#D9CCFF' : '#A0A0AA'} />
+              <Feather name="bookmark" size={14} color={filter === 'want' ? lightColor('primary', '#D9CCFF') : lightColor('textSecondary', '#A0A0AA')} />
               <Text style={[styles.filterText, filter === 'want' && styles.activeFilterText]}>
                 {shelfLabels.want}{activeCustomization?.show_counts ? ` (${shelfCounts.want})` : ''}
               </Text>
@@ -389,7 +390,7 @@ export default function ShelvesScreen() {
             ]}
           >
             <View style={styles.filterContent}>
-              <Feather name="pause-circle" size={14} color={filter === 'abandoned' ? '#D9CCFF' : '#A0A0AA'} />
+              <Feather name="pause-circle" size={14} color={filter === 'abandoned' ? lightColor('primary', '#D9CCFF') : lightColor('textSecondary', '#A0A0AA')} />
               <Text style={[styles.filterText, filter === 'abandoned' && styles.activeFilterText]}>
                 Yarım Bıraktım{activeCustomization?.show_counts ? ` (${shelfCounts.abandoned})` : ''}
               </Text>
@@ -412,7 +413,7 @@ export default function ShelvesScreen() {
         ) : loadError && books.length === 0 ? null : books.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
-              <Feather name="book" size={28} color="#A985FF" />
+              <Feather name="book" size={28} color={lightColor('primary', '#A985FF')} />
             </View>
 
             <Text style={styles.emptyTitle}>
@@ -439,7 +440,7 @@ export default function ShelvesScreen() {
         ) : filteredBooks.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
-              <Feather name="book-open" size={28} color="#A985FF" />
+              <Feather name="book-open" size={28} color={lightColor('primary', '#A985FF')} />
             </View>
 
             <Text style={styles.emptyTitle}>
@@ -512,7 +513,7 @@ export default function ShelvesScreen() {
                       </Text>
 
                       <View style={styles.statusBadge}>
-                        <Feather name={getStatusIcon(book.status)} size={12} color="#CDB7F8" />
+                        <Feather name={getStatusIcon(book.status)} size={12} color={lightColor('primary', '#CDB7F8')} />
                         <Text style={styles.status}>
                           {getStatusText(book.status)}
                         </Text>
@@ -563,7 +564,7 @@ export default function ShelvesScreen() {
                               <Feather
                                 name={icon}
                                 size={16}
-                                color={selected ? '#6232B5' : '#8F96A3'}
+                                color={selected ? lightColor('primary', '#6232B5') : lightColor('textSecondary', '#8F96A3')}
                               />
                             </View>
                             <Text
@@ -597,13 +598,13 @@ export default function ShelvesScreen() {
                     accessibilityLabel={`${book.title ?? 'Kitap'} için Oku sayfasını aç`}
                   >
                     <View style={styles.readButtonIcon}>
-                      <Feather name="book-open" size={16} color="#DCCEFF" />
+                      <Feather name="book-open" size={16} color={lightColor('primary', '#DCCEFF')} />
                     </View>
                     <View style={styles.readButtonCopy}>
                       <Text style={styles.readButtonText}>Oku</Text>
                       <Text style={styles.readButtonSubtext}>Okuma ilerlemeni ve hedeflerini aç</Text>
                     </View>
-                    <Feather name="chevron-right" size={18} color="#8E79C8" />
+                    <Feather name="chevron-right" size={18} color={lightColor('primary', '#8E79C8')} />
                   </Pressable>
 
                   <Pressable
@@ -624,7 +625,7 @@ export default function ShelvesScreen() {
                         styles.deleteButtonPressed,
                     ]}
                   >
-                    <Feather name="trash-2" size={15} color="#D98792" />
+                    <Feather name="trash-2" size={15} color={lightColor('danger', '#D98792')} />
                     <Text style={styles.deleteText}>
                       Kitabı Rafımdan Sil
                     </Text>

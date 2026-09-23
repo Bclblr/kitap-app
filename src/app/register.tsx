@@ -1,4 +1,4 @@
-import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
@@ -20,6 +20,7 @@ import { signInWithGoogle } from '../lib/google-auth';
 import { signInWithApple } from '../lib/apple-auth';
 
 export default function RegisterScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const { colors, scheme } = useAppTheme();
   const router = useRouter();
@@ -176,7 +177,7 @@ export default function RegisterScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.brandWrap}>
           <View style={styles.logoMark}>
-            <Feather name="user-plus" size={28} color="#A985FF" />
+            <Feather name="user-plus" size={28} color={lightColor('primary', '#A985FF')} />
           </View>
           <Text style={styles.brandTitle}><Text style={styles.brandAccent}>Kitap</Text></Text>
           <Text style={styles.brandSubtitle}>Okuyanların topluluğuna katıl.</Text>
@@ -188,13 +189,13 @@ export default function RegisterScreen() {
 
           <Text style={styles.label}>Kullanıcı adı</Text>
           <View style={styles.inputWrap}>
-            <Feather name="user" size={18} color="#777783" />
+            <Feather name="user" size={18} color={lightColor('textSecondary', '#777783')} />
             <TextInput
               value={username}
               keyboardAppearance={scheme}
               onChangeText={setUsername}
               placeholder="Kullanıcı adın"
-              placeholderTextColor="#686873"
+              placeholderTextColor={lightColor('textMuted', '#686873')}
               autoCapitalize="none"
               style={styles.input}
             />
@@ -202,13 +203,13 @@ export default function RegisterScreen() {
 
           <Text style={styles.label}>E-posta</Text>
           <View style={styles.inputWrap}>
-            <Feather name="mail" size={18} color="#777783" />
+            <Feather name="mail" size={18} color={lightColor('textSecondary', '#777783')} />
             <TextInput
               value={email}
               keyboardAppearance={scheme}
               onChangeText={setEmail}
               placeholder="ornek@email.com"
-              placeholderTextColor="#686873"
+              placeholderTextColor={lightColor('textMuted', '#686873')}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -218,13 +219,13 @@ export default function RegisterScreen() {
 
           <Text style={styles.label}>Şifre</Text>
           <View style={styles.inputWrap}>
-            <Feather name="lock" size={18} color="#777783" />
+            <Feather name="lock" size={18} color={lightColor('textSecondary', '#777783')} />
             <TextInput
               value={password}
               keyboardAppearance={scheme}
               onChangeText={setPassword}
               placeholder="En az 8 karakter"
-              placeholderTextColor="#686873"
+              placeholderTextColor={lightColor('textMuted', '#686873')}
               secureTextEntry={!showPassword}
               style={styles.input}
             />
@@ -237,7 +238,7 @@ export default function RegisterScreen() {
               <Feather
                 name={showPassword ? 'eye-off' : 'eye'}
                 size={20}
-                color="#777783"
+                color={lightColor('textSecondary', '#777783')}
               />
             </Pressable>
           </View>

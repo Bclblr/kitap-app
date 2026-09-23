@@ -1,3 +1,4 @@
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -18,11 +19,11 @@ import { trackProductEvent } from '@/lib/product-analytics';
 import { supabase } from '@/lib/supabase';
 import type { TablesInsert } from '@/lib/database.types';
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { useThemedStyles } from '@/theme/use-themed-styles';
 
 const GOALS = [10, 20, 30, 50];
 
 export default function OnboardingScreen() {
+  const lightColor = useLightColor();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -199,7 +200,7 @@ export default function OnboardingScreen() {
             value={fullName}
             onChangeText={setFullName}
             placeholder="Adın veya görünen adın"
-            placeholderTextColor="#6E6E7A"
+            placeholderTextColor={lightColor('textMuted', '#6E6E7A')}
             style={styles.input}
             maxLength={60}
             returnKeyType="next"
@@ -220,7 +221,7 @@ export default function OnboardingScreen() {
             value={username}
             onChangeText={setUsername}
             placeholder="kullaniciadi"
-            placeholderTextColor="#6E6E7A"
+            placeholderTextColor={lightColor('textMuted', '#6E6E7A')}
             autoCapitalize="none"
             autoCorrect={false}
             style={styles.input}
@@ -237,7 +238,7 @@ export default function OnboardingScreen() {
             value={bio}
             onChangeText={setBio}
             placeholder="Kitap zevkinden veya okumayı sevdiğin türlerden bahset…"
-            placeholderTextColor="#6E6E7A"
+            placeholderTextColor={lightColor('textMuted', '#6E6E7A')}
             multiline
             style={[styles.input, styles.bioInput]}
             maxLength={150}
@@ -283,11 +284,11 @@ export default function OnboardingScreen() {
           style={[styles.primaryButton, saving && styles.disabled]}
         >
           {saving ? (
-            <ActivityIndicator color="#0B0710" />
+            <ActivityIndicator color={lightColor('onPrimary', '#0B0710')} />
           ) : (
             <>
               <Text style={styles.primaryText}>Profilimi Tamamla</Text>
-              <Feather name="arrow-right" size={18} color="#0B0710" />
+              <Feather name="arrow-right" size={18} color={lightColor('onPrimary', '#0B0710')} />
             </>
           )}
         </Pressable>

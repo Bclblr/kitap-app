@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { AppColors } from './palette';
+import { resolveLightStyle } from './light-styles';
 
 function parseHex(value: string) {
   const hex = value.startsWith('#') ? value.slice(1) : '';
@@ -64,6 +65,13 @@ export function useThemedStyles<T extends Record<string, object>>(base: T): T {
   return useMemo(() => {
     return Object.fromEntries(
       Object.entries(base).map(([name, style]) => {
+        if (scheme === 'light') {
+          const fallback = Object.fromEntries(Object.entries(style).map(([key, value]) => [
+            key,
+            typeof value === 'string' && /color$/i.test(key) ? themeColor(value, key, colors) : value,
+          ]));
+          return [name, resolveLightStyle(name, style as Record<string, unknown>, fallback, base, colors)];
+        }
         // Ana sayfadaki hikâye oluşturma halkası ve hızlı oluşturma butonu
         // her temada uygulamanın semantik mor vurgu rengini kullanır.
         if (name === 'addStoryCircle') {
@@ -100,11 +108,6 @@ export function useThemedStyles<T extends Record<string, object>>(base: T): T {
           ])
         );
 
-        // Web'de aydınlık modda 900 ağırlık keşfet başlıklarını gereğinden fazla kalın gösteriyor.
-        if (scheme === 'light' && /^(resultTitle|discoveryCardTitle)$/.test(name) && themedStyle.fontWeight === '900') {
-          themedStyle.fontWeight = '800';
-        }
-
         // Keşfet/Gündem bölümündeki hashtagler her iki temada da tema morunu kullanır.
         if (name === 'trendingHashtag') {
           themedStyle.color = colors.primary;
@@ -114,4 +117,25 @@ export function useThemedStyles<T extends Record<string, object>>(base: T): T {
       })
     ) as T;
   }, [base, scheme, colors]);
+}
+
+/** Explicit semantic overrides for components whose dark styles are already authored. */
+export function useLightStyles<T extends Record<string, object>>(
+  base: T,
+  tokens: Partial<Record<keyof T, Record<string, keyof AppColors>>>,
+): T {
+  const { scheme, colors } = useAppTheme();
+  return useMemo(() => {
+    if (scheme === 'dark') return base;
+    return Object.fromEntries(Object.entries(base).map(([name, style]) => [name, {
+      ...style,
+      ...Object.fromEntries(Object.entries(tokens[name] ?? {}).map(([property, token]) => [property, colors[token]])),
+    }])) as T;
+  }, [base, tokens, scheme, colors]);
+}
+
+/** Keeps a legacy dark literal exact while giving light UI a semantic color. */
+export function useLightColor() {
+  const { scheme, colors } = useAppTheme();
+  return (token: keyof AppColors, darkValue: string) => scheme === 'light' ? colors[token] : darkValue;
 }

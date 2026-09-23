@@ -1,4 +1,4 @@
-import { useThemedStyles } from '@/theme/use-themed-styles';
+import { useLightColor, useThemedStyles } from '@/theme/use-themed-styles';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { getCurrentAdminAccess } from '@/lib/admin';
 import { Feather } from '@expo/vector-icons';
@@ -20,6 +20,7 @@ import { signInWithGoogle } from '../lib/google-auth';
 import { signInWithApple } from '../lib/apple-auth';
 
 export default function LoginScreen() {
+  const lightColor = useLightColor();
   const styles = useThemedStyles(baseStyles);
   const { colors, scheme } = useAppTheme();
   const router = useRouter();
@@ -143,7 +144,7 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.brandWrap}>
           <View style={styles.logoMark}>
-            <Feather name="book-open" size={28} color="#A985FF" />
+            <Feather name="book-open" size={28} color={lightColor('primary', '#A985FF')} />
           </View>
           <Text style={styles.brandTitle}>Kitap</Text>
           <Text style={styles.brandSubtitle}>Okuma dünyana yeniden dön.</Text>
@@ -155,13 +156,13 @@ export default function LoginScreen() {
 
           <Text style={styles.label}>E-posta</Text>
           <View style={styles.inputWrap}>
-            <Feather name="mail" size={18} color="#777783" />
+            <Feather name="mail" size={18} color={lightColor('textSecondary', '#777783')} />
             <TextInput
               value={email}
               keyboardAppearance={scheme}
               onChangeText={setEmail}
               placeholder="ornek@email.com"
-              placeholderTextColor="#686873"
+              placeholderTextColor={lightColor('textMuted', '#686873')}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -171,13 +172,13 @@ export default function LoginScreen() {
 
           <Text style={styles.label}>Şifre</Text>
           <View style={styles.inputWrap}>
-            <Feather name="lock" size={18} color="#777783" />
+            <Feather name="lock" size={18} color={lightColor('textSecondary', '#777783')} />
             <TextInput
               value={password}
               keyboardAppearance={scheme}
               onChangeText={setPassword}
               placeholder="Şifren"
-              placeholderTextColor="#686873"
+              placeholderTextColor={lightColor('textMuted', '#686873')}
               secureTextEntry={!showPassword}
               style={styles.input}
             />
@@ -190,7 +191,7 @@ export default function LoginScreen() {
               <Feather
                 name={showPassword ? 'eye-off' : 'eye'}
                 size={20}
-                color="#777783"
+                color={lightColor('textSecondary', '#777783')}
               />
             </Pressable>
           </View>

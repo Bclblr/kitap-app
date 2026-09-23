@@ -13,7 +13,7 @@ const HASHTAG_REGEX = /(#[A-Za-z0-9_À-ÖØ-öø-ÿÇĞİÖŞÜçğıöşü]+)/g
 
 export default function HashtagText({ text, style }: HashtagTextProps) {
   const router = useRouter();
-  const { scheme } = useAppTheme();
+  const { colors } = useAppTheme();
   const { shouldFilterText } = useContentFilter();
 
   if (shouldFilterText(text)) {
@@ -32,7 +32,7 @@ export default function HashtagText({ text, style }: HashtagTextProps) {
   // Hashtag rengi parent Text stilinden bağımsız, doğrudan tema rengine sabitlenir.
   // Böylece özellikle React Native Web'de üst metnin gri rengi etiketi ezemez.
   const hashtagStyle: TextStyle = {
-    color: scheme === 'dark' ? '#A985FF' : '#6C3CC5',
+    color: colors.primary,
     fontWeight: '800',
   };
 
