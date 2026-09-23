@@ -1,6 +1,7 @@
 import { safeBack } from '@/lib/navigation';
 import BookCover from '@/components/BookCover';
 import BookDiscoveryRecommendations from '@/components/BookDiscoveryRecommendations';
+import AcademicWorkCard from '@/components/AcademicWorkCard';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,6 +10,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, Text
 
 import { supabase } from '@/lib/supabase';
 import { BookCoverData, existingBookCover, loadOpenLibraryBookMetadata, openLibraryUrl } from '@/lib/open-library-cover';
+import { AcademicWork, searchAcademicWorks } from '@/lib/academic';
 
 // BOOK_DARK_PREMIUM_V1
 
@@ -86,6 +88,8 @@ export default function BookScreen() {
   const [notes, setNotes] = useState<BookNote[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
+  const [academicWorks, setAcademicWorks] = useState<AcademicWork[]>([]);
+  const [academicWorksLoading, setAcademicWorksLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -247,6 +251,39 @@ export default function BookScreen() {
 
     return () => clearTimeout(timer);
   }, [key]);
+
+  useEffect(() => {
+    const bookTitle = book?.title?.trim();
+    if (!bookTitle) {
+      setAcademicWorks([]);
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setAcademicWorksLoading(true);
+      void searchAcademicWorks([bookTitle, author].filter(Boolean).join(' '), 4, controller.signal)
+        .then((items) => {
+          if (active) setAcademicWorks(items);
+        })
+        .catch((error) => {
+          if ((error as Error)?.name !== 'AbortError') {
+            console.warn('Kitap için akademik çalışmalar yüklenemedi:', error);
+          }
+          if (active) setAcademicWorks([]);
+        })
+        .finally(() => {
+          if (active) setAcademicWorksLoading(false);
+        });
+    }, 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [author, book?.title]);
 
   async function addToShelf() {
     if (!book || !key) return;
@@ -772,6 +809,33 @@ export default function BookScreen() {
             </View>
           ) : null}
 
+          <View style={styles.academicSection}>
+            <View style={styles.sectionHeadingRow}>
+              <Text style={styles.sectionTitle}>Akademik Çalışmalar</Text>
+              <Pressable onPress={() => router.push({ pathname: '/academic-search', params: { q: book.title ?? '' } } as any)}>
+                <Text style={styles.academicSeeAll}>Tümünü Ara</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.academicSectionSubtitle}>Bu kitap ve konusu hakkında akademik yayınlar</Text>
+            {academicWorksLoading ? (
+              <View style={styles.academicLoading}>
+                <ActivityIndicator size="small" color="#A985FF" />
+                <Text style={styles.academicLoadingText}>Akademik kaynaklar taranıyor...</Text>
+              </View>
+            ) : academicWorks.length ? (
+              academicWorks.map((work) => (
+                <AcademicWorkCard
+                  key={work.id}
+                  work={work}
+                  compact
+                  onPress={() => router.push({ pathname: '/academic-work', params: { id: work.id } })}
+                />
+              ))
+            ) : (
+              <Text style={styles.academicEmpty}>Bu kitap için eşleşen akademik çalışma bulunamadı.</Text>
+            )}
+          </View>
+
           {key ? (
             <BookDiscoveryRecommendations
               bookKey={key}
@@ -887,6 +951,12 @@ const baseStyles = StyleSheet.create({
   successIcon: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#173224' },
   successText: { color: '#B8F3D1', fontSize: 13, fontWeight: '700' },
   descriptionBox: { marginTop: 22, padding: 17, borderRadius: 22, backgroundColor: '#111318', borderWidth: 1, borderColor: '#23262D' },
+  academicSection: { marginTop: 16, borderRadius: 18, borderWidth: 1, borderColor: '#2A2B34', backgroundColor: '#111218', padding: 16 },
+  academicSectionSubtitle: { color: '#7E808A', fontSize: 10.5, lineHeight: 16, marginTop: -4, marginBottom: 12 },
+  academicSeeAll: { color: '#BCA2F6', fontSize: 10.5, fontWeight: '800' },
+  academicLoading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14 },
+  academicLoadingText: { color: '#7F818B', fontSize: 10.5 },
+  academicEmpty: { color: '#777983', fontSize: 10.5, lineHeight: 16, paddingVertical: 8 },
   description: { color: '#A6ACB6', fontSize: 14, lineHeight: 22 },
   addButton: { minHeight: 70, marginTop: 22, paddingHorizontal: 15, paddingVertical: 12, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#B69AFF' },
   addedButton: { backgroundColor: '#17131F', borderWidth: 1, borderColor: '#35274D' },
