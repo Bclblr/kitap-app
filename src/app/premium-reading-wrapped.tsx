@@ -136,8 +136,8 @@ export default function PremiumReadingWrappedScreen() {
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const monthly = useMemo(
-    () => (Array.isArray(report?.monthly_series) ? report!.monthly_series : []),
-    [report?.monthly_series]
+    () => (Array.isArray(report?.monthly_series) ? report.monthly_series : []),
+    [report]
   );
 
   const maxMonth = Math.max(1, ...monthly.map((item) => asNumber(item.pages)));
