@@ -72,11 +72,11 @@ async function fetchWikipediaAuthorInfo(name: string): Promise<WikipediaAuthorIn
 
       const data = await response.json();
       const pages = data?.query?.pages
-        ? (Object.values(data.query.pages) as Array<{
+        ? (Object.values(data.query.pages) as {
             extract?: string;
             fullurl?: string;
             thumbnail?: { source?: string };
-          }>)
+          }[])
         : [];
 
       const page = pages[0];
