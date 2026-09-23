@@ -254,10 +254,7 @@ export default function BookScreen() {
 
   useEffect(() => {
     const bookTitle = book?.title?.trim();
-    if (!bookTitle) {
-      setAcademicWorks([]);
-      return;
-    }
+    if (!bookTitle) return;
 
     let active = true;
     const controller = new AbortController();
