@@ -129,7 +129,7 @@ export default function AcademicSearchScreen() {
             <Text style={styles.title}>Akademik Keşif</Text>
             <Text style={styles.subtitle}>Makaleler, akademisyenler, dergiler ve kurumlar</Text>
           </View>
-          <Pressable onPress={() => router.push('/academic-library')} style={styles.iconButton}>
+          <Pressable onPress={() => router.push('/academic-library' as any)} style={styles.iconButton}>
             <Feather name="bookmark" size={20} color={colors.primary} />
           </Pressable>
         </View>
@@ -182,13 +182,13 @@ export default function AcademicSearchScreen() {
 
         {!loading && searched && tab === 'works' ? (
           works.length ? works.map((work) => (
-            <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work', params: { id: work.id } })} />
+            <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })} />
           )) : <Text style={styles.empty}>Makale bulunamadı.</Text>
         ) : null}
 
         {!loading && searched && tab === 'authors' ? (
           authors.length ? authors.map((author) => (
-            <Pressable key={author.id} onPress={() => router.push({ pathname: '/academic-author', params: { id: author.id } })} style={styles.resultCard}>
+            <Pressable key={author.id} onPress={() => router.push({ pathname: '/academic-author' as any, params: { id: author.id } })} style={styles.resultCard}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{author.name.charAt(0).toUpperCase()}</Text></View>
               <View style={styles.resultCopy}>
                 <Text style={styles.resultTitle}>{author.name}</Text>
@@ -202,7 +202,7 @@ export default function AcademicSearchScreen() {
 
         {!loading && searched && tab === 'journals' ? (
           journals.length ? journals.map((journal) => (
-            <Pressable key={journal.id} onPress={() => router.push({ pathname: '/journal', params: { id: journal.id } })} style={styles.resultCard}>
+            <Pressable key={journal.id} onPress={() => router.push({ pathname: '/journal' as any, params: { id: journal.id } })} style={styles.resultCard}>
               <View style={styles.squareIcon}><Feather name="layers" size={18} color={colors.primary} /></View>
               <View style={styles.resultCopy}>
                 <Text style={styles.resultTitle}>{journal.name}</Text>
@@ -216,7 +216,7 @@ export default function AcademicSearchScreen() {
 
         {!loading && searched && tab === 'institutions' ? (
           institutions.length ? institutions.map((institution) => (
-            <Pressable key={institution.id} onPress={() => router.push({ pathname: '/academic-institution', params: { id: institution.id } })} style={styles.resultCard}>
+            <Pressable key={institution.id} onPress={() => router.push({ pathname: '/academic-institution' as any, params: { id: institution.id } })} style={styles.resultCard}>
               <View style={styles.squareIcon}><Feather name="briefcase" size={18} color={colors.primary} /></View>
               <View style={styles.resultCopy}>
                 <Text style={styles.resultTitle}>{institution.name}</Text>
