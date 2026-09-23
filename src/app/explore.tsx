@@ -39,6 +39,41 @@ type Author = {
   work_count?: number;
 };
 
+type UnifiedPerson = {
+  name: string;
+  author: Author | null;
+  academicAuthor: AcademicAuthorSummary | null;
+};
+
+function normalizePersonName(value: string) {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('tr-TR');
+}
+
+function mergePeople(authors: Author[], academicAuthors: AcademicAuthorSummary[]): UnifiedPerson[] {
+  const byName = new Map<string, UnifiedPerson>();
+
+  authors.forEach((author) => {
+    const name = author.name?.trim();
+    if (!name) return;
+    const key = normalizePersonName(name);
+    if (!byName.has(key)) byName.set(key, { name, author, academicAuthor: null });
+  });
+
+  academicAuthors.forEach((academicAuthor) => {
+    const name = academicAuthor.name.trim();
+    if (!name) return;
+    const key = normalizePersonName(name);
+    const current = byName.get(key);
+    if (current) {
+      current.academicAuthor = academicAuthor;
+    } else {
+      byName.set(key, { name, author: null, academicAuthor });
+    }
+  });
+
+  return [...byName.values()];
+}
+
 type FeaturedAuthor = Author & {
   featuredBookCount: number;
   featuredScore: number;
@@ -440,35 +475,59 @@ export default function ExploreScreen() {
       });
 
       setAcademicLoading(true);
+      const loadingGuard = setTimeout(() => {
+        if (requestId === searchRequestIdRef.current) setAcademicLoading(false);
+      }, 4500);
+
       void Promise.allSettled([
         searchAcademicWorks(searchText, 8, controller.signal),
         searchAcademicAuthors(searchText, 6, controller.signal),
-        searchAcademicJournals(searchText, 6, controller.signal),
-        searchAcademicInstitutions(searchText, 6, controller.signal),
-      ]).then(([workResult, academicAuthorResult, journalResult, institutionResult]) => {
+      ]).then(([workResult, academicAuthorResult]) => {
         if (requestId !== searchRequestIdRef.current) return;
 
         const nextAcademicWorks = workResult.status === 'fulfilled' ? workResult.value : [];
         const nextAcademicAuthors = academicAuthorResult.status === 'fulfilled' ? academicAuthorResult.value : [];
-        const nextJournals = journalResult.status === 'fulfilled' ? journalResult.value : [];
-        const nextInstitutions = institutionResult.status === 'fulfilled' ? institutionResult.value : [];
 
         setAcademicWorks(nextAcademicWorks);
         setAcademicAuthors(nextAcademicAuthors);
+        setAcademicLoading(false);
+        clearTimeout(loadingGuard);
+
+        const current = searchCacheRef.current.get(normalizedQuery);
+        if (current) {
+          searchCacheRef.current.set(normalizedQuery, {
+            ...current,
+            academicWorks: nextAcademicWorks,
+            academicAuthors: nextAcademicAuthors,
+          });
+        }
+      }).finally(() => {
+        if (requestId === searchRequestIdRef.current) {
+          setAcademicLoading(false);
+          clearTimeout(loadingGuard);
+        }
+      });
+
+      void Promise.allSettled([
+        searchAcademicJournals(searchText, 6, controller.signal),
+        searchAcademicInstitutions(searchText, 6, controller.signal),
+      ]).then(([journalResult, institutionResult]) => {
+        if (requestId !== searchRequestIdRef.current) return;
+
+        const nextJournals = journalResult.status === 'fulfilled' ? journalResult.value : [];
+        const nextInstitutions = institutionResult.status === 'fulfilled' ? institutionResult.value : [];
+
         setJournals(nextJournals);
         setInstitutions(nextInstitutions);
 
-        searchCacheRef.current.set(normalizedQuery, {
-          books: nextBooks,
-          users: nextUsers,
-          authors: nextAuthors,
-          academicWorks: nextAcademicWorks,
-          academicAuthors: nextAcademicAuthors,
-          journals: nextJournals,
-          institutions: nextInstitutions,
-        });
-      }).finally(() => {
-        if (requestId === searchRequestIdRef.current) setAcademicLoading(false);
+        const current = searchCacheRef.current.get(normalizedQuery);
+        if (current) {
+          searchCacheRef.current.set(normalizedQuery, {
+            ...current,
+            journals: nextJournals,
+            institutions: nextInstitutions,
+          });
+        }
       });
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
@@ -523,14 +582,15 @@ export default function ExploreScreen() {
   }
 
   function openAuthor(author: Author) {
-  if (!author.name) return;
-  router.push({
-    pathname: '/author',
-    params: { key: author.key, name: author.name },
-  });
-}
+    if (!author.name) return;
+    router.push({
+      pathname: '/person' as any,
+      params: { authorKey: author.key, name: author.name },
+    });
+  }
 
 
+  const people = mergePeople(authors, academicAuthors);
 
   return (
     <View style={styles.safeArea}>
@@ -775,14 +835,43 @@ export default function ExploreScreen() {
                     })}
                   </SearchSection>
 
-                  <SearchSection title="Yazarlar" count={authors.length}>
-                    {authors.slice(0, 6).map((author, index) => (
-                      <Pressable key={author.key || `${author.name}-${index}`} onPress={() => void openAuthor(author)} style={styles.resultCard}>
-                        <AuthorAvatar author={author} style={styles.authorMark} textStyle={styles.authorMarkText} />
+                  <SearchSection title="Kişiler" count={people.length}>
+                    {people.slice(0, 10).map((person, index) => (
+                      <Pressable
+                        key={person.academicAuthor?.id || person.author?.key || `${person.name}-${index}`}
+                        onPress={() => router.push({
+                          pathname: '/person' as any,
+                          params: {
+                            name: person.name,
+                            authorKey: person.author?.key,
+                            academicId: person.academicAuthor?.id,
+                          },
+                        })}
+                        style={styles.resultCard}
+                      >
+                        <AcademicAuthorAvatar
+                          name={person.name}
+                          orcid={person.academicAuthor?.orcid}
+                          size={44}
+                          style={styles.authorMark}
+                          textStyle={styles.authorMarkText}
+                        />
                         <View style={styles.flexOne}>
-                          <Text style={styles.resultTitle}>{author.name || 'Bilinmeyen yazar'}</Text>
-                          {!!author.birth_date && <Text style={styles.rowDescription}>Doğum: {author.birth_date}</Text>}
-                          {!!author.top_work && <Text style={styles.rowDescription}>En bilinen eseri: {author.top_work}</Text>}
+                          <Text style={styles.resultTitle}>{person.name}</Text>
+                          <View style={styles.personRoles}>
+                            {person.author ? <Text style={styles.personRole}>Yazar</Text> : null}
+                            {person.academicAuthor ? <Text style={styles.personRole}>Akademisyen</Text> : null}
+                          </View>
+                          {person.academicAuthor?.institutionName ? (
+                            <View style={styles.institutionInline}>
+                              <AcademicInstitutionLogo name={person.academicAuthor.institutionName} size={22} />
+                              <Text style={[styles.rowDescription, styles.institutionInlineText]} numberOfLines={1}>
+                                {person.academicAuthor.institutionName}
+                              </Text>
+                            </View>
+                          ) : person.author?.top_work ? (
+                            <Text style={styles.rowDescription}>En bilinen eseri: {person.author.top_work}</Text>
+                          ) : null}
                         </View>
                         <Feather name="chevron-right" size={18} color="#777983" />
                       </Pressable>
@@ -814,13 +903,6 @@ export default function ExploreScreen() {
                       })}
                   </SearchSection>
 
-                  {academicLoading ? (
-                    <View style={styles.academicLoadingRow}>
-                      <ActivityIndicator color="#9B72F2" size="small" />
-                      <Text style={styles.loadingText}>Akademik sonuçlar getiriliyor...</Text>
-                    </View>
-                  ) : null}
-
                   <SearchSection title="Makaleler" count={academicWorks.length}>
                     {academicWorks.map((work) => (
                       <Pressable
@@ -839,31 +921,6 @@ export default function ExploreScreen() {
                           <Text style={styles.rowDescription} numberOfLines={1}>
                             {[work.publicationYear, work.journal?.name, `${work.citedByCount} atıf`].filter(Boolean).join(' · ')}
                           </Text>
-                        </View>
-                        <Feather name="chevron-right" size={18} color="#777983" />
-                      </Pressable>
-                    ))}
-                  </SearchSection>
-
-                  <SearchSection title="Akademisyenler" count={academicAuthors.length}>
-                    {academicAuthors.map((academicAuthor) => (
-                      <Pressable
-                        key={academicAuthor.id}
-                        onPress={() => router.push({ pathname: '/academic-author' as any, params: { id: academicAuthor.id } })}
-                        style={styles.resultCard}
-                      >
-                        <AcademicAuthorAvatar name={academicAuthor.name} orcid={academicAuthor.orcid} size={44} style={styles.authorMark} textStyle={styles.authorMarkText} />
-                        <View style={styles.flexOne}>
-                          <Text style={styles.resultTitle}>{academicAuthor.name}</Text>
-                          {academicAuthor.institutionName ? (
-                            <View style={styles.institutionInline}>
-                              <AcademicInstitutionLogo name={academicAuthor.institutionName} size={22} />
-                              <Text style={[styles.rowDescription, styles.institutionInlineText]} numberOfLines={1}>{academicAuthor.institutionName}</Text>
-                            </View>
-                          ) : (
-                            <Text style={styles.rowDescription}>Kurum bilgisi yok</Text>
-                          )}
-                          <Text style={styles.rowDescription}>{academicAuthor.worksCount} yayın · {academicAuthor.citedByCount} atıf</Text>
                         </View>
                         <Feather name="chevron-right" size={18} color="#777983" />
                       </Pressable>
@@ -910,11 +967,10 @@ export default function ExploreScreen() {
 
                   {searched &&
                   !books.length &&
-                  !authors.length &&
+                  !people.length &&
                   !users.length &&
                   !academicLoading &&
                   !academicWorks.length &&
-                  !academicAuthors.length &&
                   !journals.length &&
                   !institutions.length ? (
                     <View style={styles.messageCard}>
@@ -1145,6 +1201,8 @@ const baseStyles = StyleSheet.create({
   searchSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
   searchSectionTitle: { color: '#ECECF0', fontSize: 15, fontWeight: '900' },
   searchSectionCount: { minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, backgroundColor: '#241B36', color: '#CDBBFF', fontSize: 10, fontWeight: '900', textAlign: 'center', textAlignVertical: 'center', lineHeight: 24 },
+  personRoles: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 5 },
+  personRole: { color: '#CDBBFF', fontSize: 9, fontWeight: '900', borderRadius: 999, borderWidth: 1, borderColor: '#4C386B', backgroundColor: '#21172F', paddingHorizontal: 7, paddingVertical: 3 },
   institutionInline: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 },
   institutionInlineText: { flex: 1, marginTop: 0 },
   academicLoadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginBottom: 8 },
