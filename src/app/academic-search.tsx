@@ -41,24 +41,23 @@ export default function AcademicSearchScreen() {
     setLoading(true);
     setSearched(true);
     try {
-      const [workRows, authorRows, journalRows, institutionRows] = await Promise.all([
+      const [workResult, authorResult, journalResult, institutionResult] = await Promise.allSettled([
         searchAcademicWorks(clean, 24),
         searchAcademicAuthors(clean, 24),
         searchAcademicJournals(clean, 24),
         searchAcademicInstitutions(clean, 24),
       ]);
       if (requestId !== requestRef.current) return;
-      setWorks(workRows);
-      setAuthors(authorRows);
-      setJournals(journalRows);
-      setInstitutions(institutionRows);
-    } catch (error) {
-      console.warn('Akademik arama başarısız:', error);
-      if (requestId === requestRef.current) {
-        setWorks([]);
-        setAuthors([]);
-        setJournals([]);
-        setInstitutions([]);
+
+      setWorks(workResult.status === 'fulfilled' ? workResult.value : []);
+      setAuthors(authorResult.status === 'fulfilled' ? authorResult.value : []);
+      setJournals(journalResult.status === 'fulfilled' ? journalResult.value : []);
+      setInstitutions(institutionResult.status === 'fulfilled' ? institutionResult.value : []);
+
+      const failed = [workResult, authorResult, journalResult, institutionResult]
+        .filter((result) => result.status === 'rejected');
+      if (failed.length) {
+        console.warn(`Akademik aramada ${failed.length} kaynak geçici olarak yanıt vermedi.`);
       }
     } finally {
       if (requestId === requestRef.current) setLoading(false);
@@ -77,27 +76,25 @@ export default function AcademicSearchScreen() {
       setQuery(initial);
       setLoading(true);
       setSearched(true);
-      void Promise.all([
+      void Promise.allSettled([
         searchAcademicWorks(initial, 24, controller.signal),
         searchAcademicAuthors(initial, 24, controller.signal),
         searchAcademicJournals(initial, 24, controller.signal),
         searchAcademicInstitutions(initial, 24, controller.signal),
       ])
-        .then(([workRows, authorRows, journalRows, institutionRows]) => {
+        .then(([workResult, authorResult, journalResult, institutionResult]) => {
           if (!active || requestId !== requestRef.current) return;
-          setWorks(workRows);
-          setAuthors(authorRows);
-          setJournals(journalRows);
-          setInstitutions(institutionRows);
-        })
-        .catch((error) => {
-          if ((error as Error)?.name === 'AbortError') return;
-          console.warn('Akademik arama başarısız:', error);
-          if (!active || requestId !== requestRef.current) return;
-          setWorks([]);
-          setAuthors([]);
-          setJournals([]);
-          setInstitutions([]);
+
+          setWorks(workResult.status === 'fulfilled' ? workResult.value : []);
+          setAuthors(authorResult.status === 'fulfilled' ? authorResult.value : []);
+          setJournals(journalResult.status === 'fulfilled' ? journalResult.value : []);
+          setInstitutions(institutionResult.status === 'fulfilled' ? institutionResult.value : []);
+
+          const failed = [workResult, authorResult, journalResult, institutionResult]
+            .filter((result) => result.status === 'rejected' && (result.reason as Error)?.name !== 'AbortError');
+          if (failed.length) {
+            console.warn(`Akademik aramada ${failed.length} kaynak geçici olarak yanıt vermedi.`);
+          }
         })
         .finally(() => {
           if (active && requestId === requestRef.current) setLoading(false);
