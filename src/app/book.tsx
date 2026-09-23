@@ -239,11 +239,7 @@ export default function BookScreen() {
 
 
   useEffect(() => {
-    if (!key) {
-      setNotes([]);
-      return;
-    }
-
+    if (!key) return;
     void loadBookNotes(key);
   }, [key]);
 
