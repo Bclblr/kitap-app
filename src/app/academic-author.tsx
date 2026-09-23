@@ -104,7 +104,7 @@ export default function AcademicAuthorScreen() {
         </View>
 
         <View style={styles.hero}>
-          <AcademicAuthorAvatar name={author.name} size={82} style={styles.avatar} textStyle={styles.avatarText} />
+          <AcademicAuthorAvatar name={author.name} orcid={author.orcid} size={82} style={styles.avatar} textStyle={styles.avatarText} />
           <Text style={styles.title}>{author.name}</Text>
           <Text style={styles.institution}>{author.institutionName || 'Kurum bilgisi bulunamadı'}</Text>
           <View style={styles.metrics}>
