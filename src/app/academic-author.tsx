@@ -95,7 +95,7 @@ export default function AcademicAuthorScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => safeBack(router, '/academic-search')} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
+          <Pressable onPress={() => safeBack(router, '/academic-search' as any)} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
           <Text style={styles.pageTitle}>Akademisyen</Text>
           <Pressable onPress={() => void toggleFollow()} style={[styles.followButton, following && styles.followingButton]}>
             <Feather name={following ? 'check' : 'plus'} size={15} color={following ? colors.primary : '#FFF'} />
@@ -118,7 +118,7 @@ export default function AcademicAuthorScreen() {
             </Pressable>
           ) : null}
           {author.institutionId ? (
-            <Pressable onPress={() => router.push({ pathname: '/academic-institution', params: { id: author.institutionId } })} style={styles.institutionButton}>
+            <Pressable onPress={() => router.push({ pathname: '/academic-institution' as any, params: { id: author.institutionId } })} style={styles.institutionButton}>
               <Feather name="briefcase" size={14} color={colors.primary} /><Text style={styles.institutionButtonText}>Kurum sayfasını aç</Text>
             </Pressable>
           ) : null}
@@ -133,7 +133,7 @@ export default function AcademicAuthorScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Yayınlar</Text>
-          {works.length ? works.map((work) => <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work', params: { id: work.id } })} />) : <Text style={styles.empty}>Yayın bulunamadı.</Text>}
+          {works.length ? works.map((work) => <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })} />) : <Text style={styles.empty}>Yayın bulunamadı.</Text>}
         </View>
       </ScrollView>
     </View>
