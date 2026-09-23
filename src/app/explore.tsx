@@ -1,4 +1,5 @@
 import BookCover from '@/components/BookCover';
+import AcademicAuthorAvatar from '@/components/AcademicAuthorAvatar';
 import BottomNav from '@/components/BottomNav';
 import Image from '@/components/SafeImage';
 import AdSlot from '@/components/AdSlot';
@@ -98,6 +99,7 @@ export default function ExploreScreen() {
   const [institutions, setInstitutions] = useState<AcademicInstitutionSummary[]>([]);
   const [activeSearchType, setActiveSearchType] = useState<SearchType>('books');
   const [loading, setLoading] = useState(false);
+  const [academicLoading, setAcademicLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
   const [popularBooks, setPopularBooks] = useState<PopularBook[]>([]);
@@ -361,7 +363,7 @@ export default function ExploreScreen() {
     setSearched(true);
 
     try {
-      const [userResult, bookResult, authorResult, academicWorkResult, academicAuthorResult, journalResult, institutionResult] = await Promise.all([
+      const [userResult, bookResult, authorResult] = await Promise.all([
         supabase.rpc('search_visible_profiles', { p_query: searchText, p_limit: 10 }),
         fetch(
           `https://openlibrary.org/search.json?q=${encodeURIComponent(searchText)}&limit=20&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`,
@@ -371,29 +373,7 @@ export default function ExploreScreen() {
           `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(searchText)}&limit=10`,
           { signal: controller.signal }
         ).then((response) => ({ response, error: null as unknown })).catch((error: unknown) => ({ response: null, error })),
-        searchAcademicWorks(searchText, 20, controller.signal)
-          .then((data) => ({ data, error: null as unknown }))
-          .catch((error: unknown) => ({ data: [] as AcademicWork[], error })),
-        searchAcademicAuthors(searchText, 16, controller.signal)
-          .then((data) => ({ data, error: null as unknown }))
-          .catch((error: unknown) => ({ data: [] as AcademicAuthorSummary[], error })),
-        searchAcademicJournals(searchText, 16, controller.signal)
-          .then((data) => ({ data, error: null as unknown }))
-          .catch((error: unknown) => ({ data: [] as AcademicJournalSummary[], error })),
-        searchAcademicInstitutions(searchText, 16, controller.signal)
-          .then((data) => ({ data, error: null as unknown }))
-          .catch((error: unknown) => ({ data: [] as AcademicInstitutionSummary[], error })),
       ]);
-
-      const bookResponse = bookResult.response;
-      const authorResponse = authorResult.response;
-
-      if (bookResult.error && !(bookResult.error instanceof Error && bookResult.error.name === 'AbortError')) {
-        console.warn('Kitap araması geçici olarak kullanılamıyor:', bookResult.error);
-      }
-      if (authorResult.error && !(authorResult.error instanceof Error && authorResult.error.name === 'AbortError')) {
-        console.warn('Yazar araması geçici olarak kullanılamıyor:', authorResult.error);
-      }
 
       if (requestId !== searchRequestIdRef.current) return;
 
@@ -410,20 +390,17 @@ export default function ExploreScreen() {
         .sort((a, b) => rankText(b.username) - rankText(a.username));
 
       let nextBooks: Book[] = [];
-      if (bookResponse?.ok) {
-        const bookData = await bookResponse.json();
+      if (bookResult.response?.ok) {
+        const bookData = await bookResult.response.json();
         const docs: Book[] = Array.isArray(bookData.docs) ? bookData.docs : [];
         nextBooks = docs
-          .filter(
-            (item, index, all) =>
-              !!item.key && all.findIndex((candidate) => candidate.key === item.key) === index
-          )
+          .filter((item, index, all) => !!item.key && all.findIndex((candidate) => candidate.key === item.key) === index)
           .sort((a, b) => rankText(b.title) - rankText(a.title));
       }
 
       let nextAuthors: Author[] = [];
-      if (authorResponse?.ok) {
-        const authorData = await authorResponse.json();
+      if (authorResult.response?.ok) {
+        const authorData = await authorResult.response.json();
         nextAuthors = (Array.isArray(authorData.docs)
           ? authorData.docs.map((author: any) => ({
               key: author.key || author.author_key?.[0],
@@ -439,37 +416,28 @@ export default function ExploreScreen() {
 
       if (requestId !== searchRequestIdRef.current) return;
 
-      const nextAcademicWorks = academicWorkResult.error ? [] : academicWorkResult.data;
-      const nextAcademicAuthors = academicAuthorResult.error ? [] : academicAuthorResult.data;
-      const nextJournals = journalResult.error ? [] : journalResult.data;
-      const nextInstitutions = institutionResult.error ? [] : institutionResult.data;
-
       setUsers(nextUsers);
       setBooks(nextBooks);
       setAuthors(nextAuthors);
-      setAcademicWorks(nextAcademicWorks);
-      setAcademicAuthors(nextAcademicAuthors);
-      setJournals(nextJournals);
-      setInstitutions(nextInstitutions);
+      setAcademicWorks([]);
+      setAcademicAuthors([]);
+      setJournals([]);
+      setInstitutions([]);
 
       searchCacheRef.current.set(normalizedQuery, {
         books: nextBooks,
         users: nextUsers,
         authors: nextAuthors,
-        academicWorks: nextAcademicWorks,
-        academicAuthors: nextAcademicAuthors,
-        journals: nextJournals,
-        institutions: nextInstitutions,
+        academicWorks: [],
+        academicAuthors: [],
+        journals: [],
+        institutions: [],
       });
-      if (searchCacheRef.current.size > 20) {
-        const oldestKey = searchCacheRef.current.keys().next().value;
-        if (oldestKey) searchCacheRef.current.delete(oldestKey);
-      }
 
       void supabase.rpc('log_search_event', {
         p_query: searchText,
         p_scope: 'explore',
-        p_result_count: nextBooks.length + nextUsers.length + nextAuthors.length + nextAcademicWorks.length + nextAcademicAuthors.length + nextJournals.length + nextInstitutions.length,
+        p_result_count: nextBooks.length + nextUsers.length + nextAuthors.length,
       });
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
@@ -478,6 +446,52 @@ export default function ExploreScreen() {
       if (requestId === searchRequestIdRef.current) setLoading(false);
     }
   }, [query]);
+
+  const loadAcademicTab = useCallback(async (type: SearchType, searchText: string) => {
+    if (!['academicWorks', 'academicAuthors', 'journals', 'institutions'].includes(type)) return;
+    const clean = searchText.trim();
+    if (!clean) return;
+
+    const normalizedQuery = clean.toLocaleLowerCase('tr-TR');
+    const cached = searchCacheRef.current.get(normalizedQuery);
+    const hasCached =
+      (type === 'academicWorks' && (cached?.academicWorks.length ?? 0) > 0) ||
+      (type === 'academicAuthors' && (cached?.academicAuthors.length ?? 0) > 0) ||
+      (type === 'journals' && (cached?.journals.length ?? 0) > 0) ||
+      (type === 'institutions' && (cached?.institutions.length ?? 0) > 0);
+    if (hasCached) return;
+
+    setAcademicLoading(true);
+    try {
+      if (type === 'academicWorks') {
+        const rows = await searchAcademicWorks(clean, 20);
+        setAcademicWorks(rows);
+        if (cached) searchCacheRef.current.set(normalizedQuery, { ...cached, academicWorks: rows });
+      } else if (type === 'academicAuthors') {
+        const rows = await searchAcademicAuthors(clean, 16);
+        setAcademicAuthors(rows);
+        if (cached) searchCacheRef.current.set(normalizedQuery, { ...cached, academicAuthors: rows });
+      } else if (type === 'journals') {
+        const rows = await searchAcademicJournals(clean, 16);
+        setJournals(rows);
+        if (cached) searchCacheRef.current.set(normalizedQuery, { ...cached, journals: rows });
+      } else {
+        const rows = await searchAcademicInstitutions(clean, 16);
+        setInstitutions(rows);
+        if (cached) searchCacheRef.current.set(normalizedQuery, { ...cached, institutions: rows });
+      }
+    } catch (error) {
+      if ((error as Error)?.name !== 'AbortError') console.warn('Akademik arama geçici olarak kullanılamıyor:', error);
+    } finally {
+      setAcademicLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!searched || !query.trim()) return;
+    if (!['academicWorks', 'academicAuthors', 'journals', 'institutions'].includes(activeSearchType)) return;
+    void loadAcademicTab(activeSearchType, query);
+  }, [activeSearchType, loadAcademicTab, query, searched]);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -492,6 +506,7 @@ export default function ExploreScreen() {
         setInstitutions([]);
         setSearched(false);
         setLoading(false);
+        setAcademicLoading(false);
       }, 0);
       return () => clearTimeout(resetTimer);
     }
@@ -501,7 +516,7 @@ export default function ExploreScreen() {
       return;
     }
 
-    const timer = setTimeout(() => void searchAll(), 350);
+    const timer = setTimeout(() => void searchAll(), 180);
     return () => clearTimeout(timer);
   }, [query, searchAll]);
 
@@ -773,10 +788,10 @@ export default function ExploreScreen() {
                 <SearchTab label="Kurumlar" active={activeSearchType === 'institutions'} onPress={() => setActiveSearchType('institutions')} />
               </ScrollView>
 
-              {loading ? (
+              {loading || (academicLoading && ['academicWorks', 'academicAuthors', 'journals', 'institutions'].includes(activeSearchType)) ? (
                 <View style={styles.messageCard}>
                   <ActivityIndicator color="#9B72F2" />
-                  <Text style={styles.loadingText}>Aranıyor...</Text>
+                  <Text style={styles.loadingText}>{loading ? 'Aranıyor...' : 'Akademik sonuçlar getiriliyor...'}</Text>
                 </View>
               ) : searched && selectedCount === 0 ? (
                 <View style={styles.messageCard}>
@@ -848,9 +863,7 @@ export default function ExploreScreen() {
                       onPress={() => router.push({ pathname: '/academic-author' as any, params: { id: academicAuthor.id } })}
                       style={styles.resultCard}
                     >
-                      <View style={[styles.authorMark, styles.academicResultIcon]}>
-                        <Text style={styles.authorMarkText}>{academicAuthor.name.charAt(0).toUpperCase()}</Text>
-                      </View>
+                      <AcademicAuthorAvatar name={academicAuthor.name} size={44} style={styles.authorMark} textStyle={styles.authorMarkText} />
                       <View style={styles.flexOne}>
                         <Text style={styles.resultTitle}>{academicAuthor.name}</Text>
                         <Text style={styles.rowDescription}>{academicAuthor.institutionName || 'Kurum bilgisi yok'}</Text>
