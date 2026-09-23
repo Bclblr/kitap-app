@@ -1,4 +1,5 @@
 import AcademicWorkCard from '@/components/AcademicWorkCard';
+import AcademicAuthorAvatar from '@/components/AcademicAuthorAvatar';
 import { getAcademicAuthor, getAuthorWorks, AcademicAuthorSummary, AcademicWork } from '@/lib/academic';
 import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
@@ -103,7 +104,7 @@ export default function AcademicAuthorScreen() {
         </View>
 
         <View style={styles.hero}>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{author.name.charAt(0).toUpperCase()}</Text></View>
+          <AcademicAuthorAvatar name={author.name} size={82} style={styles.avatar} textStyle={styles.avatarText} />
           <Text style={styles.title}>{author.name}</Text>
           <Text style={styles.institution}>{author.institutionName || 'Kurum bilgisi bulunamadı'}</Text>
           <View style={styles.metrics}>
