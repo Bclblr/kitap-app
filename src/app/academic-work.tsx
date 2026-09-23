@@ -41,15 +41,14 @@ export default function AcademicWorkScreen() {
 
   useEffect(() => {
     const workId = typeof id === 'string' ? id : '';
-    if (!workId) {
-      setLoading(false);
-      return;
-    }
+    if (!workId) return;
 
     let active = true;
     const controller = new AbortController();
 
     async function load() {
+      await Promise.resolve();
+      if (!active) return;
       setLoading(true);
       try {
         const loaded = await getAcademicWork(workId, controller.signal);
