@@ -824,7 +824,7 @@ async function findWikipediaAuthorPhoto(name: string): Promise<string | null> {
       if (!response.ok) continue;
 
       const data = await response.json();
-      const pages = data?.query?.pages ? Object.values(data.query.pages) as Array<{ thumbnail?: { source?: string } }> : [];
+      const pages = data?.query?.pages ? Object.values(data.query.pages) as { thumbnail?: { source?: string } }[] : [];
       const imageUrl = pages[0]?.thumbnail?.source;
 
       if (typeof imageUrl === 'string' && /^https:\/\//i.test(imageUrl)) {
@@ -849,29 +849,34 @@ function AuthorAvatar({
   style: any;
   textStyle: any;
 }) {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
   const authorName = author.name?.trim() || '';
+  const [photoState, setPhotoState] = useState<{ authorName: string; url: string | null }>({
+    authorName: '',
+    url: null,
+  });
+  const [failedAuthorName, setFailedAuthorName] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    setFailed(false);
-
     if (!authorName) {
-      setPhotoUrl(null);
       return () => {
         active = false;
       };
     }
 
     void findWikipediaAuthorPhoto(authorName).then((url) => {
-      if (active) setPhotoUrl(url);
+      if (active) {
+        setPhotoState({ authorName, url });
+      }
     });
 
     return () => {
       active = false;
     };
   }, [authorName]);
+
+  const photoUrl = photoState.authorName === authorName ? photoState.url : null;
+  const failed = failedAuthorName === authorName;
 
   if (!photoUrl || failed) {
     return (
@@ -886,7 +891,7 @@ function AuthorAvatar({
       source={{ uri: photoUrl }}
       style={style}
       accessibilityLabel={author.name ? `${author.name} profil fotoğrafı` : 'Yazar profil fotoğrafı'}
-      onError={() => setFailed(true)}
+      onError={() => setFailedAuthorName(authorName)}
     />
   );
 }
