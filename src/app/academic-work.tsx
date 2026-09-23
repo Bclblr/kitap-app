@@ -204,7 +204,7 @@ export default function AcademicWorkScreen() {
           <Text style={styles.title}>{work.title}</Text>
           <View style={styles.authorLinks}>
             {work.authors.map((author, index) => (
-              <Pressable key={author.id || String(index)} onPress={() => author.id && router.push({ pathname: '/academic-author' as any, params: { id: author.id } })}>
+              <Pressable key={author.id || String(index)} onPress={() => author.id && router.push({ pathname: '/person' as any, params: { academicId: author.id, name: author.name } })}>
                 <Text style={styles.authorLink}>{author.name}{index < work.authors.length - 1 ? ', ' : ''}</Text>
               </Pressable>
             ))}
