@@ -583,6 +583,31 @@ export default function ShelvesScreen() {
 
                   <Pressable
                     onPress={() => {
+                      if (!book.key) return;
+                      router.push({
+                        pathname: '/read',
+                        params: { key: book.key },
+                      });
+                    }}
+                    style={({ pressed }) => [
+                      styles.readButton,
+                      pressed && styles.readButtonPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${book.title ?? 'Kitap'} için Oku sayfasını aç`}
+                  >
+                    <View style={styles.readButtonIcon}>
+                      <Feather name="book-open" size={16} color="#DCCEFF" />
+                    </View>
+                    <View style={styles.readButtonCopy}>
+                      <Text style={styles.readButtonText}>Oku</Text>
+                      <Text style={styles.readButtonSubtext}>Okuma ilerlemeni ve hedeflerini aç</Text>
+                    </View>
+                    <Feather name="chevron-right" size={18} color="#8E79C8" />
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
                       if (!book.key) {
                         Alert.alert(
                           'Hata',
@@ -918,6 +943,50 @@ const baseStyles = StyleSheet.create({
 
   selectedSmallStatusLabel: {
     color: '#E8DEFF',
+  },
+
+  readButton: {
+    marginHorizontal: 14,
+    marginBottom: 9,
+    minHeight: 52,
+    borderRadius: 13,
+    paddingHorizontal: 11,
+    backgroundColor: '#21182F',
+    borderWidth: 1,
+    borderColor: '#3A2B50',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  readButtonPressed: {
+    opacity: 0.72,
+  },
+
+  readButtonIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#34244B',
+  },
+
+  readButtonCopy: {
+    flex: 1,
+  },
+
+  readButtonText: {
+    color: '#E7DDFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  readButtonSubtext: {
+    marginTop: 2,
+    color: '#8F86A5',
+    fontSize: 10,
+    lineHeight: 14,
   },
 
   deleteButton: {
