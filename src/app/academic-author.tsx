@@ -21,14 +21,13 @@ export default function AcademicAuthorScreen() {
 
   useEffect(() => {
     const authorId = typeof id === 'string' ? id : '';
-    if (!authorId) {
-      setLoading(false);
-      return;
-    }
+    if (!authorId) return;
     let active = true;
     const controller = new AbortController();
 
     async function load() {
+      await Promise.resolve();
+      if (!active) return;
       setLoading(true);
       try {
         const [loadedAuthor, loadedWorks] = await Promise.all([
