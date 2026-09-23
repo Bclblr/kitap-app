@@ -1,3 +1,4 @@
+import AcademicInstitutionLogo from '@/components/AcademicInstitutionLogo';
 import { AcademicAuthorSummary, AcademicInstitutionSummary, getAcademicInstitution, getInstitutionAuthors } from '@/lib/academic';
 import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
@@ -103,7 +104,7 @@ export default function AcademicInstitutionScreen() {
         </View>
 
         <View style={styles.hero}>
-          <View style={styles.heroIcon}><Feather name="briefcase" size={25} color={colors.primary} /></View>
+          <AcademicInstitutionLogo name={institution.name} size={72} style={styles.heroLogo} />
           <Text style={styles.title}>{institution.name}</Text>
           <Text style={styles.location}>{[institution.city, institution.countryCode].filter(Boolean).join(' · ') || 'Konum bilgisi yok'}</Text>
           <View style={styles.metrics}>
@@ -151,7 +152,7 @@ const baseStyles = StyleSheet.create({
   followText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
   followingText: { color: '#D8C8FF' },
   hero: { borderRadius: 20, borderWidth: 1, borderColor: '#34284F', backgroundColor: '#111018', padding: 20, alignItems: 'center' },
-  heroIcon: { width: 58, height: 58, borderRadius: 18, backgroundColor: '#241B36', alignItems: 'center', justifyContent: 'center' },
+  heroLogo: { backgroundColor: '#F4F4F6' },
   title: { color: '#F5F5F7', fontSize: 21, lineHeight: 28, fontWeight: '900', textAlign: 'center', marginTop: 13 },
   location: { color: '#8E909A', fontSize: 11, textAlign: 'center', marginTop: 6 },
   metrics: { flexDirection: 'row', width: '100%', gap: 8, marginTop: 16 },
