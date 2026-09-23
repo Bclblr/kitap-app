@@ -188,14 +188,14 @@ export default function AcademicWorkScreen() {
   }
 
   if (!work) {
-    return <View style={styles.center}><Text style={styles.errorTitle}>Çalışma bulunamadı</Text><Pressable onPress={() => safeBack(router, '/academic-search')}><Text style={styles.linkText}>Akademik aramaya dön</Text></Pressable></View>;
+    return <View style={styles.center}><Text style={styles.errorTitle}>Çalışma bulunamadı</Text><Pressable onPress={() => safeBack(router, '/academic-search' as any)}><Text style={styles.linkText}>Akademik aramaya dön</Text></Pressable></View>;
   }
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => safeBack(router, '/academic-search')} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
+          <Pressable onPress={() => safeBack(router, '/academic-search' as any)} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
           <Text style={styles.pageTitle}>Makale Detayı</Text>
           <Pressable onPress={() => void toggleSaved()} style={styles.iconButton}><Feather name={saved ? 'bookmark' : 'bookmark'} size={20} color={saved ? colors.primary : colors.textMuted} /></Pressable>
         </View>
@@ -205,7 +205,7 @@ export default function AcademicWorkScreen() {
           <Text style={styles.title}>{work.title}</Text>
           <View style={styles.authorLinks}>
             {work.authors.map((author, index) => (
-              <Pressable key={author.id || String(index)} onPress={() => author.id && router.push({ pathname: '/academic-author', params: { id: author.id } })}>
+              <Pressable key={author.id || String(index)} onPress={() => author.id && router.push({ pathname: '/academic-author' as any, params: { id: author.id } })}>
                 <Text style={styles.authorLink}>{author.name}{index < work.authors.length - 1 ? ', ' : ''}</Text>
               </Pressable>
             ))}
@@ -243,7 +243,7 @@ export default function AcademicWorkScreen() {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Yayın Bilgileri</Text>
-          {work.journal ? <Pressable onPress={() => router.push({ pathname: '/journal', params: { id: work.journal!.id } })}><Text style={styles.infoLink}>{work.journal.name}</Text></Pressable> : null}
+          {work.journal ? <Pressable onPress={() => router.push({ pathname: '/journal' as any, params: { id: work.journal!.id } })}><Text style={styles.infoLink}>{work.journal.name}</Text></Pressable> : null}
           {crossref?.publisher || work.journal?.publisher ? <Text style={styles.infoText}>Yayıncı: {crossref?.publisher || work.journal?.publisher}</Text> : null}
           {crossref?.volume ? <Text style={styles.infoText}>Cilt: {crossref.volume}{crossref.issue ? ` · Sayı: ${crossref.issue}` : ''}</Text> : null}
           {crossref?.pages ? <Text style={styles.infoText}>Sayfalar: {crossref.pages}</Text> : null}
@@ -283,7 +283,7 @@ export default function AcademicWorkScreen() {
         {related.length ? (
           <View style={styles.relatedSection}>
             <Text style={styles.sectionTitle}>Benzer Makaleler</Text>
-            {related.map((item) => <AcademicWorkCard key={item.id} work={item} compact onPress={() => router.push({ pathname: '/academic-work', params: { id: item.id } })} />)}
+            {related.map((item) => <AcademicWorkCard key={item.id} work={item} compact onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: item.id } })} />)}
           </View>
         ) : null}
       </ScrollView>
