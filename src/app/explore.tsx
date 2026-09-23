@@ -851,7 +851,7 @@ export default function ExploreScreen() {
                         onPress={() => router.push({ pathname: '/academic-author' as any, params: { id: academicAuthor.id } })}
                         style={styles.resultCard}
                       >
-                        <AcademicAuthorAvatar name={academicAuthor.name} size={44} style={styles.authorMark} textStyle={styles.authorMarkText} />
+                        <AcademicAuthorAvatar name={academicAuthor.name} orcid={academicAuthor.orcid} size={44} style={styles.authorMark} textStyle={styles.authorMarkText} />
                         <View style={styles.flexOne}>
                           <Text style={styles.resultTitle}>{academicAuthor.name}</Text>
                           <Text style={styles.rowDescription}>{academicAuthor.institutionName || 'Kurum bilgisi yok'}</Text>
