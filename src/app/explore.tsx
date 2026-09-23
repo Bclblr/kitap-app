@@ -538,7 +538,7 @@ export default function ExploreScreen() {
               </Text>
 
               <Pressable
-                onPress={() => router.push('/academic-search')}
+                onPress={() => router.push('/academic-search' as any)}
                 style={styles.academicDiscoveryCard}
               >
                 <View style={styles.academicDiscoveryIcon}>
