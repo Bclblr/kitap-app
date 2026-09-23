@@ -14,6 +14,300 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_authors: {
+        Row: {
+          cited_by_count: number
+          created_at: string
+          display_name: string
+          institution_name: string | null
+          institution_openalex_id: string | null
+          last_synced_at: string
+          metadata: Json
+          openalex_id: string
+          orcid: string | null
+          topics: Json
+          works_count: number
+        }
+        Insert: {
+          cited_by_count?: number
+          created_at?: string
+          display_name: string
+          institution_name?: string | null
+          institution_openalex_id?: string | null
+          last_synced_at?: string
+          metadata?: Json
+          openalex_id: string
+          orcid?: string | null
+          topics?: Json
+          works_count?: number
+        }
+        Update: {
+          cited_by_count?: number
+          created_at?: string
+          display_name?: string
+          institution_name?: string | null
+          institution_openalex_id?: string | null
+          last_synced_at?: string
+          metadata?: Json
+          openalex_id?: string
+          orcid?: string | null
+          topics?: Json
+          works_count?: number
+        }
+        Relationships: []
+      }
+      academic_institutions: {
+        Row: {
+          cited_by_count: number
+          city: string | null
+          country_code: string | null
+          created_at: string
+          homepage_url: string | null
+          institution_type: string | null
+          last_synced_at: string
+          metadata: Json
+          name: string
+          openalex_id: string
+          works_count: number
+        }
+        Insert: {
+          cited_by_count?: number
+          city?: string | null
+          country_code?: string | null
+          created_at?: string
+          homepage_url?: string | null
+          institution_type?: string | null
+          last_synced_at?: string
+          metadata?: Json
+          name: string
+          openalex_id: string
+          works_count?: number
+        }
+        Update: {
+          cited_by_count?: number
+          city?: string | null
+          country_code?: string | null
+          created_at?: string
+          homepage_url?: string | null
+          institution_type?: string | null
+          last_synced_at?: string
+          metadata?: Json
+          name?: string
+          openalex_id?: string
+          works_count?: number
+        }
+        Relationships: []
+      }
+      academic_journals: {
+        Row: {
+          cited_by_count: number
+          country_code: string | null
+          created_at: string
+          homepage_url: string | null
+          issn: Json
+          issn_l: string | null
+          last_synced_at: string
+          metadata: Json
+          name: string
+          openalex_id: string
+          publisher: string | null
+          works_count: number
+        }
+        Insert: {
+          cited_by_count?: number
+          country_code?: string | null
+          created_at?: string
+          homepage_url?: string | null
+          issn?: Json
+          issn_l?: string | null
+          last_synced_at?: string
+          metadata?: Json
+          name: string
+          openalex_id: string
+          publisher?: string | null
+          works_count?: number
+        }
+        Update: {
+          cited_by_count?: number
+          country_code?: string | null
+          created_at?: string
+          homepage_url?: string | null
+          issn?: Json
+          issn_l?: string | null
+          last_synced_at?: string
+          metadata?: Json
+          name?: string
+          openalex_id?: string
+          publisher?: string | null
+          works_count?: number
+        }
+        Relationships: []
+      }
+      academic_reading_status: {
+        Row: {
+          author_summary: string | null
+          created_at: string
+          journal_name: string | null
+          publication_year: number | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          work_openalex_id: string
+        }
+        Insert: {
+          author_summary?: string | null
+          created_at?: string
+          journal_name?: string | null
+          publication_year?: number | null
+          status: string
+          title: string
+          updated_at?: string
+          user_id: string
+          work_openalex_id: string
+        }
+        Update: {
+          author_summary?: string | null
+          created_at?: string
+          journal_name?: string | null
+          publication_year?: number | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          work_openalex_id?: string
+        }
+        Relationships: []
+      }
+      academic_work_authors: {
+        Row: {
+          author_openalex_id: string
+          author_position: string | null
+          is_corresponding: boolean
+          work_openalex_id: string
+        }
+        Insert: {
+          author_openalex_id: string
+          author_position?: string | null
+          is_corresponding?: boolean
+          work_openalex_id: string
+        }
+        Update: {
+          author_openalex_id?: string
+          author_position?: string | null
+          is_corresponding?: boolean
+          work_openalex_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_work_authors_author_openalex_id_fkey"
+            columns: ["author_openalex_id"]
+            isOneToOne: false
+            referencedRelation: "academic_authors"
+            referencedColumns: ["openalex_id"]
+          },
+          {
+            foreignKeyName: "academic_work_authors_work_openalex_id_fkey"
+            columns: ["work_openalex_id"]
+            isOneToOne: false
+            referencedRelation: "academic_works"
+            referencedColumns: ["openalex_id"]
+          },
+        ]
+      }
+      academic_work_notes: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          work_openalex_id: string
+          work_title: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          work_openalex_id: string
+          work_title: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          work_openalex_id?: string
+          work_title?: string
+        }
+        Relationships: []
+      }
+      academic_works: {
+        Row: {
+          abstract: string | null
+          cited_by_count: number
+          created_at: string
+          doi: string | null
+          external_url: string | null
+          journal_name: string | null
+          journal_openalex_id: string | null
+          language: string | null
+          last_synced_at: string
+          metadata: Json
+          open_access_url: string | null
+          openalex_id: string
+          pdf_url: string | null
+          primary_topic: string | null
+          publication_date: string | null
+          publication_year: number | null
+          title: string
+          work_type: string | null
+        }
+        Insert: {
+          abstract?: string | null
+          cited_by_count?: number
+          created_at?: string
+          doi?: string | null
+          external_url?: string | null
+          journal_name?: string | null
+          journal_openalex_id?: string | null
+          language?: string | null
+          last_synced_at?: string
+          metadata?: Json
+          open_access_url?: string | null
+          openalex_id: string
+          pdf_url?: string | null
+          primary_topic?: string | null
+          publication_date?: string | null
+          publication_year?: number | null
+          title: string
+          work_type?: string | null
+        }
+        Update: {
+          abstract?: string | null
+          cited_by_count?: number
+          created_at?: string
+          doi?: string | null
+          external_url?: string | null
+          journal_name?: string | null
+          journal_openalex_id?: string | null
+          language?: string | null
+          last_synced_at?: string
+          metadata?: Json
+          open_access_url?: string | null
+          openalex_id?: string
+          pdf_url?: string | null
+          primary_topic?: string | null
+          publication_date?: string | null
+          publication_year?: number | null
+          title?: string
+          work_type?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_logs: {
         Row: {
           action: string
@@ -273,6 +567,47 @@ export type Database = {
           verified?: boolean
         }
         Relationships: []
+      }
+      book_notes: {
+        Row: {
+          book_key: string
+          book_title: string
+          content: string
+          created_at: string
+          id: string
+          page_number: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_key: string
+          book_title: string
+          content: string
+          created_at?: string
+          id?: string
+          page_number?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_key?: string
+          book_title?: string
+          content?: string
+          created_at?: string
+          id?: string
+          page_number?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_error_events: {
         Row: {
@@ -615,6 +950,30 @@ export type Database = {
           },
         ]
       }
+      content_views: {
+        Row: {
+          content_id: string
+          content_type: string
+          id: string
+          viewed_at: string
+          viewer_id: string
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          id?: string
+          viewed_at?: string
+          viewer_id: string
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          id?: string
+          viewed_at?: string
+          viewer_id?: string
+        }
+        Relationships: []
+      }
       conversation_hidden: {
         Row: {
           conversation_id: string
@@ -873,6 +1232,30 @@ export type Database = {
           created_at?: string
           requester_id?: string
           target_id?: string
+        }
+        Relationships: []
+      }
+      followed_academic_entities: {
+        Row: {
+          created_at: string
+          display_name: string
+          entity_openalex_id: string
+          entity_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          entity_openalex_id: string
+          entity_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          entity_openalex_id?: string
+          entity_type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1198,8 +1581,8 @@ export type Database = {
           rating: number | null
           text: string | null
           user_id: string | null
-          view_count: number
           username: string
+          view_count: number
         }
         Insert: {
           book_key?: string | null
@@ -1211,8 +1594,8 @@ export type Database = {
           rating?: number | null
           text?: string | null
           user_id?: string | null
-          view_count?: number
           username: string
+          view_count?: number
         }
         Update: {
           book_key?: string | null
@@ -1224,8 +1607,8 @@ export type Database = {
           rating?: number | null
           text?: string | null
           user_id?: string | null
-          view_count?: number
           username?: string
+          view_count?: number
         }
         Relationships: []
       }
@@ -1402,6 +1785,50 @@ export type Database = {
         }
         Relationships: []
       }
+      premium_reading_plans: {
+        Row: {
+          book_key: string
+          book_title: string
+          created_at: string
+          current_page: number
+          daily_pages: number
+          target_date: string
+          total_pages: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_key: string
+          book_title: string
+          created_at?: string
+          current_page?: number
+          daily_pages: number
+          target_date: string
+          total_pages: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_key?: string
+          book_title?: string
+          created_at?: string
+          current_page?: number
+          daily_pages?: number
+          target_date?: string
+          total_pages?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_reading_plans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       premium_shelf_customizations: {
         Row: {
           accent_key: string
@@ -1551,6 +1978,111 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      quote_comments: {
+        Row: {
+          created_at: string
+          id: string
+          quote_id: string
+          text: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          quote_id: string
+          text: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          quote_id?: string
+          text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_comments_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_likes: {
+        Row: {
+          created_at: string
+          quote_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          quote_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          quote_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_likes_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_reposts: {
+        Row: {
+          created_at: string
+          quote_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          quote_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          quote_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_reposts_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_reposts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quotes: {
         Row: {
@@ -1890,26 +2422,59 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_academic_works: {
+        Row: {
+          author_summary: string | null
+          created_at: string
+          doi: string | null
+          journal_name: string | null
+          publication_year: number | null
+          title: string
+          user_id: string
+          work_openalex_id: string
+        }
+        Insert: {
+          author_summary?: string | null
+          created_at?: string
+          doi?: string | null
+          journal_name?: string | null
+          publication_year?: number | null
+          title: string
+          user_id: string
+          work_openalex_id: string
+        }
+        Update: {
+          author_summary?: string | null
+          created_at?: string
+          doi?: string | null
+          journal_name?: string | null
+          publication_year?: number | null
+          title?: string
+          user_id?: string
+          work_openalex_id?: string
+        }
+        Relationships: []
+      }
       saved_posts: {
         Row: {
           created_at: string | null
           id: string
-          post_id: string | null
-          user_id: string | null
+          post_id: string
+          user_id: string
           username: string
         }
         Insert: {
           created_at?: string | null
           id?: string
-          post_id?: string | null
-          user_id?: string | null
+          post_id: string
+          user_id: string
           username: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          post_id?: string | null
-          user_id?: string | null
+          post_id?: string
+          user_id?: string
           username?: string
         }
         Relationships: [
@@ -2007,10 +2572,14 @@ export type Database = {
       }
       storage_cleanup_candidates: {
         Row: {
+          attempt_count: number
+          auto_cleanup: boolean
           bucket_id: string
           created_at: string
           created_by: string
           id: string
+          last_attempt_at: string | null
+          last_error: string | null
           object_name: string
           reason: string
           reviewed_at: string | null
@@ -2018,10 +2587,14 @@ export type Database = {
           status: string
         }
         Insert: {
+          attempt_count?: number
+          auto_cleanup?: boolean
           bucket_id: string
           created_at?: string
           created_by: string
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
           object_name: string
           reason?: string
           reviewed_at?: string | null
@@ -2029,10 +2602,14 @@ export type Database = {
           status?: string
         }
         Update: {
+          attempt_count?: number
+          auto_cleanup?: boolean
           bucket_id?: string
           created_at?: string
           created_by?: string
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
           object_name?: string
           reason?: string
           reviewed_at?: string | null
@@ -2043,10 +2620,10 @@ export type Database = {
       }
       stories: {
         Row: {
-          created_at: string
-          expires_at: string
           allow_likes: boolean
           allow_replies: boolean
+          created_at: string
+          expires_at: string
           id: string
           image_url: string | null
           storage_path: string | null
@@ -2055,10 +2632,10 @@ export type Database = {
           username: string
         }
         Insert: {
-          created_at?: string
-          expires_at: string
           allow_likes?: boolean
           allow_replies?: boolean
+          created_at?: string
+          expires_at: string
           id?: string
           image_url?: string | null
           storage_path?: string | null
@@ -2067,10 +2644,10 @@ export type Database = {
           username: string
         }
         Update: {
-          created_at?: string
-          expires_at?: string
           allow_likes?: boolean
           allow_replies?: boolean
+          created_at?: string
+          expires_at?: string
           id?: string
           image_url?: string | null
           storage_path?: string | null
@@ -2380,19 +2957,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      submit_report: {
-        Args: {
-          p_category: string
-          p_description?: string
-          p_target_id: string
-          p_target_type: string
-        }
-        Returns: string
-      }
-      record_content_view: {
-        Args: { p_content_id: string; p_content_type: string }
-        Returns: number
-      }
       admin_add_sanction: {
         Args: {
           p_ends_at?: string
@@ -3081,6 +3645,14 @@ export type Database = {
           username: string
         }[]
       }
+      get_automatic_storage_cleanup_candidates: {
+        Args: { p_limit?: number }
+        Returns: {
+          bucket_id: string
+          id: string
+          object_name: string
+        }[]
+      }
       get_discover_communities: {
         Args: { p_limit?: number }
         Returns: {
@@ -3099,6 +3671,14 @@ export type Database = {
           profile_image: string
           user_id: string
           username: string
+        }[]
+      }
+      get_expired_story_cleanup_candidates: {
+        Args: { p_cutoff: string; p_limit?: number }
+        Returns: {
+          id: string
+          media_path: string
+          user_id: string
         }[]
       }
       get_follow_relationship: {
@@ -3178,6 +3758,7 @@ export type Database = {
       get_my_shelf_counts: {
         Args: never
         Returns: {
+          abandoned_count: number
           read_count: number
           reading_count: number
           total_count: number
@@ -3338,6 +3919,7 @@ export type Database = {
         }[]
       }
       has_admin_role: { Args: { required_roles?: string[] }; Returns: boolean }
+      has_effective_premium: { Args: { p_user_id: string }; Returns: boolean }
       invite_to_community: {
         Args: { p_community_id: string; p_invitee_id: string }
         Returns: string
@@ -3390,17 +3972,21 @@ export type Database = {
           verified: boolean
         }[]
       }
-      readers_blocked: { Args: { a: string; b: string }; Returns: boolean }
-      remove_community_member: {
-        Args: { p_community_id: string; p_user_id: string }
+      queue_my_storage_cleanup: {
+        Args: { p_bucket: string; p_object_name: string; p_reason?: string }
         Returns: undefined
       }
-      queue_my_storage_cleanup: {
-        Args: {
-          p_bucket: string
-          p_object_name: string
-          p_reason?: string
-        }
+      readers_blocked: { Args: { a: string; b: string }; Returns: boolean }
+      record_automatic_storage_cleanup_result: {
+        Args: { p_error?: string; p_ids: string[]; p_success: boolean }
+        Returns: undefined
+      }
+      record_content_view: {
+        Args: { p_content_id: string; p_content_type: string }
+        Returns: number
+      }
+      remove_community_member: {
+        Args: { p_community_id: string; p_user_id: string }
         Returns: undefined
       }
       report_client_error: {
@@ -3532,6 +4118,15 @@ export type Database = {
         Returns: boolean
       }
       storage_object_owner: { Args: { p_name: string }; Returns: string }
+      submit_report: {
+        Args: {
+          p_category: string
+          p_description?: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: string
+      }
       swap_work_chapters: {
         Args: { first_id: string; second_id: string }
         Returns: {
@@ -3571,6 +4166,10 @@ export type Database = {
           total_pages: number
           updated_at: string
         }[]
+      }
+      validate_story_cleanup_token: {
+        Args: { p_token: string }
+        Returns: boolean
       }
       work_popularity: {
         Args: { genre_filter?: string }
