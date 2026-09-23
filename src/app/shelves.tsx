@@ -563,7 +563,7 @@ export default function ShelvesScreen() {
                               <Feather
                                 name={icon}
                                 size={16}
-                                color={selected ? '#F4F5F7' : '#8F96A3'}
+                                color={selected ? '#6232B5' : '#8F96A3'}
                               />
                             </View>
                             <Text
