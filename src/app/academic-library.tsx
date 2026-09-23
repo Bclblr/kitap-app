@@ -94,16 +94,16 @@ export default function AcademicLibraryScreen() {
 
   function openEntity(item: FollowedEntity) {
     if (item.entity_type === 'author') {
-      router.push({ pathname: '/academic-author', params: { id: item.entity_openalex_id } });
+      router.push({ pathname: '/academic-author' as any, params: { id: item.entity_openalex_id } });
     } else if (item.entity_type === 'journal') {
-      router.push({ pathname: '/journal', params: { id: item.entity_openalex_id } });
+      router.push({ pathname: '/journal' as any, params: { id: item.entity_openalex_id } });
     } else {
-      router.push({ pathname: '/academic-institution', params: { id: item.entity_openalex_id } });
+      router.push({ pathname: '/academic-institution' as any, params: { id: item.entity_openalex_id } });
     }
   }
 
   const renderWork = (item: SavedWork | StatusWork) => (
-    <Pressable key={item.work_openalex_id} onPress={() => router.push({ pathname: '/academic-work', params: { id: item.work_openalex_id } })} style={styles.card}>
+    <Pressable key={item.work_openalex_id} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: item.work_openalex_id } })} style={styles.card}>
       <View style={styles.cardIcon}><Feather name="file-text" size={17} color={colors.primary} /></View>
       <View style={styles.cardCopy}>
         <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
@@ -118,7 +118,7 @@ export default function AcademicLibraryScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => safeBack(router, '/academic-search')} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
+          <Pressable onPress={() => safeBack(router, '/academic-search' as any)} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
           <View style={styles.headerCopy}>
             <Text style={styles.title}>Akademik Kitaplığım</Text>
             <Text style={styles.subtitle}>Kaydettiğin ve takip ettiğin akademik içerikler</Text>
