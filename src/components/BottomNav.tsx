@@ -117,7 +117,7 @@ export default function BottomNav() {
       }, 100);
     };
 
-    void loadUnreadMessages();
+    scheduleRefresh();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(() => {
       scheduleRefresh();
