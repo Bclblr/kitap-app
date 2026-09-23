@@ -4,9 +4,8 @@ import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
 import VerifiedBadge from '@/components/VerifiedBadge';
@@ -18,8 +17,6 @@ import ReadersList from '@/components/ReadersList';
 import ReviewSpoilerText from '@/components/ReviewSpoilerText';
 import QuoteMetadata from '@/components/QuoteMetadata';
 import RetryNotice from '@/components/RetryNotice';
-import { requirePermanentImage } from '@/lib/image-policy';
-import { cleanupUploadedMedia } from '@/lib/media-cleanup';
 import AdSlot from '@/components/AdSlot';
 import {
   HomeDrawer,
@@ -107,31 +104,33 @@ function ZoomableFeedImage({ uri, onClose }: { uri: string; onClose: () => void 
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  const responder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
-      onMoveShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
-      onPanResponderGrant: (event) => {
-        const touches = (event.nativeEvent as any).touches ?? [];
-        startDistanceRef.current = distance(touches);
-        startScaleRef.current = scaleRef.current;
-      },
-      onPanResponderMove: (event) => {
-        const touches = (event.nativeEvent as any).touches ?? [];
-        const currentDistance = distance(touches);
-        if (!startDistanceRef.current || !currentDistance) return;
-        const next = Math.min(4, Math.max(1, startScaleRef.current * (currentDistance / startDistanceRef.current)));
-        scaleRef.current = next;
-        setScale(next);
-      },
-      onPanResponderRelease: () => {
-        startDistanceRef.current = 0;
-      },
-      onPanResponderTerminate: () => {
-        startDistanceRef.current = 0;
-      },
-    })
-  ).current;
+  const responder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
+        onMoveShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
+        onPanResponderGrant: (event) => {
+          const touches = (event.nativeEvent as any).touches ?? [];
+          startDistanceRef.current = distance(touches);
+          startScaleRef.current = scaleRef.current;
+        },
+        onPanResponderMove: (event) => {
+          const touches = (event.nativeEvent as any).touches ?? [];
+          const currentDistance = distance(touches);
+          if (!startDistanceRef.current || !currentDistance) return;
+          const next = Math.min(4, Math.max(1, startScaleRef.current * (currentDistance / startDistanceRef.current)));
+          scaleRef.current = next;
+          setScale(next);
+        },
+        onPanResponderRelease: () => {
+          startDistanceRef.current = 0;
+        },
+        onPanResponderTerminate: () => {
+          startDistanceRef.current = 0;
+        },
+      }),
+    []
+  );
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -155,26 +154,25 @@ function ZoomableFeedImage({ uri, onClose }: { uri: string; onClose: () => void 
 function FeedImageGallery({ urls }: { urls: string[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [viewerUri, setViewerUri] = useState<string | null>(null);
-  const urlsLengthRef = useRef(urls.length);
-  urlsLengthRef.current = urls.length;
-
-  const swipeResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_event, gesture) =>
-        Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-      onMoveShouldSetPanResponderCapture: (_event, gesture) =>
-        Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-      onPanResponderRelease: (_event, gesture) => {
-        if (gesture.dx <= -45) {
-          setActiveIndex((current) =>
-            Math.min(Math.max(0, urlsLengthRef.current - 1), current + 1)
-          );
-        } else if (gesture.dx >= 45) {
-          setActiveIndex((current) => Math.max(0, current - 1));
-        }
-      },
-    })
-  ).current;
+  const swipeResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+        onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+          Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+        onPanResponderRelease: (_event, gesture) => {
+          if (gesture.dx <= -45) {
+            setActiveIndex((current) =>
+              Math.min(Math.max(0, urls.length - 1), current + 1)
+            );
+          } else if (gesture.dx >= 45) {
+            setActiveIndex((current) => Math.max(0, current - 1));
+          }
+        },
+      }),
+    [urls.length]
+  );
 
   if (!urls.length) return null;
 
@@ -249,7 +247,6 @@ export default function HomeScreen() {
   const { colors } = useAppTheme();
   const ui = useReaderStyles();
   const scrollRef = useRef<FlatList<Post>>(null);
-  const composerY = useRef(0);
   const insets = useSafeAreaInsets();
   const social = useReaderSocial();
   const [storyProfile, setStoryProfile] = useState<{ userId: string | null; imageUrl: string | null } | null>(null);
@@ -285,10 +282,13 @@ export default function HomeScreen() {
   const loadingFeedRef = useRef(false);
   const currentUserIdRef = useRef<string | null>(null);
   const recordedViewsRef = useRef(new Set<string>());
-  const viewabilityConfigRef = useRef({
-    itemVisiblePercentThreshold: 60,
-    minimumViewTime: 800,
-  });
+  const viewabilityConfig = useMemo(
+    () => ({
+      itemVisiblePercentThreshold: 60,
+      minimumViewTime: 800,
+    }),
+    []
+  );
 
   const [commentingReviewId, setCommentingReviewId] =
     useState<string | null>(null);
@@ -306,18 +306,14 @@ export default function HomeScreen() {
   const [reportDescription, setReportDescription] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
 
-  const [showPostBox, setShowPostBox] = useState(false);
-  const [postText, setPostText] = useState('');
-  const [postImage, setPostImage] = useState<string | null>(null);
-  const [posting, setPosting] = useState(false);
 
 
   useEffect(() => {
     currentUserIdRef.current = currentUserId;
   }, [currentUserId]);
 
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: Array<{ item: Post; isViewable?: boolean }> }) => {
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { item: Post; isViewable?: boolean }[] }) => {
       const viewerId = currentUserIdRef.current;
       if (!viewerId) return;
 
@@ -357,6 +353,7 @@ export default function HomeScreen() {
           });
       }
     }
+    []
   );
 
   function closeReportSheet() {
@@ -938,7 +935,7 @@ export default function HomeScreen() {
     } finally {
       setLoadingStories(false);
     }
-  }, [getBlockedUserIds, getCurrentUserId]);
+  }, [getBlockedUserIds]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1002,101 +999,6 @@ export default function HomeScreen() {
       return () => { active = false; };
     }, [loadPosts, loadStories])
   );
-
-  async function pickPostImage() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('İzin gerekli', 'Fotoğraf seçebilmek için galeri izni vermelisin.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 });
-    if (!result.canceled && result.assets.length > 0) setPostImage(result.assets[0].uri);
-  }
-
-  async function createPost() {
-    const cleanText = postText.trim();
-    if (!cleanText && !postImage) {
-      Alert.alert('Gönderi boş', 'Bir yazı veya fotoğraf eklemelisin.');
-      return;
-    }
-    const user = await getCurrentUser();
-    if (!user) {
-      Alert.alert('Giriş gerekli', 'Gönderi paylaşmak için önce giriş yapmalısın.');
-      return;
-    }
-    setPosting(true);
-    let uploadedPostPath: string | null = null;
-    try {
-      let imageUrl: string | null = null;
-      if (postImage) {
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.jpg`;
-        const filePath = `${user.id}/${fileName}`;
-        uploadedPostPath = filePath;
-        const response = await fetch(postImage);
-        if (!response.ok) throw new Error('Fotoğraf dosyası okunamadı.');
-        const arrayBuffer = await response.arrayBuffer();
-        if (!arrayBuffer || arrayBuffer.byteLength === 0) throw new Error('Fotoğraf dosyası boş.');
-        const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, arrayBuffer, { contentType: 'image/jpeg', upsert: false });
-        if (uploadError) {
-          console.error('Post fotoğrafı yüklenemedi:', uploadError);
-          Alert.alert('Fotoğraf yüklenemedi', uploadError.message);
-          return;
-        }
-        const { data: publicUrlData } = supabase.storage.from('post-images').getPublicUrl(filePath);
-        imageUrl = publicUrlData.publicUrl.replace('/object/public/', '/object/authenticated/');
-      }
-
-      const { data: authorProfile } = await supabase.from('profiles').select('full_name, username, profile_image').eq('id', user.id).maybeSingle();
-      const { data, error } = await supabase.from('posts').insert({
-        user_id: user.id,
-        username: authorProfile?.username || CURRENT_USERNAME,
-        text: cleanText || null,
-        image_url: requirePermanentImage(imageUrl),
-        book_key: null,
-        book_title: null,
-        rating: 0,
-      }).select().single();
-
-      if (error) {
-        console.error('Gönderi oluşturulamadı:', error);
-        if (uploadedPostPath) {
-          await cleanupUploadedMedia(
-            'post-images',
-            uploadedPostPath,
-            'post_insert_failed'
-          );
-        }
-        Alert.alert('Hata', error.message);
-        return;
-      }
-
-      uploadedPostPath = null;
-
-      if (data) {
-        setPosts((current) => [{
-          ...(data as Post),
-          username: authorProfile?.username || data.username || CURRENT_USERNAME,
-          profile_image: authorProfile?.profile_image ?? null,
-          saved: false,
-          liked: false,
-          likes: 0,
-          reposted: false,
-          reposts: 0,
-          comments: [],
-        }, ...current]);
-      }
-
-      setPostText('');
-      setPostImage(null);
-      setShowPostBox(false);
-      Alert.alert('Başarılı', 'Gönderin paylaşıldı.');
-    } catch (error) {
-      console.error('Post hatası:', error);
-      Alert.alert('Hata', error instanceof Error ? error.message : 'Gönderi paylaşılırken hata oluştu.');
-    } finally {
-      setPosting(false);
-    }
-  }
 
   async function toggleSavePost(post: Post) {
     const user = await getCurrentUser();
@@ -1921,8 +1823,8 @@ export default function HomeScreen() {
         data={visiblePosts}
         keyExtractor={(item) => item.isQuote ? item.id : `${item.isReview ? 'review' : 'post'}-${item.id}`}
         renderItem={renderFeedPost}
-        onViewableItemsChanged={onViewableItemsChanged.current}
-        viewabilityConfig={viewabilityConfigRef.current}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         initialNumToRender={8}
