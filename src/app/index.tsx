@@ -50,6 +50,21 @@ const STORY_SEEN_KEY = 'story-seen-ids';
 const CURRENT_USERNAME = 'Kitap Okuru';
 const FEED_PAGE_SIZE = 15;
 
+async function getCurrentUser() {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error) return null;
+  return user;
+}
+
+async function getCurrentUserId() {
+  const user = await getCurrentUser();
+  return user?.id ?? null;
+}
+
 const REPORT_CATEGORIES = [
   { key: 'violence', label: 'Şiddet veya tehlikeli içerik', icon: 'alert-triangle' },
   { key: 'hate', label: 'Nefret söylemi', icon: 'slash' },
@@ -461,24 +476,6 @@ export default function HomeScreen() {
     ]);
   }
 
-  const getCurrentUser = useCallback(async () => {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error) {
-      return null;
-    }
-
-    return user;
-  }, []);
-
-  const getCurrentUserId = useCallback(async () => {
-    const user = await getCurrentUser();
-    return user?.id ?? null;
-  }, [getCurrentUser]);
-
   const getBlockedUserIds = useCallback(async (userId: string | null) => {
     const blocked = new Set<string>();
     if (!userId) return blocked;
@@ -881,7 +878,7 @@ export default function HomeScreen() {
       setLoadingPosts(false);
       setLoadingMoreFeed(false);
     }
-  }, [getBlockedUserIds, getCurrentUserId]);
+  }, [getBlockedUserIds]);
   const loadStories = useCallback(async () => {
     setLoadingStories(true);
 
@@ -1003,7 +1000,7 @@ export default function HomeScreen() {
       }
       loadAll();
       return () => { active = false; };
-    }, [getCurrentUserId, loadPosts, loadStories])
+    }, [loadPosts, loadStories])
   );
 
   async function pickPostImage() {
