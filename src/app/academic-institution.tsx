@@ -122,7 +122,7 @@ export default function AcademicInstitutionScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Öne Çıkan Akademisyenler</Text>
           {authors.length ? authors.map((author) => (
-            <Pressable key={author.id} onPress={() => router.push({ pathname: '/academic-author' as any, params: { id: author.id } })} style={styles.authorCard}>
+            <Pressable key={author.id} onPress={() => router.push({ pathname: '/person' as any, params: { academicId: author.id, name: author.name } })} style={styles.authorCard}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{author.name.charAt(0).toUpperCase()}</Text></View>
               <View style={styles.authorCopy}>
                 <Text style={styles.authorName}>{author.name}</Text>
