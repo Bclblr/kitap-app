@@ -98,38 +98,46 @@ function touchDistance(touches: any[]) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+function createZoomPanResponder(onScaleChange: (scale: number) => void) {
+  let currentScale = 1;
+  let startScale = 1;
+  let startDistance = 0;
+
+  return PanResponder.create({
+    onStartShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
+    onMoveShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
+    onPanResponderGrant: (event) => {
+      const touches = (event.nativeEvent as any).touches ?? [];
+      startDistance = touchDistance(touches);
+      startScale = currentScale;
+    },
+    onPanResponderMove: (event) => {
+      const touches = (event.nativeEvent as any).touches ?? [];
+      const currentDistance = touchDistance(touches);
+      if (!startDistance || !currentDistance) return;
+
+      const next = Math.min(
+        4,
+        Math.max(1, startScale * (currentDistance / startDistance))
+      );
+      currentScale = next;
+      onScaleChange(next);
+    },
+    onPanResponderRelease: () => {
+      startDistance = 0;
+    },
+    onPanResponderTerminate: () => {
+      startDistance = 0;
+    },
+  });
+}
+
 function ZoomableFeedImage({ uri, onClose }: { uri: string; onClose: () => void }) {
   const [scale, setScale] = useState(1);
-
-  const responder = useMemo(() => {
-    let currentScale = 1;
-    let startScale = 1;
-    let startDistance = 0;
-
-    return PanResponder.create({
-      onStartShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
-      onMoveShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
-      onPanResponderGrant: (event) => {
-        const touches = (event.nativeEvent as any).touches ?? [];
-        startDistance = touchDistance(touches);
-        startScale = currentScale;
-      },
-      onPanResponderMove: (event) => {
-        const touches = (event.nativeEvent as any).touches ?? [];
-        const currentDistance = touchDistance(touches);
-        if (!startDistance || !currentDistance) return;
-        const next = Math.min(4, Math.max(1, startScale * (currentDistance / startDistance)));
-        currentScale = next;
-        setScale(next);
-      },
-      onPanResponderRelease: () => {
-        startDistance = 0;
-      },
-      onPanResponderTerminate: () => {
-        startDistance = 0;
-      },
-    });
-  }, []);
+  const responder = useMemo(
+    () => createZoomPanResponder(setScale),
+    []
+  );
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
