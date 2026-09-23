@@ -1,5 +1,6 @@
 import BookCover from '@/components/BookCover';
 import AcademicAuthorAvatar from '@/components/AcademicAuthorAvatar';
+import AcademicInstitutionLogo from '@/components/AcademicInstitutionLogo';
 import BottomNav from '@/components/BottomNav';
 import Image from '@/components/SafeImage';
 import AdSlot from '@/components/AdSlot';
@@ -854,7 +855,14 @@ export default function ExploreScreen() {
                         <AcademicAuthorAvatar name={academicAuthor.name} orcid={academicAuthor.orcid} size={44} style={styles.authorMark} textStyle={styles.authorMarkText} />
                         <View style={styles.flexOne}>
                           <Text style={styles.resultTitle}>{academicAuthor.name}</Text>
-                          <Text style={styles.rowDescription}>{academicAuthor.institutionName || 'Kurum bilgisi yok'}</Text>
+                          {academicAuthor.institutionName ? (
+                            <View style={styles.institutionInline}>
+                              <AcademicInstitutionLogo name={academicAuthor.institutionName} size={22} />
+                              <Text style={[styles.rowDescription, styles.institutionInlineText]} numberOfLines={1}>{academicAuthor.institutionName}</Text>
+                            </View>
+                          ) : (
+                            <Text style={styles.rowDescription}>Kurum bilgisi yok</Text>
+                          )}
                           <Text style={styles.rowDescription}>{academicAuthor.worksCount} yayın · {academicAuthor.citedByCount} atıf</Text>
                         </View>
                         <Feather name="chevron-right" size={18} color="#777983" />
@@ -889,9 +897,7 @@ export default function ExploreScreen() {
                         onPress={() => router.push({ pathname: '/academic-institution' as any, params: { id: institution.id } })}
                         style={styles.resultCard}
                       >
-                        <View style={styles.academicResultIcon}>
-                          <Feather name="briefcase" size={19} color="#B79AF2" />
-                        </View>
+                        <AcademicInstitutionLogo name={institution.name} size={44} />
                         <View style={styles.flexOne}>
                           <Text style={styles.resultTitle}>{institution.name}</Text>
                           <Text style={styles.rowDescription}>{[institution.city, institution.countryCode].filter(Boolean).join(' · ') || 'Konum bilgisi yok'}</Text>
@@ -1139,6 +1145,8 @@ const baseStyles = StyleSheet.create({
   searchSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
   searchSectionTitle: { color: '#ECECF0', fontSize: 15, fontWeight: '900' },
   searchSectionCount: { minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, backgroundColor: '#241B36', color: '#CDBBFF', fontSize: 10, fontWeight: '900', textAlign: 'center', textAlignVertical: 'center', lineHeight: 24 },
+  institutionInline: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 },
+  institutionInlineText: { flex: 1, marginTop: 0 },
   academicLoadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginBottom: 8 },
   messageCard: { minHeight: 140, borderRadius: 18, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', justifyContent: 'center', alignItems: 'center', padding: 20 },
   loadingText: { color: '#858791', fontSize: 11, marginTop: 10 },
