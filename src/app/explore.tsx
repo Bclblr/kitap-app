@@ -759,7 +759,11 @@ export default function ExploreScreen() {
             </View>
           ) : (
             <View style={styles.resultsArea}>
-              <View style={styles.tabs}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabs}
+              >
                 <SearchTab label="Kitaplar" active={activeSearchType === 'books'} onPress={() => setActiveSearchType('books')} />
                 <SearchTab label="Yazarlar" active={activeSearchType === 'authors'} onPress={() => setActiveSearchType('authors')} />
                 <SearchTab label="Kullanıcılar" active={activeSearchType === 'users'} onPress={() => setActiveSearchType('users')} />
@@ -767,7 +771,7 @@ export default function ExploreScreen() {
                 <SearchTab label="Akademisyenler" active={activeSearchType === 'academicAuthors'} onPress={() => setActiveSearchType('academicAuthors')} />
                 <SearchTab label="Dergiler" active={activeSearchType === 'journals'} onPress={() => setActiveSearchType('journals')} />
                 <SearchTab label="Kurumlar" active={activeSearchType === 'institutions'} onPress={() => setActiveSearchType('institutions')} />
-              </View>
+              </ScrollView>
 
               {loading ? (
                 <View style={styles.messageCard}>
@@ -1114,8 +1118,8 @@ const baseStyles = StyleSheet.create({
   rowDescription: { color: '#777983', fontSize: 10, lineHeight: 15, marginTop: 4 },
   resultTitle: { color: '#F0F0F3', fontSize: 15, fontWeight: '900' },
   resultsArea: { marginTop: 18 },
-  tabs: { flexDirection: 'row', borderRadius: 15, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#101116', padding: 4, marginBottom: 16 },
-  tab: { flex: 1, height: 38, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+  tabs: { flexDirection: 'row', gap: 6, borderRadius: 15, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#101116', padding: 4, marginBottom: 16 },
+  tab: { minWidth: 88, height: 38, paddingHorizontal: 12, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   activeTab: { backgroundColor: '#302345', borderWidth: 1, borderColor: '#684CA0' },
   tabText: { color: '#777983', fontSize: 11, fontWeight: '700' },
   activeTabText: { color: '#D7C4FA', fontWeight: '900' },
