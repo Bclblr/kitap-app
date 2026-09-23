@@ -281,8 +281,8 @@ export default function ProfileScreen() {
   const [followLoading, setFollowLoading] = useState(false);
   const [safetyLoading, setSafetyLoading] = useState(false);
 
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [, setReviews] = useState<Review[]>([]);
+  const [, setQuotes] = useState<Quote[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [profileLoadingMore, setProfileLoadingMore] = useState(false);
@@ -1550,97 +1550,6 @@ export default function ProfileScreen() {
    * YORUMLAR
    * ============================================================
    */
-
-  async function openPostComments(
-    post: Post
-  ) {
-    setSelectedPost(
-      post
-    );
-
-    setPostModalVisible(
-      true
-    );
-
-    setCommentsLoading(
-      true
-    );
-
-    try {
-      const {
-        data,
-        error,
-      } = await supabase
-        .from('post_comments')
-        .select(
-          'id, user_id, text, created_at'
-        )
-        .eq(
-          'post_id',
-          post.id
-        )
-        .order(
-          'created_at',
-          {
-            ascending: true,
-          }
-        );
-
-      if (error) {
-        console.error(
-          'Yorumlar yüklenemedi:',
-          error
-        );
-
-        setComments([]);
-        return;
-      }
-
-      const rows = data || [];
-      const userIds = Array.from(
-        new Set(
-          rows
-            .map((item: any) => item.user_id)
-            .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
-        )
-      );
-
-      const { data: commentProfiles, error: profileError } = userIds.length
-        ? await supabase
-            .from('profiles')
-            .select('id, username, full_name, profile_image')
-            .in('id', userIds)
-        : { data: [], error: null };
-
-      if (profileError) {
-        console.warn('Yorum profilleri yüklenemedi:', profileError);
-      }
-
-      const profileMap = new Map(
-        (commentProfiles ?? []).map((item: any) => [String(item.id), item])
-      );
-
-      const loadedComments: Comment[] = rows.map((item: any) => {
-        const author = item.user_id ? profileMap.get(String(item.user_id)) : null;
-        return {
-          id: String(item.id),
-          userId: item.user_id ? String(item.user_id) : null,
-          username: author?.username || 'Kitap Okuru',
-          fullName: author?.full_name ?? null,
-          profileImage: author?.profile_image ?? null,
-          text: String(item.text || ''),
-          createdAt: item.created_at || '',
-        };
-      });
-
-      setComments(loadedComments);
-    } finally {
-      setCommentsLoading(
-        false
-      );
-    }
-  }
-
 
   async function openContentComments(type: InteractionType, id: string) {
     setCommentTarget({ type, id });
