@@ -72,7 +72,7 @@ export async function loadBookCover(bookKey: string, fallback: string | null): P
     let response: Response;
     try {
       response = await fetch(url);
-    } catch (error) {
+    } catch {
       // React Native / Expo native fetch failures (including TLS failures) are not
       // guaranteed to be TypeError instances. A missing remote cover must never
       // crash or surface as a feed error; callers can render their fallback.
@@ -88,7 +88,7 @@ export async function loadBookCover(bookKey: string, fallback: string | null): P
     let data: BookCoverData | null;
     try {
       data = await response.json();
-    } catch (error) {
+    } catch {
       console.warn('Kitap kapağı yanıtı okunamadı:', url);
       return null;
     }
