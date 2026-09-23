@@ -45,20 +45,6 @@ export default function JournalScreen() {
         if (!user) return;
 
         const db = supabase as any;
-        await db.from('academic_journals').upsert({
-          openalex_id: loadedJournal.id,
-          issn_l: loadedJournal.issnL,
-          issn: loadedJournal.issn,
-          name: loadedJournal.name,
-          publisher: loadedJournal.publisher,
-          homepage_url: loadedJournal.homepageUrl,
-          country_code: loadedJournal.countryCode,
-          works_count: loadedJournal.worksCount,
-          cited_by_count: loadedJournal.citedByCount,
-          metadata: {},
-          last_synced_at: new Date().toISOString(),
-        }, { onConflict: 'openalex_id' });
-
         const { data: followData } = await db
           .from('followed_academic_entities')
           .select('entity_openalex_id')
