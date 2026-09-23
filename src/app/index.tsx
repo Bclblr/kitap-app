@@ -91,18 +91,18 @@ function postImageUrls(post: Post) {
   return Array.from(new Set(urls)).slice(0, 6);
 }
 
+function touchDistance(touches: any[]) {
+  if (touches.length < 2) return 0;
+  const dx = touches[0].pageX - touches[1].pageX;
+  const dy = touches[0].pageY - touches[1].pageY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 function ZoomableFeedImage({ uri, onClose }: { uri: string; onClose: () => void }) {
   const [scale, setScale] = useState(1);
   const scaleRef = useRef(1);
   const startScaleRef = useRef(1);
   const startDistanceRef = useRef(0);
-
-  const distance = (touches: any[]) => {
-    if (touches.length < 2) return 0;
-    const dx = touches[0].pageX - touches[1].pageX;
-    const dy = touches[0].pageY - touches[1].pageY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
 
   const responder = useMemo(
     () =>
@@ -111,12 +111,12 @@ function ZoomableFeedImage({ uri, onClose }: { uri: string; onClose: () => void 
         onMoveShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
         onPanResponderGrant: (event) => {
           const touches = (event.nativeEvent as any).touches ?? [];
-          startDistanceRef.current = distance(touches);
+          startDistanceRef.current = touchDistance(touches);
           startScaleRef.current = scaleRef.current;
         },
         onPanResponderMove: (event) => {
           const touches = (event.nativeEvent as any).touches ?? [];
-          const currentDistance = distance(touches);
+          const currentDistance = touchDistance(touches);
           if (!startDistanceRef.current || !currentDistance) return;
           const next = Math.min(4, Math.max(1, startScaleRef.current * (currentDistance / startDistanceRef.current)));
           scaleRef.current = next;
@@ -352,7 +352,7 @@ export default function HomeScreen() {
             );
           });
       }
-    }
+    },
     []
   );
 
