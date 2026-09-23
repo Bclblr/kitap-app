@@ -20,14 +20,13 @@ export default function AcademicInstitutionScreen() {
 
   useEffect(() => {
     const institutionId = typeof id === 'string' ? id : '';
-    if (!institutionId) {
-      setLoading(false);
-      return;
-    }
+    if (!institutionId) return;
     let active = true;
     const controller = new AbortController();
 
     async function load() {
+      await Promise.resolve();
+      if (!active) return;
       setLoading(true);
       try {
         const [loadedInstitution, loadedAuthors] = await Promise.all([
