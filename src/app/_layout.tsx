@@ -36,6 +36,7 @@ const AUTHENTICATED_ROUTES = [
   'journal',
   'blocked-users',
   'author',
+  'person',
   'book',
   'chat',
   'community',
