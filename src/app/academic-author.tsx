@@ -44,19 +44,6 @@ export default function AcademicAuthorScreen() {
         if (!user) return;
 
         const db = supabase as any;
-        await db.from('academic_authors').upsert({
-          openalex_id: loadedAuthor.id,
-          orcid: loadedAuthor.orcid,
-          display_name: loadedAuthor.name,
-          institution_openalex_id: loadedAuthor.institutionId,
-          institution_name: loadedAuthor.institutionName,
-          works_count: loadedAuthor.worksCount,
-          cited_by_count: loadedAuthor.citedByCount,
-          topics: loadedAuthor.topics,
-          metadata: {},
-          last_synced_at: new Date().toISOString(),
-        }, { onConflict: 'openalex_id' });
-
         const { data: followData } = await db
           .from('followed_academic_entities')
           .select('entity_openalex_id')
