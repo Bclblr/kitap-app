@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { supabase } from '@/lib/supabase';
 
-type NavRoute = '/' | '/read' | '/messages' | '/explore' | '/profile';
+type NavRoute = '/' | '/shelves' | '/messages' | '/explore' | '/profile';
 type NavIcon = 'home' | 'book-open' | 'message-circle' | 'search' | 'user';
 
 type NavItemProps = {
@@ -20,7 +20,7 @@ type NavItemProps = {
 
 const NAV_LABELS: Record<NavRoute, string> = {
   '/': 'Ana sayfa',
-  '/read': 'Okumalarım',
+  '/shelves': 'Raflarım',
   '/messages': 'Mesajlar',
   '/explore': 'Keşfet',
   '/profile': 'Profil',
@@ -177,7 +177,7 @@ export default function BottomNav() {
       ]}
     >
       <NavItem href="/" pathname={pathname} icon="home" onPress={() => { if (pathname !== '/') router.replace('/'); }} />
-      <NavItem href="/read" pathname={pathname} icon="book-open" onPress={() => { if (!pathname.startsWith('/read')) router.replace('/read'); }} />
+      <NavItem href="/shelves" pathname={pathname} icon="book-open" onPress={() => { if (!pathname.startsWith('/shelves')) router.replace('/shelves'); }} />
       <NavItem href="/messages" pathname={pathname} icon="message-circle" badgeCount={unreadMessages} onPress={() => { if (!pathname.startsWith('/messages')) router.replace('/messages'); }} />
       <NavItem href="/explore" pathname={pathname} icon="search" onPress={() => { if (!pathname.startsWith('/explore')) router.replace('/explore'); }} />
       <NavItem href="/profile" pathname={pathname} icon="user" onPress={() => { if (!pathname.startsWith('/profile')) router.replace('/profile'); }} />
