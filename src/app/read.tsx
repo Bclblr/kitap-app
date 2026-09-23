@@ -141,6 +141,7 @@ export default function ReadScreen() {
   const [readingInsightsLoading, setReadingInsightsLoading] = useState(false);
   const [weeklyStats, setWeeklyStats] = useState<ReadingDayStat[]>([]);
   const [recentReadingActivity, setRecentReadingActivity] = useState<ReadingDayStat[]>([]);
+  const [readingInsightsUpdatedAt, setReadingInsightsUpdatedAt] = useState<number | null>(null);
   const progressRequestId = useRef(0);
   const sameBookReadersRequestId = useRef(0);
 
@@ -430,6 +431,7 @@ export default function ReadScreen() {
       }
 
       setWeeklyStats(lastSeven);
+      setReadingInsightsUpdatedAt(Date.now());
       setRecentReadingActivity(
         (data ?? [])
           .map((row: any) => ({
@@ -585,8 +587,8 @@ export default function ReadScreen() {
       ? Math.ceil((totalPages - currentPage) / weeklyDailyAverage)
       : null;
   const estimatedFinishDate =
-    estimatedDaysToFinish !== null
-      ? new Date(Date.now() + estimatedDaysToFinish * 24 * 60 * 60 * 1000)
+    estimatedDaysToFinish !== null && readingInsightsUpdatedAt !== null
+      ? new Date(readingInsightsUpdatedAt + estimatedDaysToFinish * 24 * 60 * 60 * 1000)
       : null;
 
   async function saveDailyPageGoal() {
