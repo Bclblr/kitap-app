@@ -43,19 +43,6 @@ export default function AcademicInstitutionScreen() {
         if (!user) return;
 
         const db = supabase as any;
-        await db.from('academic_institutions').upsert({
-          openalex_id: loadedInstitution.id,
-          name: loadedInstitution.name,
-          country_code: loadedInstitution.countryCode,
-          city: loadedInstitution.city,
-          institution_type: loadedInstitution.type,
-          homepage_url: loadedInstitution.homepageUrl,
-          works_count: loadedInstitution.worksCount,
-          cited_by_count: loadedInstitution.citedByCount,
-          metadata: {},
-          last_synced_at: new Date().toISOString(),
-        }, { onConflict: 'openalex_id' });
-
         const { data: followData } = await db
           .from('followed_academic_entities')
           .select('entity_openalex_id')
