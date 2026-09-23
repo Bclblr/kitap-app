@@ -185,7 +185,7 @@ export default function AcademicSearchScreen() {
 
         {!loading && searched && tab === 'authors' ? (
           authors.length ? authors.map((author) => (
-            <Pressable key={author.id} onPress={() => router.push({ pathname: '/academic-author' as any, params: { id: author.id } })} style={styles.resultCard}>
+            <Pressable key={author.id} onPress={() => router.push({ pathname: '/person' as any, params: { academicId: author.id, name: author.name } })} style={styles.resultCard}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{author.name.charAt(0).toUpperCase()}</Text></View>
               <View style={styles.resultCopy}>
                 <Text style={styles.resultTitle}>{author.name}</Text>
