@@ -569,12 +569,6 @@ export default function ExploreScreen() {
   const academicByName = new Map(
     academicAuthors.map((item) => [normalizePersonName(item.name), item] as const)
   );
-  const literaryNames = new Set(
-    authors.map((item) => normalizePersonName(item.name ?? '')).filter(Boolean)
-  );
-  const academicOnlyAuthors = academicAuthors.filter(
-    (item) => !literaryNames.has(normalizePersonName(item.name))
-  );
 
   return (
     <View style={styles.safeArea}>
@@ -914,8 +908,15 @@ export default function ExploreScreen() {
                     ))}
                   </SearchSection>
 
-                  <SearchSection title="Akademisyenler" count={academicOnlyAuthors.length}>
-                    {academicOnlyAuthors.map((academicAuthor) => (
+                  {academicLoading ? (
+                    <View style={styles.academicLoadingRow}>
+                      <ActivityIndicator color="#9B72F2" size="small" />
+                      <Text style={styles.loadingText}>Akademik sonuçlar getiriliyor...</Text>
+                    </View>
+                  ) : null}
+
+                  <SearchSection title="Akademisyenler" count={academicAuthors.length}>
+                    {academicAuthors.map((academicAuthor) => (
                       <Pressable
                         key={academicAuthor.id}
                         onPress={() => router.push({
@@ -935,6 +936,9 @@ export default function ExploreScreen() {
                           <Text style={styles.resultTitle}>{academicAuthor.name}</Text>
                           <View style={styles.personRoles}>
                             <Text style={styles.personRole}>Akademisyen</Text>
+                            {authors.some((author) => normalizePersonName(author.name ?? '') === normalizePersonName(academicAuthor.name)) ? (
+                              <Text style={styles.personRole}>Yazar</Text>
+                            ) : null}
                           </View>
                           {academicAuthor.institutionName ? (
                             <View style={styles.institutionInline}>
@@ -943,7 +947,9 @@ export default function ExploreScreen() {
                                 {academicAuthor.institutionName}
                               </Text>
                             </View>
-                          ) : null}
+                          ) : (
+                            <Text style={styles.rowDescription}>Kurum bilgisi yok</Text>
+                          )}
                           <Text style={styles.rowDescription}>
                             {academicAuthor.worksCount} yayın · {academicAuthor.citedByCount} atıf
                           </Text>
@@ -953,11 +959,6 @@ export default function ExploreScreen() {
                     ))}
                   </SearchSection>
 
-                  {academicLoading && !academicOnlyAuthors.length ? (
-                    <SearchLoadingSection title="Akademisyenler" />
-                  ) : null}
-
-                  {secondaryAcademicLoading && !journals.length ? <SearchLoadingSection title="Dergiler" /> : null}
                   <SearchSection title="Dergiler" count={journals.length}>
                     {journals.map((journal) => (
                       <Pressable
@@ -978,7 +979,6 @@ export default function ExploreScreen() {
                     ))}
                   </SearchSection>
 
-                  {secondaryAcademicLoading && !institutions.length ? <SearchLoadingSection title="Kurumlar" /> : null}
                   <SearchSection title="Kurumlar" count={institutions.length}>
                     {institutions.map((institution) => (
                       <Pressable
@@ -1000,7 +1000,7 @@ export default function ExploreScreen() {
                   {searched &&
                   !books.length &&
                   !authors.length &&
-                  !academicOnlyAuthors.length &&
+                  !academicAuthors.length &&
                   !users.length &&
                   !academicLoading &&
                   !secondaryAcademicLoading &&
@@ -1153,21 +1153,6 @@ function SectionHeader({
   );
 }
 
-function SearchLoadingSection({ title }: { title: string }) {
-  const styles = useThemedStyles(baseStyles);
-  return (
-    <View style={styles.searchSection}>
-      <View style={styles.searchSectionHeader}>
-        <Text style={styles.searchSectionTitle}>{title}</Text>
-      </View>
-      <View style={styles.sectionLoadingCard}>
-        <ActivityIndicator color="#9B72F2" size="small" />
-        <Text style={styles.loadingText}>Yükleniyor...</Text>
-      </View>
-    </View>
-  );
-}
-
 function SearchSection({
   title,
   count,
@@ -1247,7 +1232,6 @@ const baseStyles = StyleSheet.create({
   resultTitle: { color: '#F0F0F3', fontSize: 15, fontWeight: '900' },
   resultsArea: { marginTop: 18 },
   searchSection: { marginBottom: 22 },
-  sectionLoadingCard: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218' },
   searchSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
   searchSectionTitle: { color: '#ECECF0', fontSize: 15, fontWeight: '900' },
   searchSectionCount: { minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, backgroundColor: '#241B36', color: '#CDBBFF', fontSize: 10, fontWeight: '900', textAlign: 'center', textAlignVertical: 'center', lineHeight: 24 },
