@@ -917,13 +917,13 @@ export default function ReadScreen() {
                           </Text>
                         )}
                       </View>
-                      <Text style={styles.pageCountSource}>
-                        {pageCountLoading
-                          ? 'Veritabanından alınıyor...'
-                          : pageCountSource === 'Open Library'
-                            ? 'Open Library verisinden otomatik'
+                      {pageCountLoading || pageCountSource !== 'Open Library' ? (
+                        <Text style={styles.pageCountSource}>
+                          {pageCountLoading
+                            ? 'Veritabanından alınıyor...'
                             : 'Sayfa bilgisi bulunamadı'}
-                      </Text>
+                        </Text>
+                      ) : null}
                     </View>
                   </View>
 
