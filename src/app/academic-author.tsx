@@ -1,5 +1,6 @@
 import AcademicWorkCard from '@/components/AcademicWorkCard';
 import AcademicAuthorAvatar from '@/components/AcademicAuthorAvatar';
+import AcademicInstitutionLogo from '@/components/AcademicInstitutionLogo';
 import { getAcademicAuthor, getAuthorWorks, AcademicAuthorSummary, AcademicWork } from '@/lib/academic';
 import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
@@ -106,7 +107,14 @@ export default function AcademicAuthorScreen() {
         <View style={styles.hero}>
           <AcademicAuthorAvatar name={author.name} orcid={author.orcid} size={82} style={styles.avatar} textStyle={styles.avatarText} />
           <Text style={styles.title}>{author.name}</Text>
-          <Text style={styles.institution}>{author.institutionName || 'Kurum bilgisi bulunamadı'}</Text>
+          {author.institutionName ? (
+            <View style={styles.institutionHero}>
+              <AcademicInstitutionLogo name={author.institutionName} size={38} />
+              <Text style={styles.institution}>{author.institutionName}</Text>
+            </View>
+          ) : (
+            <Text style={styles.institution}>Kurum bilgisi bulunamadı</Text>
+          )}
           <View style={styles.metrics}>
             <View style={styles.metric}><Text style={styles.metricValue}>{author.worksCount}</Text><Text style={styles.metricLabel}>Yayın</Text></View>
             <View style={styles.metric}><Text style={styles.metricValue}>{author.citedByCount}</Text><Text style={styles.metricLabel}>Atıf</Text></View>
@@ -157,7 +165,8 @@ const baseStyles = StyleSheet.create({
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#2B1D42', borderWidth: 1, borderColor: '#5B3A86', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#E5D8FF', fontSize: 28, fontWeight: '900' },
   title: { color: '#F5F5F7', fontSize: 22, fontWeight: '900', textAlign: 'center', marginTop: 13 },
-  institution: { color: '#8E909A', fontSize: 11, textAlign: 'center', marginTop: 6 },
+  institutionHero: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 8, maxWidth: '100%' },
+  institution: { color: '#8E909A', fontSize: 11, textAlign: 'center', flexShrink: 1 },
   metrics: { flexDirection: 'row', width: '100%', gap: 8, marginTop: 16 },
   metric: { flex: 1, borderRadius: 13, backgroundColor: '#171820', borderWidth: 1, borderColor: '#292A33', padding: 10, alignItems: 'center' },
   metricValue: { color: '#F1F1F4', fontSize: 16, fontWeight: '900' },
