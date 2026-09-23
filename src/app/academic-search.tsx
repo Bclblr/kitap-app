@@ -13,14 +13,15 @@ import {
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 type Tab = 'works' | 'authors' | 'journals' | 'institutions';
 
 export default function AcademicSearchScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ q?: string }>();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const [query, setQuery] = useState('');
@@ -33,8 +34,8 @@ export default function AcademicSearchScreen() {
   const [searched, setSearched] = useState(false);
   const requestRef = useRef(0);
 
-  async function search() {
-    const clean = query.trim();
+  async function search(term = query) {
+    const clean = term.trim();
     if (!clean) return;
     const requestId = ++requestRef.current;
     setLoading(true);
@@ -63,6 +64,16 @@ export default function AcademicSearchScreen() {
       if (requestId === requestRef.current) setLoading(false);
     }
   }
+
+  useEffect(() => {
+    const initial = typeof params.q === 'string' ? params.q.trim() : '';
+    if (!initial) return;
+    setQuery(initial);
+    const timer = setTimeout(() => {
+      void search(initial);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [params.q]);
 
   const counts: Record<Tab, number> = {
     works: works.length,
