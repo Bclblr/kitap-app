@@ -203,6 +203,41 @@ export default function BookScreen() {
     };
   }, [author, editionKey, isbn, key, routeCover, routeCoverId, routeCoverUrl, routeDescription, title]);
 
+  async function loadBookNotes(bookKey: string) {
+    try {
+      setNotesLoading(true);
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError && authError.name !== 'AuthSessionMissingError') {
+        throw authError;
+      }
+
+      if (!user) {
+        setNotes([]);
+        return;
+      }
+
+      const { data, error } = await (supabase as any)
+        .from('book_notes')
+        .select('id, content, page_number, created_at')
+        .eq('user_id', user.id)
+        .eq('book_key', bookKey)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setNotes((data ?? []) as BookNote[]);
+    } catch (error) {
+      console.error('Kitap notları yüklenemedi:', error);
+    } finally {
+      setNotesLoading(false);
+    }
+  }
+
+
   useEffect(() => {
     if (!key) {
       setNotes([]);
@@ -293,39 +328,6 @@ export default function BookScreen() {
     }
   }
 
-  async function loadBookNotes(bookKey: string) {
-    try {
-      setNotesLoading(true);
-
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError && authError.name !== 'AuthSessionMissingError') {
-        throw authError;
-      }
-
-      if (!user) {
-        setNotes([]);
-        return;
-      }
-
-      const { data, error } = await (supabase as any)
-        .from('book_notes')
-        .select('id, content, page_number, created_at')
-        .eq('user_id', user.id)
-        .eq('book_key', bookKey)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setNotes((data ?? []) as BookNote[]);
-    } catch (error) {
-      console.error('Kitap notları yüklenemedi:', error);
-    } finally {
-      setNotesLoading(false);
-    }
-  }
 
   async function saveNote() {
     const cleanNote = noteText.trim();
