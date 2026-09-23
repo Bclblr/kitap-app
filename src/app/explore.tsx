@@ -386,6 +386,7 @@ export default function ExploreScreen() {
       setInstitutions(cached.institutions);
       setSearched(true);
       setLoading(false);
+      setAcademicLoading(false);
       return;
     }
 
