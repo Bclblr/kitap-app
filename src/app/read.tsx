@@ -1301,7 +1301,7 @@ const baseStyles = StyleSheet.create({
   inputLabel: { color: '#9A9CA5', fontSize: 10, fontWeight: '700', marginBottom: 7 },
   progressInput: { height: 46, borderRadius: 13, paddingHorizontal: 13, backgroundColor: '#090A0F', borderWidth: 1, borderColor: '#30313A', color: '#F4F4F6', fontSize: 15, fontWeight: '700' },
   progressSummary: { marginTop: 18 },
-  progressSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 },
+  progressSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 },
   progressPageText: { color: '#A1A2AB', fontSize: 11, fontWeight: '600' },
   progressPercentText: { color: '#B999F8', fontSize: 13, fontWeight: '900' },
   progressTrack: { height: 8, borderRadius: 4, backgroundColor: '#24252D', overflow: 'hidden' },
