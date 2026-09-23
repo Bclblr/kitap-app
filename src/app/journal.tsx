@@ -97,7 +97,7 @@ export default function JournalScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => safeBack(router, '/academic-search')} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
+          <Pressable onPress={() => safeBack(router, '/academic-search' as any)} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
           <Text style={styles.pageTitle}>Dergi</Text>
           <Pressable onPress={() => void toggleFollow()} style={[styles.followButton, following && styles.followingButton]}>
             <Feather name={following ? 'check' : 'plus'} size={15} color={following ? colors.primary : '#FFF'} />
@@ -125,7 +125,7 @@ export default function JournalScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Son Makaleler</Text>
-          {works.length ? works.map((work) => <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work', params: { id: work.id } })} />) : <Text style={styles.empty}>Makale bulunamadı.</Text>}
+          {works.length ? works.map((work) => <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })} />) : <Text style={styles.empty}>Makale bulunamadı.</Text>}
         </View>
       </ScrollView>
     </View>
