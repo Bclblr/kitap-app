@@ -100,37 +100,36 @@ function touchDistance(touches: any[]) {
 
 function ZoomableFeedImage({ uri, onClose }: { uri: string; onClose: () => void }) {
   const [scale, setScale] = useState(1);
-  const scaleRef = useRef(1);
-  const startScaleRef = useRef(1);
-  const startDistanceRef = useRef(0);
 
-  const responder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
-        onMoveShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
-        onPanResponderGrant: (event) => {
-          const touches = (event.nativeEvent as any).touches ?? [];
-          startDistanceRef.current = touchDistance(touches);
-          startScaleRef.current = scaleRef.current;
-        },
-        onPanResponderMove: (event) => {
-          const touches = (event.nativeEvent as any).touches ?? [];
-          const currentDistance = touchDistance(touches);
-          if (!startDistanceRef.current || !currentDistance) return;
-          const next = Math.min(4, Math.max(1, startScaleRef.current * (currentDistance / startDistanceRef.current)));
-          scaleRef.current = next;
-          setScale(next);
-        },
-        onPanResponderRelease: () => {
-          startDistanceRef.current = 0;
-        },
-        onPanResponderTerminate: () => {
-          startDistanceRef.current = 0;
-        },
-      }),
-    []
-  );
+  const responder = useMemo(() => {
+    let currentScale = 1;
+    let startScale = 1;
+    let startDistance = 0;
+
+    return PanResponder.create({
+      onStartShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
+      onMoveShouldSetPanResponder: (event) => ((event.nativeEvent as any).touches?.length ?? 0) >= 2,
+      onPanResponderGrant: (event) => {
+        const touches = (event.nativeEvent as any).touches ?? [];
+        startDistance = touchDistance(touches);
+        startScale = currentScale;
+      },
+      onPanResponderMove: (event) => {
+        const touches = (event.nativeEvent as any).touches ?? [];
+        const currentDistance = touchDistance(touches);
+        if (!startDistance || !currentDistance) return;
+        const next = Math.min(4, Math.max(1, startScale * (currentDistance / startDistance)));
+        currentScale = next;
+        setScale(next);
+      },
+      onPanResponderRelease: () => {
+        startDistance = 0;
+      },
+      onPanResponderTerminate: () => {
+        startDistance = 0;
+      },
+    });
+  }, []);
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
