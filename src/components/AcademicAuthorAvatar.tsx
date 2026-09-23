@@ -51,7 +51,7 @@ async function findWikidataPortrait(name: string, orcid?: string | null, signal?
   if (!entityResponse.ok) return null;
   const entityData = await entityResponse.json();
   const entities = ids
-    .map((id) => entityData?.entities?.[id])
+    .map((id: string) => entityData?.entities?.[id])
     .filter(Boolean);
 
   const normalizedOrcid = orcid?.replace(/^https?:\/\/orcid\.org\//i, '').trim() || null;
