@@ -812,7 +812,7 @@ export default function BookScreen() {
           <View style={styles.academicSection}>
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionTitle}>Akademik Çalışmalar</Text>
-              <Pressable onPress={() => router.push({ pathname: '/academic-search', params: { q: book.title ?? '' } } as any)}>
+              <Pressable onPress={() => router.push({ pathname: '/academic-search' as any, params: { q: book.title ?? '' } } as any)}>
                 <Text style={styles.academicSeeAll}>Tümünü Ara</Text>
               </Pressable>
             </View>
@@ -828,7 +828,7 @@ export default function BookScreen() {
                   key={work.id}
                   work={work}
                   compact
-                  onPress={() => router.push({ pathname: '/academic-work', params: { id: work.id } })}
+                  onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })}
                 />
               ))
             ) : (
