@@ -95,7 +95,7 @@ export default function AcademicInstitutionScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => safeBack(router, '/academic-search')} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
+          <Pressable onPress={() => safeBack(router, '/academic-search' as any)} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
           <Text style={styles.pageTitle}>Akademik Kurum</Text>
           <Pressable onPress={() => void toggleFollow()} style={[styles.followButton, following && styles.followingButton]}>
             <Feather name={following ? 'check' : 'plus'} size={15} color={following ? colors.primary : '#FFF'} />
@@ -122,7 +122,7 @@ export default function AcademicInstitutionScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Öne Çıkan Akademisyenler</Text>
           {authors.length ? authors.map((author) => (
-            <Pressable key={author.id} onPress={() => router.push({ pathname: '/academic-author', params: { id: author.id } })} style={styles.authorCard}>
+            <Pressable key={author.id} onPress={() => router.push({ pathname: '/academic-author' as any, params: { id: author.id } })} style={styles.authorCard}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{author.name.charAt(0).toUpperCase()}</Text></View>
               <View style={styles.authorCopy}>
                 <Text style={styles.authorName}>{author.name}</Text>
