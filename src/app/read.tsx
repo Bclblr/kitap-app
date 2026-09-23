@@ -1,7 +1,7 @@
 import { safeBack } from '@/lib/navigation';
 import { BookCoverData, existingBookCover, loadOpenLibraryBookMetadata } from '@/lib/open-library-cover';
 import { useThemedStyles } from '@/theme/use-themed-styles';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, View as SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Image from '@/components/SafeImage';
@@ -114,6 +114,8 @@ function getDeviceTimezone() {
 export default function ReadScreen() {
   const styles = useThemedStyles(baseStyles);
   const router = useRouter();
+  const { key: routeBookKey } = useLocalSearchParams<{ key?: string | string[] }>();
+  const selectedBookKey = Array.isArray(routeBookKey) ? routeBookKey[0] : routeBookKey;
 
   const [readingBooks, setReadingBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
@@ -473,16 +475,22 @@ export default function ReadScreen() {
         .from('user_book_status')
         .select('book_key, book_title, status')
         .eq('user_id', user.id)
-        .eq('status', 'reading')
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
 
-      const activeBooks: Book[] = ((data ?? []) as UserBookStatusRow[]).map((row) => ({
+      const shelfBooks: Book[] = ((data ?? []) as UserBookStatusRow[]).map((row) => ({
         key: row.book_key,
         title: row.book_title ?? 'Bilinmeyen kitap',
         status: row.status,
       }));
+
+      const activeBooks = selectedBookKey
+        ? [
+            ...shelfBooks.filter((book) => book.key === selectedBookKey),
+            ...shelfBooks.filter((book) => book.key !== selectedBookKey && book.status === 'reading'),
+          ]
+        : shelfBooks.filter((book) => book.status === 'reading');
 
       const enrichedBooks = await Promise.all(
         activeBooks.map(async (book) => {
@@ -519,7 +527,7 @@ export default function ReadScreen() {
     } finally {
       setLoading(false);
     }
-  }, [loadBookPageCount, loadProgress, loadSameBookReaders]);
+  }, [loadBookPageCount, loadProgress, loadSameBookReaders, selectedBookKey]);
 
   useFocusEffect(
     useCallback(() => {
@@ -530,6 +538,20 @@ export default function ReadScreen() {
       ]);
     }, [loadReadingBooks, loadReadingDashboard, loadReadingInsights])
   );
+
+  function getBookStatusLabel(status?: BookStatus) {
+    switch (status) {
+      case 'want':
+        return 'Okuyacağım';
+      case 'read':
+        return 'Okudum';
+      case 'abandoned':
+        return 'Yarım Bıraktım';
+      case 'reading':
+      default:
+        return 'Okuyorum';
+    }
+  }
 
   function openBook(book: Book) {
     if (!book.key) return;
@@ -800,7 +822,7 @@ export default function ReadScreen() {
           </View>
         ) : currentBook ? (
           <>
-            <Text style={styles.sectionTitle}>Şu An Okuyorum</Text>
+            <Text style={styles.sectionTitle}>{selectedBookKey ? 'Seçili Kitap' : 'Şu An Okuyorum'}</Text>
             <View style={styles.currentBookCard}>
               <View style={styles.currentBookContent}>
                 {getCoverUrl(currentBook) ? (
@@ -813,7 +835,7 @@ export default function ReadScreen() {
                 <View style={styles.currentBookInfo}>
                   <View style={styles.statusPill}>
                     <View style={styles.statusDot} />
-                    <Text style={styles.statusText}>Okuyorum</Text>
+                    <Text style={styles.statusText}>{getBookStatusLabel(currentBook.status)}</Text>
                   </View>
                   <Text style={styles.currentBookTitle} numberOfLines={3}>
                     {currentBook.title || 'İsimsiz kitap'}
