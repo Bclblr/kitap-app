@@ -537,6 +537,22 @@ export default function ExploreScreen() {
                 Okuma dünyandaki yeni kitaplar, insanlar ve sohbetler burada buluşacak.
               </Text>
 
+              <Pressable
+                onPress={() => router.push('/academic-search')}
+                style={styles.academicDiscoveryCard}
+              >
+                <View style={styles.academicDiscoveryIcon}>
+                  <Feather name="book-open" size={22} color="#BFA5F8" />
+                </View>
+                <View style={styles.academicDiscoveryCopy}>
+                  <Text style={styles.academicDiscoveryTitle}>Akademik Keşif</Text>
+                  <Text style={styles.academicDiscoveryText}>
+                    Makaleler, akademisyenler, dergiler ve kurumları keşfet.
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#8D73C7" />
+              </Pressable>
+
               <PersonalizedBookSuggestions />
               <ReaderSuggestions limit={8} />
 
@@ -948,6 +964,11 @@ const baseStyles = StyleSheet.create({
   discovery: { marginTop: 24 },
   discoveryTitle: { color: '#F2F2F5', fontSize: 17, fontWeight: '900' },
   discoveryText: { color: '#7E808A', fontSize: 11, lineHeight: 17, marginTop: 5, marginBottom: 14 },
+  academicDiscoveryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 17, borderWidth: 1, borderColor: '#44315F', backgroundColor: '#17121F', padding: 14, marginBottom: 14 },
+  academicDiscoveryIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: '#281C3A', alignItems: 'center', justifyContent: 'center' },
+  academicDiscoveryCopy: { flex: 1, minWidth: 0 },
+  academicDiscoveryTitle: { color: '#F2EFF8', fontSize: 14, fontWeight: '900' },
+  academicDiscoveryText: { color: '#8D8798', fontSize: 10.5, lineHeight: 16, marginTop: 4 },
   sectionCard: { borderRadius: 17, borderWidth: 1, borderColor: '#332B41', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
   eventsSection: { borderRadius: 17, borderWidth: 1, borderColor: '#3A3027', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
   communitiesSection: { borderRadius: 17, borderWidth: 1, borderColor: '#302F4A', backgroundColor: '#111218', padding: 14, marginBottom: 10 },
