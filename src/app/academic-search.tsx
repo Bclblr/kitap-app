@@ -69,12 +69,12 @@ export default function AcademicSearchScreen() {
     const initial = typeof params.q === 'string' ? params.q.trim() : '';
     if (!initial) return;
 
-    setQuery(initial);
     const requestId = ++requestRef.current;
     let active = true;
     const controller = new AbortController();
 
     const timer = setTimeout(() => {
+      setQuery(initial);
       setLoading(true);
       setSearched(true);
       void Promise.all([
