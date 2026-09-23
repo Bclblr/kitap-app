@@ -1,6 +1,6 @@
 import Image from '@/components/SafeImage';
 import { useEffect, useState } from 'react';
-import { StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { ImageStyle, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 
 const photoCache = new Map<string, string | null>();
 
@@ -90,6 +90,12 @@ export default function AcademicAuthorAvatar({
     style,
   ];
 
+  const imageFrame: StyleProp<ImageStyle> = [
+    styles.frame,
+    { width: size, height: size, borderRadius: size / 2 },
+    StyleSheet.flatten(style) as ImageStyle | undefined,
+  ];
+
   if (!photo || failed) {
     return (
       <View style={frame}>
@@ -103,7 +109,7 @@ export default function AcademicAuthorAvatar({
   return (
     <Image
       source={{ uri: photo }}
-      style={frame}
+      style={imageFrame}
       accessibilityLabel={`${clean} profil fotoğrafı`}
       onError={() => setFailed(true)}
     />
