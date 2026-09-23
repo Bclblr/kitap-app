@@ -69,9 +69,7 @@ export function HomeDrawer({
           ]}
         >
           <View style={styles.drawerHeader}>
-            <Text style={styles.drawerBrand}>
-              1000<Text style={styles.drawerBrandAccent}>Kitap</Text>
-            </Text>
+            <Text style={styles.drawerBrand}>Kitap</Text>
             <Pressable onPress={onClose} style={styles.drawerCloseButton} accessibilityLabel="Menüyü kapat">
               <Feather name="x" size={24} color={colors.text} />
             </Pressable>
