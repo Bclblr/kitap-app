@@ -69,61 +69,6 @@ export default function AcademicWorkScreen() {
         if (!user) return;
 
         const db = supabase as any;
-        await db.from('academic_works').upsert({
-          openalex_id: loaded.id,
-          doi: loaded.doi,
-          title: loaded.title,
-          abstract: loaded.abstract,
-          publication_year: loaded.publicationYear,
-          publication_date: loaded.publicationDate,
-          work_type: loaded.type,
-          language: loaded.language,
-          journal_openalex_id: loaded.journal?.id ?? null,
-          journal_name: loaded.journal?.name ?? null,
-          primary_topic: loaded.primaryTopic,
-          cited_by_count: loaded.citedByCount,
-          external_url: loaded.externalUrl,
-          open_access_url: loaded.openAccessUrl,
-          pdf_url: loaded.pdfUrl,
-          metadata: {},
-          last_synced_at: new Date().toISOString(),
-        }, { onConflict: 'openalex_id' });
-
-        if (loaded.journal) {
-          await db.from('academic_journals').upsert({
-            openalex_id: loaded.journal.id,
-            issn_l: loaded.journal.issnL,
-            issn: loaded.journal.issn,
-            name: loaded.journal.name,
-            publisher: loaded.journal.publisher,
-            homepage_url: loaded.journal.homepageUrl,
-            country_code: loaded.journal.countryCode,
-            works_count: loaded.journal.worksCount,
-            cited_by_count: loaded.journal.citedByCount,
-            metadata: {},
-            last_synced_at: new Date().toISOString(),
-          }, { onConflict: 'openalex_id' });
-        }
-
-        for (const author of loaded.authors) {
-          await db.from('academic_authors').upsert({
-            openalex_id: author.id,
-            orcid: author.orcid,
-            display_name: author.name,
-            institution_openalex_id: author.institutionId,
-            institution_name: author.institutionName,
-            works_count: author.worksCount,
-            cited_by_count: author.citedByCount,
-            topics: author.topics,
-            metadata: {},
-            last_synced_at: new Date().toISOString(),
-          }, { onConflict: 'openalex_id' });
-          await db.from('academic_work_authors').upsert({
-            work_openalex_id: loaded.id,
-            author_openalex_id: author.id,
-          }, { onConflict: 'work_openalex_id,author_openalex_id' });
-        }
-
         const [savedResult, statusResult, noteResult] = await Promise.all([
           db.from('saved_academic_works').select('work_openalex_id').eq('user_id', user.id).eq('work_openalex_id', loaded.id).maybeSingle(),
           db.from('academic_reading_status').select('status').eq('user_id', user.id).eq('work_openalex_id', loaded.id).maybeSingle(),
