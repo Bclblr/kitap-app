@@ -240,7 +240,12 @@ export default function BookScreen() {
 
   useEffect(() => {
     if (!key) return;
-    void loadBookNotes(key);
+
+    const timer = setTimeout(() => {
+      void loadBookNotes(key);
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [key]);
 
   async function addToShelf() {
