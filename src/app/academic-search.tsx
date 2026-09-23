@@ -68,11 +68,47 @@ export default function AcademicSearchScreen() {
   useEffect(() => {
     const initial = typeof params.q === 'string' ? params.q.trim() : '';
     if (!initial) return;
+
     setQuery(initial);
+    const requestId = ++requestRef.current;
+    let active = true;
+    const controller = new AbortController();
+
     const timer = setTimeout(() => {
-      void search(initial);
+      setLoading(true);
+      setSearched(true);
+      void Promise.all([
+        searchAcademicWorks(initial, 24, controller.signal),
+        searchAcademicAuthors(initial, 24, controller.signal),
+        searchAcademicJournals(initial, 24, controller.signal),
+        searchAcademicInstitutions(initial, 24, controller.signal),
+      ])
+        .then(([workRows, authorRows, journalRows, institutionRows]) => {
+          if (!active || requestId !== requestRef.current) return;
+          setWorks(workRows);
+          setAuthors(authorRows);
+          setJournals(journalRows);
+          setInstitutions(institutionRows);
+        })
+        .catch((error) => {
+          if ((error as Error)?.name === 'AbortError') return;
+          console.warn('Akademik arama başarısız:', error);
+          if (!active || requestId !== requestRef.current) return;
+          setWorks([]);
+          setAuthors([]);
+          setJournals([]);
+          setInstitutions([]);
+        })
+        .finally(() => {
+          if (active && requestId === requestRef.current) setLoading(false);
+        });
     }, 0);
-    return () => clearTimeout(timer);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [params.q]);
 
   const counts: Record<Tab, number> = {
