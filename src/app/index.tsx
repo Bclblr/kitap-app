@@ -1945,7 +1945,7 @@ export default function HomeScreen() {
           <Pressable onPress={() => setShowAuthMenu(true)} style={styles.headerIconButton} accessibilityLabel="Menü">
             <Feather name="menu" size={24} color={colors.text} />
           </Pressable>
-          <Text style={styles.brandTitle}>1000<Text style={styles.brandAccent}>Kitap</Text></Text>
+          <Text style={styles.brandTitle}>Kitap</Text>
           <View style={styles.headerRightActions}>
             <Pressable onPress={() => router.push('/notifications')} style={styles.headerIconButton} accessibilityLabel="Bildirimler">
               <Feather name="bell" size={22} color={colors.text} />
@@ -2047,7 +2047,6 @@ const baseStyles = StyleSheet.create({
   content: { paddingTop: 12, paddingHorizontal: 14, paddingBottom: 132, width: '100%', maxWidth: '100%', minWidth: 0, alignSelf: 'stretch' },
   homeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 48, marginBottom: 6, maxWidth: '100%', minWidth: 0 },
   brandTitle: { position: 'absolute', left: 70, right: 70, textAlign: 'center', color: '#F8F8FA', fontSize: 21, fontWeight: '900', letterSpacing: -0.6 },
-  brandAccent: { color: '#F28A2E' },
   headerRightActions: { marginLeft: 'auto', flexDirection: 'row', gap: 7, maxWidth: '100%', minWidth: 0, flexShrink: 1 },
   headerIconButton: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
   headerIcon: { color: '#F6F6F8', fontSize: 29, lineHeight: 31, transform: [{ rotate: '-15deg' }] },
