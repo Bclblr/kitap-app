@@ -140,13 +140,21 @@ export default function MessagesScreen() {
       }, delay);
     };
 
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!active || !user) return;
-      currentUserIdRef.current = user.id;
+    async function setupRealtime() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!active || !user) return;
+        currentUserIdRef.current = user.id;
 
-      channel = supabase
-        .channel(`messages-inbox-${user.id}`)
-        .on(
+        // A unique topic prevents Expo/React remounts or Fast Refresh from
+        // reusing an already-subscribed channel. Realtime callbacks must all
+        // be registered before subscribe() is called.
+        const channelTopic = `messages-inbox-${user.id}-${Date.now()}`;
+        const nextChannel = supabase.channel(channelTopic);
+
+        nextChannel.on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'messages' },
           (payload) => {
@@ -193,24 +201,36 @@ export default function MessagesScreen() {
               );
             });
 
-            // A brand-new conversation may not exist in the local list yet.
-            // Refresh shortly afterwards so profile/participant data is filled in.
             setTimeout(() => {
               if (active) void loadConversations(true);
             }, matched ? 350 : 80);
           }
-        )
-        .on(
+        );
+
+        nextChannel.on(
           'postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'messages' },
           () => scheduleRefresh(80)
-        )
-        .subscribe((status) => {
+        );
+
+        if (!active) {
+          await supabase.removeChannel(nextChannel);
+          return;
+        }
+
+        channel = nextChannel;
+        nextChannel.subscribe((status) => {
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             scheduleRefresh(0);
           }
         });
-    });
+      } catch (realtimeError) {
+        console.error('Mesaj realtime bağlantısı kurulamadı:', realtimeError);
+        scheduleRefresh(0);
+      }
+    }
+
+    void setupRealtime();
 
     return () => {
       active = false;
