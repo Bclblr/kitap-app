@@ -58,6 +58,9 @@ export default function WorkReader() {
   const [myRating, setMyRating] = useState<number | null>(null);
   const [ratingAverage, setRatingAverage] = useState<number | null>(null);
   const [ratingCount, setRatingCount] = useState(0);
+  const [ratingError, setRatingError] = useState('');
+  const [ratingSaving, setRatingSaving] = useState(false);
+  const [readingProgress, setReadingProgress] = useState(0);
 
   useEffect(() => {
     if (!userId) return;
@@ -90,7 +93,7 @@ export default function WorkReader() {
           { onConflict: 'work_id,user_id' }
         );
 
-        const [profile, bookmark, progress, readersMetric, starsMetric, viewsMetric, commentsMetric, myStar, ratingsMetric, myRatingResult] = await Promise.all([
+        const [profile, bookmark, progress, readersMetric, starsMetric, viewsMetric, commentsMetric, myStar, ratingsMetric, myRatingResult, readerProgress] = await Promise.all([
           supabase
             .from('profiles')
             .select('username,full_name')
@@ -110,13 +113,14 @@ export default function WorkReader() {
           supabase.from('work_stars').select('work_id').eq('work_id', id).eq('user_id', activeUserId).maybeSingle(),
           supabase.from('work_ratings').select('rating').eq('work_id', id),
           supabase.from('work_ratings').select('rating').eq('work_id', id).eq('user_id', activeUserId).maybeSingle(),
+          supabase.from('work_readers').select('progress_percent,last_chapter_id').eq('work_id', id).eq('user_id', activeUserId).maybeSingle(),
         ]);
 
         if (!alive) return;
 
         setAuthor(profile.data?.full_name || profile.data?.username || 'Yazar');
         setSaved(!!bookmark.data);
-        setLastChapterId(progress);
+        setLastChapterId(progress || readerProgress.data?.last_chapter_id || null);
         setWork(book.data);
         setChapters(parts.data ?? []);
         setReaderCount(readersMetric.count ?? 0);
@@ -128,6 +132,7 @@ export default function WorkReader() {
         setRatingCount(ratingValues.length);
         setRatingAverage(ratingValues.length ? ratingValues.reduce((sum, item) => sum + item.rating, 0) / ratingValues.length : null);
         setMyRating(myRatingResult.data?.rating ?? null);
+        setReadingProgress(readerProgress.data?.progress_percent ?? 0);
       } catch (loadError) {
         console.error('Eser görüntüleme hatası:', loadError);
         if (alive) setError('Eser bulunamadı veya okumak için yetkin yok.');
@@ -145,8 +150,19 @@ export default function WorkReader() {
   useEffect(() => {
     if (!userId || selected === null || !chapters[selected]) return;
     const chapterId = chapters[selected].id;
+    const nextProgress = chapters.length
+      ? Math.min(100, Math.round(((selected + 1) / chapters.length) * 100))
+      : 0;
+    const persistedProgress = Math.max(readingProgress, nextProgress);
+    setReadingProgress(persistedProgress);
     void supabase.from('work_readers').upsert(
-      { work_id: id, user_id: userId, last_read_at: new Date().toISOString() },
+      {
+        work_id: id,
+        user_id: userId,
+        last_read_at: new Date().toISOString(),
+        last_chapter_id: chapterId,
+        progress_percent: persistedProgress,
+      },
       { onConflict: 'work_id,user_id' }
     ).then(({ error: readerError }) => {
       if (!readerError) setReaderCount((current) => Math.max(1, current));
@@ -155,7 +171,7 @@ export default function WorkReader() {
       .setItem(`work-progress:${userId}:${id}`, chapterId)
       .then(() => setLastChapterId(chapterId))
       .catch(() => undefined);
-  }, [chapters, id, selected, userId]);
+  }, [chapters, id, readingProgress, selected, userId]);
 
   async function toggleSaved() {
     if (!userId || saving) return;
@@ -200,20 +216,29 @@ export default function WorkReader() {
   }
 
   async function rateWork(rating: number) {
-    if (!userId) return;
-    const previous = myRating;
-    const { error: ratingError } = await supabase.from('work_ratings').upsert(
-      { work_id: id, user_id: userId, rating, updated_at: new Date().toISOString() },
-      { onConflict: 'work_id,user_id' }
-    );
-    if (ratingError) return;
-    setMyRating(rating);
-    setRatingOpen(false);
-    const { data } = await supabase.from('work_ratings').select('rating').eq('work_id', id);
-    const values = data ?? [];
-    setRatingCount(values.length);
-    setRatingAverage(values.length ? values.reduce((sum, item) => sum + item.rating, 0) / values.length : null);
-    if (previous === null && values.length === 0) setRatingCount(1);
+    if (!userId || ratingSaving) return;
+    setRatingSaving(true);
+    setRatingError('');
+    try {
+      const { error: saveRatingError } = await supabase.from('work_ratings').upsert(
+        { work_id: id, user_id: userId, rating, updated_at: new Date().toISOString() },
+        { onConflict: 'work_id,user_id' }
+      );
+      if (saveRatingError) throw saveRatingError;
+
+      setMyRating(rating);
+      const { data, error: refreshError } = await supabase.from('work_ratings').select('rating').eq('work_id', id);
+      if (refreshError) throw refreshError;
+      const values = data ?? [];
+      setRatingCount(values.length);
+      setRatingAverage(values.length ? values.reduce((sum, item) => sum + item.rating, 0) / values.length : rating);
+      setRatingOpen(false);
+    } catch (saveRatingError) {
+      console.error('Eser puanlama hatası:', saveRatingError);
+      setRatingError('Puanın kaydedilemedi. Tekrar deneyebilirsin.');
+    } finally {
+      setRatingSaving(false);
+    }
   }
 
   const continueIndex = useMemo(
@@ -387,6 +412,21 @@ export default function WorkReader() {
           <Text style={styles.ratingSummary}>Ortalama {ratingAverage.toFixed(1)} / 5 · {ratingCount} değerlendirme</Text>
         )}
 
+        <View style={styles.readingProgressCard}>
+          <View style={styles.readingProgressHeader}>
+            <View>
+              <Text style={styles.readingProgressEyebrow}>OKUMA İLERLEMEN</Text>
+              <Text style={styles.readingProgressTitle}>
+                {readingProgress > 0 ? `Eserin %${readingProgress} kadarını okudun` : 'Henüz okumaya başlamadın'}
+              </Text>
+            </View>
+            <Text style={styles.readingProgressPercent}>%{readingProgress}</Text>
+          </View>
+          <View style={styles.readingProgressTrack}>
+            <View style={[styles.readingProgressFill, { width: `${readingProgress}%` }]} />
+          </View>
+        </View>
+
         <View style={styles.ctaCard}>
           <Text style={styles.ctaTitle}>Okumaya hazır mısın?</Text>
           <Text style={styles.ctaDescription}>
@@ -504,24 +544,40 @@ export default function WorkReader() {
         </View>
       </ScrollView>
       <Modal visible={ratingOpen} transparent animationType="fade" onRequestClose={() => setRatingOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setRatingOpen(false)}>
-          <Pressable style={styles.ratingModal} onPress={(event) => event.stopPropagation()}>
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Puanlama penceresini kapat"
+            onPress={() => setRatingOpen(false)}
+            style={styles.modalDismissLayer}
+          />
+          <View style={styles.ratingModal}>
             <Text style={styles.ratingModalEyebrow}>ESERİ DEĞERLENDİR</Text>
             <Text style={styles.ratingModalTitle}>Kaç yıldız verirsin?</Text>
             <Text style={styles.ratingModalSubtitle}>{work.title}</Text>
             <View style={styles.ratingStars}>
               {[1,2,3,4,5].map((value) => (
-                <Pressable key={value} onPress={() => void rateWork(value)} style={styles.ratingStarButton}>
-                  <Feather name="star" size={30} color={myRating !== null && value <= myRating ? colors.primary : colors.textMuted} />
+                <Pressable
+                  key={value}
+                  disabled={ratingSaving}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${value} yıldız ver`}
+                  onPress={() => void rateWork(value)}
+                  style={({ pressed }) => [styles.ratingStarButton, pressed && styles.ratingStarPressed]}
+                >
+                  <Feather name="star" size={32} color={myRating !== null && value <= myRating ? colors.primary : colors.textMuted} />
                   <Text style={styles.ratingStarLabel}>{value}</Text>
                 </Pressable>
               ))}
             </View>
+            {ratingSaving ? <ActivityIndicator color={colors.primary} style={styles.ratingLoader} /> : null}
+            {!!ratingError && <Text style={styles.ratingError}>{ratingError}</Text>}
             <Pressable onPress={() => setRatingOpen(false)} style={styles.ratingCancel}>
               <Text style={styles.ratingCancelText}>Vazgeç</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -564,15 +620,26 @@ const baseStyles = StyleSheet.create({
   workActionText: { color: '#E9E9ED', fontSize: 11, fontWeight: '900' },
   ratingSummary: { color: '#777983', fontSize: 9, textAlign: 'center', marginTop: -5 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  modalDismissLayer: { ...StyleSheet.absoluteFillObject },
   ratingModal: { width: '100%', maxWidth: 430, borderRadius: 24, borderWidth: 1, borderColor: '#34313E', backgroundColor: '#15151A', padding: 22 },
   ratingModalEyebrow: { color: '#9B7AD3', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   ratingModalTitle: { color: '#F5F5F7', fontSize: 21, fontWeight: '900', marginTop: 7 },
   ratingModalSubtitle: { color: '#858791', fontSize: 11, marginTop: 4 },
   ratingStars: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 24 },
-  ratingStarButton: { alignItems: 'center', gap: 5, padding: 5 },
+  ratingStarButton: { minWidth: 52, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 5, padding: 5, borderRadius: 12 },
+  ratingStarPressed: { backgroundColor: '#24202C', transform: [{ scale: 0.96 }] },
   ratingStarLabel: { color: '#777983', fontSize: 9, fontWeight: '800' },
+  ratingLoader: { marginTop: 12 },
+  ratingError: { color: '#FF9BA7', fontSize: 10, textAlign: 'center', marginTop: 12 },
   ratingCancel: { minHeight: 44, borderRadius: 12, backgroundColor: '#222329', alignItems: 'center', justifyContent: 'center', marginTop: 20 },
   ratingCancelText: { color: '#D7D7DD', fontSize: 11, fontWeight: '900' },
+  readingProgressCard: { borderRadius: 18, borderWidth: 1, borderColor: '#2E2938', backgroundColor: '#111218', padding: 15 },
+  readingProgressHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  readingProgressEyebrow: { color: '#8F72C3', fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  readingProgressTitle: { color: '#E7E7EB', fontSize: 12, fontWeight: '800', marginTop: 4 },
+  readingProgressPercent: { color: '#CDB8F6', fontSize: 20, fontWeight: '900' },
+  readingProgressTrack: { height: 7, borderRadius: 999, backgroundColor: '#24252D', overflow: 'hidden', marginTop: 13 },
+  readingProgressFill: { height: '100%', borderRadius: 999, backgroundColor: '#6232B5' },
   ctaCard: { borderRadius: 20, borderWidth: 1, borderColor: '#3A2A54', backgroundColor: '#121018', padding: 16 },
   ctaTitle: { color: '#F4F4F6', fontSize: 17, fontWeight: '900' },
   ctaDescription: { color: '#858791', fontSize: 11, lineHeight: 17, marginTop: 5 },
