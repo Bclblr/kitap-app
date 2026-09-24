@@ -620,7 +620,7 @@ const baseStyles = StyleSheet.create({
   workActionText: { color: '#E9E9ED', fontSize: 11, fontWeight: '900' },
   ratingSummary: { color: '#777983', fontSize: 9, textAlign: 'center', marginTop: -5 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  modalDismissLayer: { ...StyleSheet.absoluteFillObject },
+  modalDismissLayer: StyleSheet.absoluteFill,
   ratingModal: { width: '100%', maxWidth: 430, borderRadius: 24, borderWidth: 1, borderColor: '#34313E', backgroundColor: '#15151A', padding: 22 },
   ratingModalEyebrow: { color: '#9B7AD3', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   ratingModalTitle: { color: '#F5F5F7', fontSize: 21, fontWeight: '900', marginTop: 7 },
