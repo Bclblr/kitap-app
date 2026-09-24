@@ -2907,6 +2907,12 @@ export type Database = {
         Update: { created_at?: string; id?: string; text?: string; user_id?: string; work_id?: string }
         Relationships: []
       }
+      work_ratings: {
+        Row: { created_at: string; rating: number; updated_at: string; user_id: string; work_id: string }
+        Insert: { created_at?: string; rating: number; updated_at?: string; user_id: string; work_id: string }
+        Update: { created_at?: string; rating?: number; updated_at?: string; user_id?: string; work_id?: string }
+        Relationships: []
+      }
       work_readers: {
         Row: { last_read_at: string; started_at: string; user_id: string; work_id: string }
         Insert: { last_read_at?: string; started_at?: string; user_id: string; work_id: string }
