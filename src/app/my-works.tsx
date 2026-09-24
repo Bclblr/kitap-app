@@ -5,7 +5,6 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 
 import BookCover from '@/components/BookCover';
 import WorksList from '@/components/WorksList';
-import { existingBookCover } from '@/lib/open-library-cover';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -49,6 +48,7 @@ export default function MyWorks() {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const { session } = useAuth();
+  const userId = session?.user.id ?? null;
 
   const [section, setSection] = useState<Section>('mine');
   const [mineFilter, setMineFilter] = useState<MineFilter>('all');
@@ -59,7 +59,7 @@ export default function MyWorks() {
   const [sort, setSort] = useState<'new' | 'popular'>('new');
 
   const loadMine = useCallback(async () => {
-    if (!session?.user.id) {
+    if (!userId) {
       setWorks([]);
       setLoading(false);
       return;
@@ -70,7 +70,7 @@ export default function MyWorks() {
       const { data: workRows, error: workError } = await supabase
         .from('works')
         .select('*')
-        .eq('author_id', session.user.id)
+        .eq('author_id', userId)
         .order('updated_at', { ascending: false });
 
       if (workError) throw workError;
@@ -108,7 +108,7 @@ export default function MyWorks() {
     } finally {
       setLoading(false);
     }
-  }, [session?.user.id]);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
