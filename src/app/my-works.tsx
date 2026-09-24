@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Action, Field, ReaderScreen, useReaderStyles } from '@/components/ReaderUI';
 import WorksList from '@/components/WorksList';
@@ -6,6 +7,7 @@ import { useAuth } from '@/providers/AuthProvider';
 
 export default function MyWorks() {
   const ui = useReaderStyles();
+  const router = useRouter();
   const { session } = useAuth();
   const [section, setSection] = useState<'discover' | 'mine'>('discover');
   const [status, setStatus] = useState<'draft' | 'published'>('draft');
@@ -15,8 +17,10 @@ export default function MyWorks() {
   return (
     <ReaderScreen title="Okur Eserleri">
       <Text style={ui.muted}>
-        Okurların yayımlanmış eserlerini keşfedebilirsin. Eser yazma ve yayınlama alanı V1 sonrasındaki geliştirme dönemine kadar donduruldu.
+        Okurların yayımlanmış eserlerini keşfedebilir, kendi kitabını yazabilir, bölümler halinde kaydedebilir ve yayımlayabilirsin.
       </Text>
+
+      <Action label="Yeni Kitap Yaz" onPress={() => router.push('/work-editor' as any)} />
 
       <View style={ui.row}>
         <Action label={section === 'discover' ? '✓ Keşfet' : 'Keşfet'} onPress={() => setSection('discover')} />
@@ -27,8 +31,9 @@ export default function MyWorks() {
         <>
           <Text style={ui.title}>Yazılarım</Text>
           <Text style={ui.muted}>
-            Mevcut taslakların ve yayımlanmış eserlerin korunuyor. Yeni eser oluşturma V1 sonrasında yeniden açılacak.
+            Taslaklarını ve yayımlanmış eserlerini buradan yönetebilirsin. Yeni bir kitap oluşturup bölümler ekleyebilir, taslak olarak saklayabilir veya yayımlayabilirsin.
           </Text>
+          <Action label="Yeni Kitap Oluştur" onPress={() => router.push('/work-editor' as any)} />
           <View style={ui.row}>
             <Action label={status === 'draft' ? '✓ Taslaklar' : 'Taslaklar'} onPress={() => setStatus('draft')} />
             <Action label={status === 'published' ? '✓ Yayındakiler' : 'Yayındakiler'} onPress={() => setStatus('published')} />
