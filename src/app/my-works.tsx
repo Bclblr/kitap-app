@@ -10,7 +10,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 
-type Section = 'mine' | 'discover';
+type Section = 'mine' | 'discover' | 'saved';
 type MineFilter = 'all' | 'draft' | 'published';
 
 type OwnWork = {
@@ -50,7 +50,7 @@ export default function MyWorks() {
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
 
-  const [section, setSection] = useState<Section>('mine');
+  const [section, setSection] = useState<Section>('discover');
   const [mineFilter, setMineFilter] = useState<MineFilter>('all');
   const [works, setWorks] = useState<OwnWork[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,15 +143,6 @@ export default function MyWorks() {
               Kendi kitabını oluştur, bölümler halinde yaz, taslaklarını yönet ve yayımladığın eserleri düzenle.
             </Text>
           </View>
-          <Pressable
-            onPress={() => router.push('/work-editor' as any)}
-            style={styles.newBookButton}
-            accessibilityRole="button"
-            accessibilityLabel="Yeni kitap oluştur"
-          >
-            <Feather name="plus" size={18} color="#FFF" />
-            <Text style={styles.newBookButtonText}>Yeni Kitap</Text>
-          </Pressable>
         </View>
 
         <Pressable onPress={() => router.push('/stories' as any)} style={styles.storyStudioCard}>
@@ -167,6 +158,13 @@ export default function MyWorks() {
 
         <View style={styles.sectionTabs}>
           <Pressable
+            onPress={() => setSection('discover')}
+            style={[styles.sectionTab, section === 'discover' && styles.sectionTabActive]}
+          >
+            <Feather name="compass" size={16} color={section === 'discover' ? colors.primary : colors.textMuted} />
+            <Text style={[styles.sectionTabText, section === 'discover' && styles.sectionTabTextActive]}>Keşfet</Text>
+          </Pressable>
+          <Pressable
             onPress={() => setSection('mine')}
             style={[styles.sectionTab, section === 'mine' && styles.sectionTabActive]}
           >
@@ -174,11 +172,11 @@ export default function MyWorks() {
             <Text style={[styles.sectionTabText, section === 'mine' && styles.sectionTabTextActive]}>Kitaplarım</Text>
           </Pressable>
           <Pressable
-            onPress={() => setSection('discover')}
-            style={[styles.sectionTab, section === 'discover' && styles.sectionTabActive]}
+            onPress={() => setSection('saved')}
+            style={[styles.sectionTab, section === 'saved' && styles.sectionTabActive]}
           >
-            <Feather name="compass" size={16} color={section === 'discover' ? colors.primary : colors.textMuted} />
-            <Text style={[styles.sectionTabText, section === 'discover' && styles.sectionTabTextActive]}>Keşfet</Text>
+            <Feather name="bookmark" size={16} color={section === 'saved' ? colors.primary : colors.textMuted} />
+            <Text style={[styles.sectionTabText, section === 'saved' && styles.sectionTabTextActive]}>Kaydedilenler</Text>
           </Pressable>
         </View>
 
@@ -328,6 +326,12 @@ export default function MyWorks() {
               </View>
             )}
           </>
+        ) : section === 'saved' ? (
+          <View style={styles.discoverSection}>
+            <Text style={styles.discoverTitle}>Kaydedilen eserler</Text>
+            <Text style={styles.discoverText}>Daha sonra okumak için kaydettiğin eserlerin burada tutulur.</Text>
+            {userId ? <WorksList savedByUserId={userId} /> : null}
+          </View>
         ) : (
           <View style={styles.discoverSection}>
             <Text style={styles.discoverTitle}>Okur eserlerini keşfet</Text>
