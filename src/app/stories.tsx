@@ -103,7 +103,7 @@ export default function StoriesScreen() {
             <Text style={styles.sectionTitle}>{tab === 'mine' ? 'Hikayelerim' : 'Yeni Hikayeler'}</Text>
             <Text style={styles.sectionMeta}>{visible.length} hikaye</Text>
           </View>
-          <Feather name={tab === 'mine' ? 'folder' : 'sparkles'} size={18} color={colors.primary} />
+          <Feather name={tab === 'mine' ? 'folder' : 'star'} size={18} color={colors.primary} />
         </View>
 
         {loading ? (
