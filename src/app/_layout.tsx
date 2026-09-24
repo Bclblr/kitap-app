@@ -70,6 +70,8 @@ const AUTHENTICATED_ROUTES = [
   'readers',
   'saved',
   'story-create',
+  'stories',
+  'story-editor',
   'work',
   'work-editor',
 ] as const;
