@@ -2,11 +2,10 @@ import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, usePathname, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { supabase } from '@/lib/supabase';
-import Image from '@/components/SafeImage';
 
 type NavRoute = '/' | '/shelves' | '/messages' | '/explore' | '/profile';
 type NavIcon = 'home' | 'book-open' | 'message-circle' | 'search' | 'user';
@@ -148,6 +147,7 @@ export default function BottomNav() {
   useEffect(() => {
     let active = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let profileChannel: ReturnType<typeof supabase.channel> | null = null;
 
     const scheduleRefresh = () => {
       if (!active) return;
@@ -189,6 +189,23 @@ export default function BottomNav() {
         );
 
       channel.subscribe();
+
+      profileChannel = supabase
+        .channel(`bottom-nav-profile-${user.id}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`,
+          },
+          () => {
+            void loadProfileImage();
+          }
+        );
+
+      profileChannel.subscribe();
     };
 
     void setupRealtime();
@@ -201,6 +218,7 @@ export default function BottomNav() {
       }
       authListener.subscription.unsubscribe();
       if (channel) void supabase.removeChannel(channel);
+      if (profileChannel) void supabase.removeChannel(profileChannel);
     };
   }, [loadProfileImage, loadUnreadMessages]);
 
