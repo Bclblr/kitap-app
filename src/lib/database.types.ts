@@ -2914,9 +2914,9 @@ export type Database = {
         Relationships: []
       }
       work_readers: {
-        Row: { last_read_at: string; started_at: string; user_id: string; work_id: string }
-        Insert: { last_read_at?: string; started_at?: string; user_id: string; work_id: string }
-        Update: { last_read_at?: string; started_at?: string; user_id?: string; work_id?: string }
+        Row: { last_chapter_id: string | null; last_read_at: string; progress_percent: number; started_at: string; user_id: string; work_id: string }
+        Insert: { last_chapter_id?: string | null; last_read_at?: string; progress_percent?: number; started_at?: string; user_id: string; work_id: string }
+        Update: { last_chapter_id?: string | null; last_read_at?: string; progress_percent?: number; started_at?: string; user_id?: string; work_id?: string }
         Relationships: []
       }
       work_stars: {
