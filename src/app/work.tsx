@@ -11,6 +11,7 @@ import {
   View,
   Modal,
   Share,
+  TextInput,
 } from 'react-native';
 
 import Image from '@/components/SafeImage';
@@ -50,10 +51,8 @@ export default function WorkReader() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [readerCount, setReaderCount] = useState(0);
-  const [starCount, setStarCount] = useState(0);
   const [viewCount, setViewCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
-  const [starred, setStarred] = useState(false);
   const [ratingOpen, setRatingOpen] = useState(false);
   const [myRating, setMyRating] = useState<number | null>(null);
   const [ratingAverage, setRatingAverage] = useState<number | null>(null);
@@ -61,6 +60,12 @@ export default function WorkReader() {
   const [ratingError, setRatingError] = useState('');
   const [ratingSaving, setRatingSaving] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [comments, setComments] = useState<{ id: string; user_id: string; text: string; created_at: string }[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [commentError, setCommentError] = useState('');
 
   useEffect(() => {
     if (!userId) return;
@@ -93,7 +98,7 @@ export default function WorkReader() {
           { onConflict: 'work_id,user_id' }
         );
 
-        const [profile, bookmark, progress, readersMetric, starsMetric, viewsMetric, commentsMetric, myStar, ratingsMetric, myRatingResult, readerProgress] = await Promise.all([
+        const [profile, bookmark, progress, readersMetric, viewsMetric, commentsMetric, ratingsMetric, myRatingResult, readerProgress] = await Promise.all([
           supabase
             .from('profiles')
             .select('username,full_name')
@@ -107,10 +112,8 @@ export default function WorkReader() {
             .maybeSingle(),
           AsyncStorage.getItem(`work-progress:${activeUserId}:${id}`).catch(() => null),
           supabase.from('work_readers').select('work_id', { count: 'exact', head: true }).eq('work_id', id),
-          supabase.from('work_stars').select('work_id', { count: 'exact', head: true }).eq('work_id', id),
           supabase.from('work_views').select('work_id', { count: 'exact', head: true }).eq('work_id', id),
           supabase.from('work_comments').select('id', { count: 'exact', head: true }).eq('work_id', id),
-          supabase.from('work_stars').select('work_id').eq('work_id', id).eq('user_id', activeUserId).maybeSingle(),
           supabase.from('work_ratings').select('rating').eq('work_id', id),
           supabase.from('work_ratings').select('rating').eq('work_id', id).eq('user_id', activeUserId).maybeSingle(),
           supabase.from('work_readers').select('progress_percent,last_chapter_id').eq('work_id', id).eq('user_id', activeUserId).maybeSingle(),
@@ -124,10 +127,8 @@ export default function WorkReader() {
         setWork(book.data);
         setChapters(parts.data ?? []);
         setReaderCount(readersMetric.count ?? 0);
-        setStarCount(starsMetric.count ?? 0);
         setViewCount(viewsMetric.count ?? 0);
         setCommentCount(commentsMetric.count ?? 0);
-        setStarred(!!myStar.data);
         const ratingValues = ratingsMetric.data ?? [];
         setRatingCount(ratingValues.length);
         setRatingAverage(ratingValues.length ? ratingValues.reduce((sum, item) => sum + item.rating, 0) / ratingValues.length : null);
@@ -195,18 +196,43 @@ export default function WorkReader() {
     }
   }
 
-  async function toggleStar() {
-    if (!userId) return;
-    const next = !starred;
-    setStarred(next);
-    setStarCount((current) => Math.max(0, current + (next ? 1 : -1)));
-    const result = next
-      ? await supabase.from('work_stars').insert({ work_id: id, user_id: userId })
-      : await supabase.from('work_stars').delete().eq('work_id', id).eq('user_id', userId);
-    if (result.error) {
-      setStarred(!next);
-      setStarCount((current) => Math.max(0, current + (next ? -1 : 1)));
+  async function openComments() {
+    setCommentsOpen(true);
+    setCommentsLoading(true);
+    setCommentError('');
+    const { data, error: commentsError } = await supabase
+      .from('work_comments')
+      .select('id,user_id,text,created_at')
+      .eq('work_id', id)
+      .order('created_at', { ascending: false });
+    if (commentsError) {
+      setCommentError('Yorumlar yüklenemedi.');
+    } else {
+      setComments(data ?? []);
+      setCommentCount(data?.length ?? 0);
     }
+    setCommentsLoading(false);
+  }
+
+  async function addComment() {
+    if (!userId || commentSaving) return;
+    const text = commentText.trim();
+    if (!text) return;
+    setCommentSaving(true);
+    setCommentError('');
+    const { data, error: addError } = await supabase
+      .from('work_comments')
+      .insert({ work_id: id, user_id: userId, text })
+      .select('id,user_id,text,created_at')
+      .single();
+    if (addError) {
+      setCommentError('Yorum gönderilemedi. Tekrar deneyebilirsin.');
+    } else if (data) {
+      setComments((current) => [data, ...current]);
+      setCommentCount((current) => current + 1);
+      setCommentText('');
+    }
+    setCommentSaving(false);
   }
 
   async function shareWork() {
@@ -382,20 +408,20 @@ export default function WorkReader() {
         <View style={styles.metricsBar}>
           <View style={styles.metricItem}>
             <Feather name="book-open" size={20} color={colors.textSecondary} />
-            <Text style={styles.metricValue}>{readerCount.toLocaleString('tr-TR')}</Text>
+            <View><Text style={styles.metricValue}>{readerCount.toLocaleString('tr-TR')}</Text><Text style={styles.metricLabel}>Okuyor</Text></View>
           </View>
-          <Pressable onPress={() => void toggleStar()} style={styles.metricItem}>
-            <Feather name="star" size={21} color={starred ? colors.primary : colors.textSecondary} />
-            <Text style={[styles.metricValue, starred && { color: colors.primary }]}>{starCount.toLocaleString('tr-TR')}</Text>
+          <Pressable onPress={() => setRatingOpen(true)} style={styles.metricItem}>
+            <Feather name="star" size={21} color={colors.textSecondary} />
+            <View><Text style={styles.metricValue}>{ratingAverage === null ? '—' : ratingAverage.toFixed(1)}</Text><Text style={styles.metricLabel}>{ratingCount} puan</Text></View>
           </Pressable>
           <View style={styles.metricItem}>
             <Feather name="eye" size={21} color={colors.textSecondary} />
-            <Text style={styles.metricValue}>{viewCount.toLocaleString('tr-TR')}</Text>
+            <View><Text style={styles.metricValue}>{viewCount.toLocaleString('tr-TR')}</Text><Text style={styles.metricLabel}>Erişim</Text></View>
           </View>
-          <View style={styles.metricItem}>
+          <Pressable onPress={() => void openComments()} style={styles.metricItem}>
             <Feather name="message-circle" size={21} color={colors.textSecondary} />
-            <Text style={styles.metricValue}>{commentCount.toLocaleString('tr-TR')}</Text>
-          </View>
+            <View><Text style={styles.metricValue}>{commentCount.toLocaleString('tr-TR')}</Text><Text style={styles.metricLabel}>Yorum</Text></View>
+          </Pressable>
         </View>
 
         <View style={styles.workActions}>
@@ -545,6 +571,64 @@ export default function WorkReader() {
           )}
         </View>
       </ScrollView>
+      <Modal visible={commentsOpen} transparent animationType="slide" onRequestClose={() => setCommentsOpen(false)}>
+        <View style={styles.commentsBackdrop}>
+          <Pressable style={styles.commentsDismiss} onPress={() => setCommentsOpen(false)} />
+          <View style={styles.commentsSheet}>
+            <View style={styles.commentsHandle} />
+            <View style={styles.commentsHeader}>
+              <View>
+                <Text style={styles.commentsTitle}>Eser Yorumları</Text>
+                <Text style={styles.commentsSubtitle}>{commentCount} yorum</Text>
+              </View>
+              <Pressable onPress={() => setCommentsOpen(false)} style={styles.commentsClose}>
+                <Feather name="x" size={20} color={colors.textPrimary} />
+              </Pressable>
+            </View>
+            <View style={styles.commentComposer}>
+              <TextInput
+                value={commentText}
+                onChangeText={setCommentText}
+                placeholder="Eser hakkında yorum yaz..."
+                placeholderTextColor={colors.textMuted}
+                maxLength={1000}
+                multiline
+                style={styles.commentInput}
+              />
+              <Pressable
+                disabled={commentSaving || !commentText.trim()}
+                onPress={() => void addComment()}
+                style={[styles.commentSend, (commentSaving || !commentText.trim()) && styles.disabled]}
+              >
+                {commentSaving ? <ActivityIndicator size="small" color="#FFF" /> : <Feather name="send" size={17} color="#FFF" />}
+              </Pressable>
+            </View>
+            {!!commentError && <Text style={styles.commentError}>{commentError}</Text>}
+            {commentsLoading ? (
+              <ActivityIndicator color={colors.primary} style={styles.commentsLoader} />
+            ) : (
+              <ScrollView style={styles.commentsList} contentContainerStyle={styles.commentsListContent}>
+                {comments.length ? comments.map((comment) => (
+                  <View key={comment.id} style={styles.commentCard}>
+                    <View style={styles.commentAvatar}><Feather name="user" size={15} color={colors.primary} /></View>
+                    <View style={styles.commentBody}>
+                      <Text style={styles.commentAuthor}>{comment.user_id === userId ? 'Sen' : 'Okur'}</Text>
+                      <Text style={styles.commentText}>{comment.text}</Text>
+                    </View>
+                  </View>
+                )) : (
+                  <View style={styles.commentsEmpty}>
+                    <Feather name="message-circle" size={26} color={colors.textMuted} />
+                    <Text style={styles.commentsEmptyTitle}>Henüz yorum yok</Text>
+                    <Text style={styles.commentsEmptyText}>Bu eser hakkındaki ilk yorumu sen yazabilirsin.</Text>
+                  </View>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={ratingOpen} transparent animationType="fade" onRequestClose={() => setRatingOpen(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable
@@ -616,11 +700,35 @@ const baseStyles = StyleSheet.create({
   metricsBar: { minHeight: 54, borderRadius: 16, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   metricItem: { minHeight: 44, minWidth: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 8 },
   metricValue: { color: '#B6B7C0', fontSize: 14, fontWeight: '800' },
+  metricLabel: { color: '#676974', fontSize: 7, fontWeight: '800', marginTop: 1 },
   workActions: { flexDirection: 'row', gap: 10 },
   workActionButton: { flex: 1, minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: '#3A3B45', backgroundColor: '#111218', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   workActionActive: { borderColor: '#5D4584', backgroundColor: '#191321' },
   workActionText: { color: '#E9E9ED', fontSize: 11, fontWeight: '900' },
   ratingSummary: { color: '#777983', fontSize: 9, textAlign: 'center', marginTop: -5 },
+  commentsBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  commentsDismiss: { ...StyleSheet.absoluteFill },
+  commentsSheet: { maxHeight: '78%', minHeight: '52%', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, borderColor: '#30313A', backgroundColor: '#111218', paddingHorizontal: 16, paddingTop: 9, paddingBottom: 22 },
+  commentsHandle: { width: 42, height: 4, borderRadius: 999, backgroundColor: '#51525B', alignSelf: 'center', marginBottom: 13 },
+  commentsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  commentsTitle: { color: '#F3F3F6', fontSize: 17, fontWeight: '900' },
+  commentsSubtitle: { color: '#777983', fontSize: 9, marginTop: 2 },
+  commentsClose: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, borderColor: '#30313A', alignItems: 'center', justifyContent: 'center' },
+  commentComposer: { minHeight: 54, borderRadius: 15, borderWidth: 1, borderColor: '#30313A', backgroundColor: '#17181E', paddingLeft: 12, paddingRight: 7, marginTop: 15, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  commentInput: { flex: 1, minHeight: 48, maxHeight: 96, color: '#F0F0F3', fontSize: 11, paddingVertical: 10, textAlignVertical: 'center' },
+  commentSend: { width: 39, height: 39, borderRadius: 12, backgroundColor: '#6232B5', alignItems: 'center', justifyContent: 'center' },
+  commentError: { color: '#FF9BA7', fontSize: 9, marginTop: 8 },
+  commentsLoader: { marginTop: 36 },
+  commentsList: { marginTop: 12 },
+  commentsListContent: { paddingBottom: 30, gap: 9 },
+  commentCard: { flexDirection: 'row', gap: 10, borderBottomWidth: 1, borderBottomColor: '#24252C', paddingVertical: 12 },
+  commentAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#21172F', alignItems: 'center', justifyContent: 'center' },
+  commentBody: { flex: 1, minWidth: 0 },
+  commentAuthor: { color: '#DADAE0', fontSize: 10, fontWeight: '900' },
+  commentText: { color: '#B8B9C1', fontSize: 10, lineHeight: 16, marginTop: 3 },
+  commentsEmpty: { alignItems: 'center', paddingVertical: 38 },
+  commentsEmptyTitle: { color: '#DCDCE1', fontSize: 13, fontWeight: '900', marginTop: 10 },
+  commentsEmptyText: { color: '#777983', fontSize: 9, textAlign: 'center', marginTop: 4 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: 20 },
   modalDismissLayer: StyleSheet.absoluteFill,
   ratingModal: { width: '100%', maxWidth: 430, borderRadius: 24, borderWidth: 1, borderColor: '#34313E', backgroundColor: '#15151A', padding: 22 },
