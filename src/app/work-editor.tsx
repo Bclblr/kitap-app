@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function WorkEditor() {
   const ui = useReaderStyles();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, addChapter } = useLocalSearchParams<{ id?: string; addChapter?: string }>();
   const router = useRouter();
   const navigation = useNavigation();
   const [work, setWork] = useState<Partial<Work>>({ title: '', description: '', genre: '', cover_url: '', tags: [], status: 'draft' });
@@ -73,7 +73,21 @@ export default function WorkEditor() {
           if (result.error || !result.data) throw Error('Eser bulunamadı veya düzenleme yetkin yok.');
           const parts = await supabase.from('work_chapters').select('*').eq('work_id', id).order('position');
           if (parts.error) throw Error('Bölümler yüklenemedi.');
-          if (alive) { setWork(result.data); setSavedWork(JSON.stringify(result.data)); setChapters(parts.data ?? []); }
+          if (alive) {
+            setWork(result.data);
+            setSavedWork(JSON.stringify(result.data));
+            setChapters(parts.data ?? []);
+            if (addChapter === '1') {
+              const nextChapter = {
+                title: '',
+                content: '',
+                position: Math.max(0, ...(parts.data ?? []).map((item) => item.position)) + 1,
+                status: 'draft',
+              } as Partial<Chapter>;
+              setChapter(nextChapter);
+              setSavedChapter(JSON.stringify(nextChapter));
+            }
+          }
         }
         const key = `work-editor:${auth.user.id}:${id ?? 'new'}`;
         const saved = await AsyncStorage.getItem(key).catch(() => null);
@@ -87,7 +101,7 @@ export default function WorkEditor() {
       finally { if (alive) setLoading(false); }
     }
     void load(); return () => { alive = false; };
-  }, [id]);
+  }, [id, addChapter]);
   useEffect(() => {
     if (!draftKey || !authorized || backup || busy) return;
     let alive = true;
@@ -138,9 +152,18 @@ export default function WorkEditor() {
     <Text style={ui.muted}>İçerik sınıflaması</Text><View style={ui.row}>{[['general','Genel'],['teen','Genç'],['mature','Yetişkin']].map(([value,label]) => <Action key={value} label={`${(work.audience ?? 'general') === value ? '✓ ' : ''}${label}`} onPress={() => setWork(w => ({ ...w, audience: value }))} />)}</View>
     <Action label={work.completed ? '✓ Tamamlandı' : 'Devam ediyor'} onPress={() => setWork(w => ({ ...w, completed: !w.completed }))} />
     <View style={ui.row}><Action disabled={busy} label="Taslak kaydet" onPress={() => void save('draft')} /><Action disabled={busy} label="Yayınla" onPress={() => void save('published')} /></View>
-    {work.id && <><Action label="Okuma sayfası" onPress={() => router.push({ pathname: '/work', params: { id: work.id! } })} /><Text style={ui.title}>Bölümler</Text>
+    {work.id && <>
+    <View style={ui.card}>
+      <Text style={ui.title}>Eser Yönetimi</Text>
+      <Text style={ui.muted}>Kitap bilgilerini düzenleyebilir, yeni bölüm ekleyebilir ve mevcut bölümleri yönetebilirsin.</Text>
+      <View style={ui.row}>
+        <Action label="Okuma sayfası" onPress={() => router.push({ pathname: '/work', params: { id: work.id! } })} />
+        <Action label="Yeni Bölüm Ekle" onPress={() => selectChapter({ title: '', content: '', position: Math.max(0, ...chapters.map(c => c.position)) + 1, status: 'draft' })} />
+      </View>
+    </View>
+    <Text style={ui.title}>Bölümler</Text>
     {chapters.map((item,index) => <View key={item.id} style={ui.card}><Action label={`${item.position}. ${item.title} · ${item.status === 'draft' ? 'Taslak' : 'Yayında'}`} onPress={() => selectChapter(item)} /><View style={ui.row}><Action label="Yukarı taşı" disabled={busy || index === 0 || JSON.stringify(chapter) !== savedChapter} onPress={() => void moveChapter(item,chapters[index-1])} /><Action label="Aşağı taşı" disabled={busy || index === chapters.length-1 || JSON.stringify(chapter) !== savedChapter} onPress={() => void moveChapter(item,chapters[index+1])} /></View></View>)}
-    <Action label="Bölüm ekle" onPress={() => selectChapter({ title: '', content: '', position: Math.max(0, ...chapters.map(c => c.position)) + 1, status: 'draft' })} />
+    <Action label="Yeni Bölüm Ekle" onPress={() => selectChapter({ title: '', content: '', position: Math.max(0, ...chapters.map(c => c.position)) + 1, status: 'draft' })} />
     {chapter && <View style={ui.card}><Field label="Bölüm başlığı" maxLength={160} value={chapter.title} onChangeText={title => setChapter(c => ({ ...c, title }))} /><Field label="Bölüm sırası" keyboardType="number-pad" value={String(chapter.position ?? 1)} onChangeText={position => setChapter(c => ({ ...c, position: Math.max(1, Number(position) || 1) }))} />
     <Field label="Bölüm metni" multiline value={chapter.content} onChangeText={content => setChapter(c => ({ ...c, content }))} style={{ minHeight: 300 }} />
     <Text style={ui.muted}>{chapter.content?.trim().split(/\s+/u).filter(Boolean).length ?? 0} kelime · {Array.from(chapter.content ?? '').length} karakter</Text>
