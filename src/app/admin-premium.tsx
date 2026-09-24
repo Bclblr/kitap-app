@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -74,6 +75,7 @@ export default function AdminPremiumScreen() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [durationByUser, setDurationByUser] = useState<Record<string, GrantDuration>>({});
+  const [pendingRevokeUser, setPendingRevokeUser] = useState<PremiumUserRow | null>(null);
 
   const goBackSafely = useCallback(() => {
     if (router.canGoBack()) safeBack(router, '/admin');
@@ -193,43 +195,35 @@ export default function AdminPremiumScreen() {
   );
 
   const revokeFreePremium = useCallback(
-    (user: PremiumUserRow) => {
+    async (user: PremiumUserRow) => {
       if (updatingId || !user.hasAdminPremium) return;
-      Alert.alert(
-        'Admin Premium geri alınsın mı?',
-        user.hasPaidPremium
-          ? 'Yalnızca admin tarafından verilen Premium kaldırılacak. Kullanıcının ücretli Apple/Google Premium hakkı devam edecek.'
-          : 'Yalnızca admin tarafından verilen Premium hakkı kaldırılacak.',
-        [
-          { text: 'Vazgeç', style: 'cancel' },
-          {
-            text: 'Geri Al',
-            style: 'destructive',
-            onPress: async () => {
-              setUpdatingId(user.id);
-              try {
-                const { error } = await supabase.rpc('admin_revoke_premium', {
-                  p_user_id: user.id,
-                  p_reason: 'Admin panelinden ücretsiz Premium geri alındı',
-                });
-                if (error) throw error;
-                await loadUsers();
-                Alert.alert(
-                  'Admin Premium kaldırıldı',
-                  user.hasPaidPremium
-                    ? `${user.username || 'Kullanıcı'} ücretli Premium hakkını kullanmaya devam ediyor.`
-                    : `${user.username || 'Kullanıcı'} artık admin hediyesi Premium kullanmıyor.`
-                );
-              } catch (error) {
-                console.error('Admin Premium geri alınamadı:', error);
-                Alert.alert('Hata', 'Admin Premium geri alınamadı. Yetki ve Supabase migration durumunu kontrol et.');
-              } finally {
-                setUpdatingId(null);
-              }
-            },
-          },
-        ]
-      );
+
+      setPendingRevokeUser(null);
+      setUpdatingId(user.id);
+      try {
+        const { error } = await supabase.rpc('admin_revoke_premium', {
+          p_user_id: user.id,
+          p_reason: 'Admin panelinden ücretsiz Premium geri alındı',
+        });
+        if (error) throw error;
+
+        await loadUsers();
+        Alert.alert(
+          'Admin Premium kaldırıldı',
+          user.hasPaidPremium
+            ? `${user.username || 'Kullanıcı'} ücretli Premium hakkını kullanmaya devam ediyor.`
+            : `${user.username || 'Kullanıcı'} artık admin hediyesi Premium kullanmıyor.`
+        );
+      } catch (error) {
+        console.error('Admin Premium geri alınamadı:', error);
+        const message =
+          error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+            ? error.message
+            : 'Bilinmeyen hata';
+        Alert.alert('Hata', `Admin Premium geri alınamadı: ${message}`);
+      } finally {
+        setUpdatingId(null);
+      }
     },
     [loadUsers, updatingId]
   );
@@ -312,7 +306,7 @@ export default function AdminPremiumScreen() {
 
                 {user.hasAdminPremium ? (
                   <Pressable
-                    onPress={() => revokeFreePremium(user)}
+                    onPress={() => setPendingRevokeUser(user)}
                     disabled={updating || updatingId !== null}
                     style={[styles.revokeButton, (updating || (updatingId !== null && !updating)) && styles.grantButtonDisabled]}
                     accessibilityRole="button"
@@ -366,6 +360,48 @@ export default function AdminPremiumScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      <Modal
+        visible={!!pendingRevokeUser}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPendingRevokeUser(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.confirmCard}>
+            <View style={styles.confirmIcon}>
+              <Feather name="x-circle" size={22} color="#FFB4BC" />
+            </View>
+            <Text style={styles.confirmTitle}>Admin Premium geri alınsın mı?</Text>
+            <Text style={styles.confirmText}>
+              {pendingRevokeUser?.hasPaidPremium
+                ? 'Yalnızca admin tarafından verilen Premium kaldırılacak. Kullanıcının ücretli Apple/Google Premium hakkı devam edecek.'
+                : 'Yalnızca admin tarafından verilen Premium hakkı kaldırılacak.'}
+            </Text>
+            <View style={styles.confirmActions}>
+              <Pressable
+                onPress={() => setPendingRevokeUser(null)}
+                style={styles.cancelButton}
+                disabled={updatingId !== null}
+              >
+                <Text style={styles.cancelButtonText}>Vazgeç</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => pendingRevokeUser && void revokeFreePremium(pendingRevokeUser)}
+                style={styles.confirmRevokeButton}
+                disabled={updatingId !== null}
+              >
+                {updatingId ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Feather name="x-circle" size={17} color="#FFFFFF" />
+                )}
+                <Text style={styles.confirmRevokeButtonText}>Geri Al</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -422,4 +458,14 @@ const baseStyles = StyleSheet.create({
   emptyCard: { marginTop: 24, alignItems: 'center', padding: 28, borderRadius: 18, backgroundColor: '#15151D', borderWidth: 1, borderColor: '#292934' },
   emptyTitle: { marginTop: 10, color: '#F5F5F8', fontSize: 16, fontWeight: '800' },
   emptyText: { marginTop: 5, color: '#8E8E9D', fontSize: 12, textAlign: 'center' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.62)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  confirmCard: { width: '100%', maxWidth: 430, borderRadius: 20, padding: 20, backgroundColor: '#15151D', borderWidth: 1, borderColor: '#3A3038' },
+  confirmIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#281419', borderWidth: 1, borderColor: '#6E303A', alignItems: 'center', justifyContent: 'center' },
+  confirmTitle: { marginTop: 14, color: '#F5F5F8', fontSize: 18, fontWeight: '900' },
+  confirmText: { marginTop: 8, color: '#A5A5B3', fontSize: 13, lineHeight: 19 },
+  confirmActions: { flexDirection: 'row', gap: 10, marginTop: 18 },
+  cancelButton: { flex: 1, minHeight: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#20202A', borderWidth: 1, borderColor: '#30303D' },
+  cancelButtonText: { color: '#D4D4DC', fontSize: 12, fontWeight: '900' },
+  confirmRevokeButton: { flex: 1, minHeight: 44, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#A53848', borderWidth: 1, borderColor: '#C85C6A' },
+  confirmRevokeButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
 });
