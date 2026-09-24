@@ -43,7 +43,17 @@ export default function WorksList({ authorId, own = false, status, genre = '', s
       {work.cover_url && <Image source={{ uri: work.cover_url }} style={{ width: 80, height: 112, borderRadius: 8 }} resizeMode="cover" />}
       <Text style={ui.title}>{work.title}</Text><Text numberOfLines={3} style={ui.muted}>{work.description}</Text>
       <Text style={ui.muted}>{work.genre} · {work.completed ? 'Tamamlandı' : work.status === 'draft' ? 'Taslak' : 'Yayında'} · {work.language || 'tr'}</Text>
-      <Action label={own ? 'Düzenle' : 'Oku'} onPress={() => router.push({ pathname: own ? '/work-editor' : '/work', params: { id: work.id } })} />
+      {own ? (
+        <View style={ui.row}>
+          <Action label="Eseri Düzenle" onPress={() => router.push({ pathname: '/work-editor', params: { id: work.id } })} />
+          <Action label="Bölüm Ekle" onPress={() => router.push({ pathname: '/work-editor', params: { id: work.id, addChapter: '1' } })} />
+          {work.status === 'published' ? (
+            <Action label="Oku" onPress={() => router.push({ pathname: '/work', params: { id: work.id } })} />
+          ) : null}
+        </View>
+      ) : (
+        <Action label="Oku" onPress={() => router.push({ pathname: '/work', params: { id: work.id } })} />
+      )}
     </View>)}
   </View>;
 }
