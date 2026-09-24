@@ -6,7 +6,7 @@ import { supabase } from './supabase';
 
 export const WORK_COVER_WIDTH = 1200;
 export const WORK_COVER_HEIGHT = 1800;
-export const WORK_COVER_ASPECT = [2, 3] as const;
+export const WORK_COVER_ASPECT: [number, number] = [2, 3];
 
 export async function pickWorkCover(): Promise<string | null> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
