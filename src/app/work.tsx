@@ -154,7 +154,6 @@ export default function WorkReader() {
       ? Math.min(100, Math.round(((selected + 1) / chapters.length) * 100))
       : 0;
     const persistedProgress = Math.max(readingProgress, nextProgress);
-    setReadingProgress(persistedProgress);
     void supabase.from('work_readers').upsert(
       {
         work_id: id,
@@ -165,7 +164,10 @@ export default function WorkReader() {
       },
       { onConflict: 'work_id,user_id' }
     ).then(({ error: readerError }) => {
-      if (!readerError) setReaderCount((current) => Math.max(1, current));
+      if (!readerError) {
+        setReadingProgress((current) => Math.max(current, nextProgress));
+        setReaderCount((current) => Math.max(1, current));
+      }
     });
     void AsyncStorage
       .setItem(`work-progress:${userId}:${id}`, chapterId)
