@@ -9,6 +9,8 @@ import {
   StyleSheet,
   Text,
   View,
+  Modal,
+  Share,
 } from 'react-native';
 
 import Image from '@/components/SafeImage';
@@ -52,6 +54,10 @@ export default function WorkReader() {
   const [viewCount, setViewCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
   const [starred, setStarred] = useState(false);
+  const [ratingOpen, setRatingOpen] = useState(false);
+  const [myRating, setMyRating] = useState<number | null>(null);
+  const [ratingAverage, setRatingAverage] = useState<number | null>(null);
+  const [ratingCount, setRatingCount] = useState(0);
 
   useEffect(() => {
     if (!userId) return;
@@ -84,7 +90,7 @@ export default function WorkReader() {
           { onConflict: 'work_id,user_id' }
         );
 
-        const [profile, bookmark, progress, readersMetric, starsMetric, viewsMetric, commentsMetric, myStar] = await Promise.all([
+        const [profile, bookmark, progress, readersMetric, starsMetric, viewsMetric, commentsMetric, myStar, ratingsMetric, myRatingResult] = await Promise.all([
           supabase
             .from('profiles')
             .select('username,full_name')
@@ -102,6 +108,8 @@ export default function WorkReader() {
           supabase.from('work_views').select('work_id', { count: 'exact', head: true }).eq('work_id', id),
           supabase.from('work_comments').select('id', { count: 'exact', head: true }).eq('work_id', id),
           supabase.from('work_stars').select('work_id').eq('work_id', id).eq('user_id', activeUserId).maybeSingle(),
+          supabase.from('work_ratings').select('rating').eq('work_id', id),
+          supabase.from('work_ratings').select('rating').eq('work_id', id).eq('user_id', activeUserId).maybeSingle(),
         ]);
 
         if (!alive) return;
@@ -116,6 +124,10 @@ export default function WorkReader() {
         setViewCount(viewsMetric.count ?? 0);
         setCommentCount(commentsMetric.count ?? 0);
         setStarred(!!myStar.data);
+        const ratingValues = ratingsMetric.data ?? [];
+        setRatingCount(ratingValues.length);
+        setRatingAverage(ratingValues.length ? ratingValues.reduce((sum, item) => sum + item.rating, 0) / ratingValues.length : null);
+        setMyRating(myRatingResult.data?.rating ?? null);
       } catch (loadError) {
         console.error('Eser görüntüleme hatası:', loadError);
         if (alive) setError('Eser bulunamadı veya okumak için yetkin yok.');
@@ -177,6 +189,31 @@ export default function WorkReader() {
       setStarred(!next);
       setStarCount((current) => Math.max(0, current + (next ? -1 : 1)));
     }
+  }
+
+  async function shareWork() {
+    if (!work) return;
+    await Share.share({
+      title: work.title,
+      message: `${work.title} — ${author}\nBu eseri Kitap uygulamasında keşfet.`,
+    });
+  }
+
+  async function rateWork(rating: number) {
+    if (!userId) return;
+    const previous = myRating;
+    const { error: ratingError } = await supabase.from('work_ratings').upsert(
+      { work_id: id, user_id: userId, rating, updated_at: new Date().toISOString() },
+      { onConflict: 'work_id,user_id' }
+    );
+    if (ratingError) return;
+    setMyRating(rating);
+    setRatingOpen(false);
+    const { data } = await supabase.from('work_ratings').select('rating').eq('work_id', id);
+    const values = data ?? [];
+    setRatingCount(values.length);
+    setRatingAverage(values.length ? values.reduce((sum, item) => sum + item.rating, 0) / values.length : null);
+    if (previous === null && values.length === 0) setRatingCount(1);
   }
 
   const continueIndex = useMemo(
@@ -334,6 +371,22 @@ export default function WorkReader() {
           </View>
         </View>
 
+        <View style={styles.workActions}>
+          <Pressable onPress={() => void shareWork()} style={styles.workActionButton}>
+            <Feather name="send" size={17} color={colors.textPrimary} />
+            <Text style={styles.workActionText}>Paylaş</Text>
+          </Pressable>
+          <Pressable onPress={() => setRatingOpen(true)} style={[styles.workActionButton, myRating !== null && styles.workActionActive]}>
+            <Feather name="star" size={18} color={myRating !== null ? colors.primary : colors.textPrimary} />
+            <Text style={[styles.workActionText, myRating !== null && { color: colors.primary }]}>
+              {myRating !== null ? `Puanın: ${myRating}` : 'Puan Ver'}
+            </Text>
+          </Pressable>
+        </View>
+        {ratingAverage !== null && (
+          <Text style={styles.ratingSummary}>Ortalama {ratingAverage.toFixed(1)} / 5 · {ratingCount} değerlendirme</Text>
+        )}
+
         <View style={styles.ctaCard}>
           <Text style={styles.ctaTitle}>Okumaya hazır mısın?</Text>
           <Text style={styles.ctaDescription}>
@@ -450,6 +503,26 @@ export default function WorkReader() {
           )}
         </View>
       </ScrollView>
+      <Modal visible={ratingOpen} transparent animationType="fade" onRequestClose={() => setRatingOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setRatingOpen(false)}>
+          <Pressable style={styles.ratingModal} onPress={(event) => event.stopPropagation()}>
+            <Text style={styles.ratingModalEyebrow}>ESERİ DEĞERLENDİR</Text>
+            <Text style={styles.ratingModalTitle}>Kaç yıldız verirsin?</Text>
+            <Text style={styles.ratingModalSubtitle}>{work.title}</Text>
+            <View style={styles.ratingStars}>
+              {[1,2,3,4,5].map((value) => (
+                <Pressable key={value} onPress={() => void rateWork(value)} style={styles.ratingStarButton}>
+                  <Feather name="star" size={30} color={myRating !== null && value <= myRating ? colors.primary : colors.textMuted} />
+                  <Text style={styles.ratingStarLabel}>{value}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable onPress={() => setRatingOpen(false)} style={styles.ratingCancel}>
+              <Text style={styles.ratingCancelText}>Vazgeç</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -485,6 +558,21 @@ const baseStyles = StyleSheet.create({
   metricsBar: { minHeight: 54, borderRadius: 16, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   metricItem: { minHeight: 44, minWidth: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 8 },
   metricValue: { color: '#B6B7C0', fontSize: 14, fontWeight: '800' },
+  workActions: { flexDirection: 'row', gap: 10 },
+  workActionButton: { flex: 1, minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: '#3A3B45', backgroundColor: '#111218', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  workActionActive: { borderColor: '#5D4584', backgroundColor: '#191321' },
+  workActionText: { color: '#E9E9ED', fontSize: 11, fontWeight: '900' },
+  ratingSummary: { color: '#777983', fontSize: 9, textAlign: 'center', marginTop: -5 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  ratingModal: { width: '100%', maxWidth: 430, borderRadius: 24, borderWidth: 1, borderColor: '#34313E', backgroundColor: '#15151A', padding: 22 },
+  ratingModalEyebrow: { color: '#9B7AD3', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  ratingModalTitle: { color: '#F5F5F7', fontSize: 21, fontWeight: '900', marginTop: 7 },
+  ratingModalSubtitle: { color: '#858791', fontSize: 11, marginTop: 4 },
+  ratingStars: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 24 },
+  ratingStarButton: { alignItems: 'center', gap: 5, padding: 5 },
+  ratingStarLabel: { color: '#777983', fontSize: 9, fontWeight: '800' },
+  ratingCancel: { minHeight: 44, borderRadius: 12, backgroundColor: '#222329', alignItems: 'center', justifyContent: 'center', marginTop: 20 },
+  ratingCancelText: { color: '#D7D7DD', fontSize: 11, fontWeight: '900' },
   ctaCard: { borderRadius: 20, borderWidth: 1, borderColor: '#3A2A54', backgroundColor: '#121018', padding: 16 },
   ctaTitle: { color: '#F4F4F6', fontSize: 17, fontWeight: '900' },
   ctaDescription: { color: '#858791', fontSize: 11, lineHeight: 17, marginTop: 5 },
