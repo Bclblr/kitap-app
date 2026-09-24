@@ -6,6 +6,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { supabase } from '@/lib/supabase';
+import { getSignedImageUrl } from '@/lib/image-cache';
 
 type NavRoute = '/' | '/shelves' | '/messages' | '/explore' | '/profile';
 type NavIcon = 'home' | 'book-open' | 'message-circle' | 'search' | 'user';
@@ -115,7 +116,34 @@ export default function BottomNav() {
       return;
     }
 
-    setProfileImage(data?.profile_image ?? null);
+    const storedUrl = data?.profile_image ?? null;
+    if (!storedUrl) {
+      setProfileImage(null);
+      return;
+    }
+
+    try {
+      const url = new URL(storedUrl);
+      const marker = '/storage/v1/object/';
+      const markerIndex = url.pathname.indexOf(marker);
+      if (markerIndex < 0) {
+        setProfileImage(storedUrl);
+        return;
+      }
+
+      const remainder = url.pathname.slice(markerIndex + marker.length);
+      const match = remainder.match(/^(?:public|authenticated)\/avatars\/(.+)$/);
+      if (!match) {
+        setProfileImage(storedUrl);
+        return;
+      }
+
+      const path = decodeURIComponent(match[1]);
+      const signedUrl = await getSignedImageUrl('avatars', path);
+      setProfileImage(signedUrl ?? null);
+    } catch {
+      setProfileImage(storedUrl);
+    }
   }, []);
 
   useFocusEffect(
