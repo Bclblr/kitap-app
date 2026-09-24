@@ -2901,6 +2901,30 @@ export type Database = {
           },
         ]
       }
+      work_comments: {
+        Row: { created_at: string; id: string; text: string; user_id: string; work_id: string }
+        Insert: { created_at?: string; id?: string; text: string; user_id: string; work_id: string }
+        Update: { created_at?: string; id?: string; text?: string; user_id?: string; work_id?: string }
+        Relationships: []
+      }
+      work_readers: {
+        Row: { last_read_at: string; started_at: string; user_id: string; work_id: string }
+        Insert: { last_read_at?: string; started_at?: string; user_id: string; work_id: string }
+        Update: { last_read_at?: string; started_at?: string; user_id?: string; work_id?: string }
+        Relationships: []
+      }
+      work_stars: {
+        Row: { created_at: string; user_id: string; work_id: string }
+        Insert: { created_at?: string; user_id: string; work_id: string }
+        Update: { created_at?: string; user_id?: string; work_id?: string }
+        Relationships: []
+      }
+      work_views: {
+        Row: { user_id: string; viewed_at: string; work_id: string }
+        Insert: { user_id: string; viewed_at?: string; work_id: string }
+        Update: { user_id?: string; viewed_at?: string; work_id?: string }
+        Relationships: []
+      }
       works: {
         Row: {
           audience: string
