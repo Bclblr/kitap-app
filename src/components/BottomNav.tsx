@@ -1,11 +1,12 @@
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
-import { usePathname, useRouter } from 'expo-router';
+import { useFocusEffect, usePathname, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { supabase } from '@/lib/supabase';
+import Image from '@/components/SafeImage';
 
 type NavRoute = '/' | '/shelves' | '/messages' | '/explore' | '/profile';
 type NavIcon = 'home' | 'book-open' | 'message-circle' | 'search' | 'user';
@@ -16,6 +17,7 @@ type NavItemProps = {
   icon: NavIcon;
   onPress: () => void;
   badgeCount?: number;
+  avatarUri?: string | null;
 };
 
 const NAV_LABELS: Record<NavRoute, string> = {
@@ -26,7 +28,7 @@ const NAV_LABELS: Record<NavRoute, string> = {
   '/profile': 'Profil',
 };
 
-function NavItem({ href, pathname, icon, onPress, badgeCount = 0 }: NavItemProps) {
+function NavItem({ href, pathname, icon, onPress, badgeCount = 0, avatarUri = null }: NavItemProps) {
   const styles = useThemedStyles(baseStyles);
   const active = pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
   const { colors } = useAppTheme();
@@ -59,11 +61,21 @@ function NavItem({ href, pathname, icon, onPress, badgeCount = 0 }: NavItemProps
           active && { borderColor: colors.focusRing },
         ]}
       >
-        <Feather
-          name={icon}
-          size={23}
-          color={active ? colors.primary : colors.textSecondary}
-        />
+        {href === '/profile' && avatarUri ? (
+          <Image
+            source={{ uri: avatarUri }}
+            style={[
+              styles.profileAvatar,
+              active && { borderColor: colors.primary },
+            ]}
+          />
+        ) : (
+          <Feather
+            name={icon}
+            size={23}
+            color={active ? colors.primary : colors.textSecondary}
+          />
+        )}
         {badgeCount > 0 ? (
           <View style={styles.messageBadge}>
             <Text style={styles.messageBadgeText}>
@@ -83,7 +95,35 @@ export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadProfileImage = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setProfileImage(null);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('profile_image')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('BottomNav profil fotoğrafı alınamadı:', error);
+      return;
+    }
+
+    setProfileImage(data?.profile_image ?? null);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadProfileImage();
+    }, [loadProfileImage])
+  );
 
   const loadUnreadMessages = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -121,6 +161,7 @@ export default function BottomNav() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(() => {
       scheduleRefresh();
+      void loadProfileImage();
     });
 
     const setupRealtime = async () => {
@@ -161,7 +202,7 @@ export default function BottomNav() {
       authListener.subscription.unsubscribe();
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [loadUnreadMessages]);
+  }, [loadProfileImage, loadUnreadMessages]);
 
   return (
     <View
@@ -180,7 +221,7 @@ export default function BottomNav() {
       <NavItem href="/shelves" pathname={pathname} icon="book-open" onPress={() => { if (!pathname.startsWith('/shelves')) router.replace('/shelves'); }} />
       <NavItem href="/messages" pathname={pathname} icon="message-circle" badgeCount={unreadMessages} onPress={() => { if (!pathname.startsWith('/messages')) router.replace('/messages'); }} />
       <NavItem href="/explore" pathname={pathname} icon="search" onPress={() => { if (!pathname.startsWith('/explore')) router.replace('/explore'); }} />
-      <NavItem href="/profile" pathname={pathname} icon="user" onPress={() => { if (!pathname.startsWith('/profile')) router.replace('/profile'); }} />
+      <NavItem href="/profile" pathname={pathname} icon="user" avatarUri={profileImage} onPress={() => { if (!pathname.startsWith('/profile')) router.replace('/profile'); }} />
     </View>
   );
 }
@@ -214,6 +255,14 @@ const baseStyles = StyleSheet.create({
   },
   activeIconWrap: {
     borderWidth: 2,
+  },
+  profileAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    backgroundColor: '#20212A',
   },
   messageBadge: {
     position: 'absolute',
