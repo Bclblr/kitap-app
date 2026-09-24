@@ -14,7 +14,10 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
+
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Image from '@/components/SafeImage';
 import { requirePermanentImage } from '@/lib/image-policy';
@@ -43,6 +46,8 @@ export default function WorkEditor() {
   const navigation = useNavigation();
   const { colors, scheme } = useAppTheme();
   const styles = useThemedStyles(baseStyles);
+  const { width: windowWidth } = useWindowDimensions();
+  const compactPreview = windowWidth < 600;
 
   const [tab, setTab] = useState<EditorTab>(addChapter === '1' ? 'chapters' : 'details');
   const [work, setWork] = useState<Partial<Work>>({
@@ -804,7 +809,7 @@ export default function WorkEditor() {
       </ScrollView>
 
       <Modal visible={preview} animationType="slide" onRequestClose={() => setPreview(false)}>
-        <View style={styles.previewScreen}>
+        <SafeAreaView style={styles.previewScreen} edges={['top', 'bottom']}>
           <View style={styles.previewHeader}>
             <Pressable onPress={() => setPreview(false)} style={styles.headerButton}>
               <Feather name="x" size={21} color={colors.textPrimary} />
@@ -812,11 +817,21 @@ export default function WorkEditor() {
             <Text style={styles.previewHeaderTitle}>Bölüm Önizlemesi</Text>
             <View style={styles.previewSpacer} />
           </View>
-          <ScrollView contentContainerStyle={styles.previewContent}>
-            <Text style={styles.previewTitle}>{chapter?.title || 'İsimsiz bölüm'}</Text>
-            <Text selectable style={styles.previewText}>{chapter?.content || 'Henüz metin yok.'}</Text>
+          <ScrollView
+            contentContainerStyle={[styles.previewContent, compactPreview && styles.previewContentCompact]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.previewPaper}>
+              <Text style={[styles.previewTitle, compactPreview && styles.previewTitleCompact]}>
+                {chapter?.title || 'İsimsiz bölüm'}
+              </Text>
+              <View style={styles.previewDivider} />
+              <Text selectable style={[styles.previewText, compactPreview && styles.previewTextCompact]}>
+                {chapter?.content || 'Henüz metin yok.'}
+              </Text>
+            </View>
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       <Modal
@@ -1007,9 +1022,14 @@ const baseStyles = StyleSheet.create({
   previewHeader: { minHeight: 62, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#20212A' },
   previewHeaderTitle: { flex: 1, textAlign: 'center', color: '#F4F4F6', fontSize: 15, fontWeight: '900' },
   previewSpacer: { width: 40 },
-  previewContent: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 22, paddingBottom: 60 },
-  previewTitle: { color: '#F4F4F6', fontSize: 26, lineHeight: 34, fontWeight: '900', marginBottom: 20 },
-  previewText: { color: '#D4D4DA', fontSize: 17, lineHeight: 29 },
+  previewContent: { width: '100%', maxWidth: 780, alignSelf: 'center', paddingHorizontal: 28, paddingTop: 28, paddingBottom: 80 },
+  previewContentCompact: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 56 },
+  previewPaper: { width: '100%', borderRadius: 20, borderWidth: 1, borderColor: '#252630', backgroundColor: '#101116', paddingHorizontal: 30, paddingVertical: 30 },
+  previewTitle: { color: '#F4F4F6', fontSize: 28, lineHeight: 36, fontWeight: '900' },
+  previewTitleCompact: { fontSize: 23, lineHeight: 30 },
+  previewDivider: { height: 1, backgroundColor: '#292A33', marginVertical: 20 },
+  previewText: { color: '#D4D4DA', fontSize: 18, lineHeight: 31 },
+  previewTextCompact: { fontSize: 16, lineHeight: 27 },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,.65)', alignItems: 'center', justifyContent: 'center', padding: 20 },
   confirmCard: { width: '100%', maxWidth: 430, borderRadius: 20, borderWidth: 1, borderColor: '#34313A', backgroundColor: '#15151D', padding: 20 },
