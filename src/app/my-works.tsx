@@ -154,6 +154,17 @@ export default function MyWorks() {
           </Pressable>
         </View>
 
+        <Pressable onPress={() => router.push('/stories' as any)} style={styles.storyStudioCard}>
+          <View style={styles.storyStudioIcon}>
+            <Feather name="feather" size={20} color={colors.primary} />
+          </View>
+          <View style={styles.storyStudioCopy}>
+            <Text style={styles.storyStudioTitle}>Hikaye Stüdyosu</Text>
+            <Text style={styles.storyStudioText}>Hikaye yaz, bölümlerini yönet ve okur hikayelerini keşfet.</Text>
+          </View>
+          <Feather name="chevron-right" size={19} color={colors.textMuted} />
+        </Pressable>
+
         <View style={styles.sectionTabs}>
           <Pressable
             onPress={() => setSection('mine')}
@@ -360,6 +371,11 @@ const baseStyles = StyleSheet.create({
   subtitle: { color: '#8E909A', fontSize: 12, lineHeight: 18, marginTop: 6 },
   newBookButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 13, backgroundColor: '#6232B5', flexDirection: 'row', alignItems: 'center', gap: 7 },
   newBookButtonText: { color: '#FFF', fontSize: 12, fontWeight: '900' },
+  storyStudioCard: { minHeight: 74, borderRadius: 17, borderWidth: 1, borderColor: '#3B2B50', backgroundColor: '#15111D', padding: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  storyStudioIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#21172F', alignItems: 'center', justifyContent: 'center' },
+  storyStudioCopy: { flex: 1, minWidth: 0 },
+  storyStudioTitle: { color: '#F1F1F4', fontSize: 13, fontWeight: '900' },
+  storyStudioText: { color: '#7D7F89', fontSize: 9, lineHeight: 14, marginTop: 3 },
   sectionTabs: { flexDirection: 'row', gap: 8, marginBottom: 18 },
   sectionTab: { flex: 1, minHeight: 44, borderRadius: 13, backgroundColor: '#111218', borderWidth: 1, borderColor: '#292A33', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   sectionTabActive: { backgroundColor: '#21172F', borderColor: '#563D7E' },
