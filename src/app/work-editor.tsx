@@ -459,7 +459,7 @@ export default function WorkEditor() {
                 style={styles.coverPicker}
               >
                 {work.cover_url ? (
-                  <Image source={{ uri: work.cover_url }} resizeMode="cover" style={styles.coverImage} />
+                  <Image source={{ uri: work.cover_url }} resizeMode="contain" style={styles.coverImage} />
                 ) : (
                   <View style={styles.coverPlaceholder}>
                     <Feather name="image" size={28} color={colors.primary} />
@@ -921,8 +921,8 @@ const baseStyles = StyleSheet.create({
   smallGhostButtonText: { color: '#A0A1AA', fontSize: 9, fontWeight: '800' },
 
   heroCard: { flexDirection: 'row', alignItems: 'stretch', gap: 15, borderRadius: 20, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', padding: 15 },
-  coverPicker: { width: 142, minHeight: 202, borderRadius: 14, overflow: 'hidden' },
-  coverImage: { width: '100%', height: '100%', minHeight: 202, borderRadius: 14, backgroundColor: '#171820' },
+  coverPicker: { width: 142, height: 213, borderRadius: 14, overflow: 'hidden', backgroundColor: '#171820' },
+  coverImage: { width: 142, height: 213, borderRadius: 14, backgroundColor: '#171820' },
   coverPlaceholder: { flex: 1, minHeight: 202, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: '#503B72', backgroundColor: '#181320', alignItems: 'center', justifyContent: 'center', padding: 12 },
   coverPlaceholderTitle: { color: '#D8C8FF', fontSize: 12, fontWeight: '900', marginTop: 8 },
   coverPlaceholderText: { color: '#757781', fontSize: 9, marginTop: 3 },
