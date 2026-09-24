@@ -47,6 +47,11 @@ export default function WorkReader() {
   const [selected, setSelected] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [readerCount, setReaderCount] = useState(0);
+  const [starCount, setStarCount] = useState(0);
+  const [viewCount, setViewCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(0);
+  const [starred, setStarred] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -74,7 +79,12 @@ export default function WorkReader() {
         const activeUserId = userId;
         if (!activeUserId) throw Error('Oturum bulunamadı.');
 
-        const [profile, bookmark, progress] = await Promise.all([
+        await supabase.from('work_views').upsert(
+          { work_id: id, user_id: activeUserId, viewed_at: new Date().toISOString() },
+          { onConflict: 'work_id,user_id' }
+        );
+
+        const [profile, bookmark, progress, readersMetric, starsMetric, viewsMetric, commentsMetric, myStar] = await Promise.all([
           supabase
             .from('profiles')
             .select('username,full_name')
@@ -87,6 +97,11 @@ export default function WorkReader() {
             .eq('user_id', activeUserId)
             .maybeSingle(),
           AsyncStorage.getItem(`work-progress:${activeUserId}:${id}`).catch(() => null),
+          supabase.from('work_readers').select('work_id', { count: 'exact', head: true }).eq('work_id', id),
+          supabase.from('work_stars').select('work_id', { count: 'exact', head: true }).eq('work_id', id),
+          supabase.from('work_views').select('work_id', { count: 'exact', head: true }).eq('work_id', id),
+          supabase.from('work_comments').select('id', { count: 'exact', head: true }).eq('work_id', id),
+          supabase.from('work_stars').select('work_id').eq('work_id', id).eq('user_id', activeUserId).maybeSingle(),
         ]);
 
         if (!alive) return;
@@ -96,6 +111,11 @@ export default function WorkReader() {
         setLastChapterId(progress);
         setWork(book.data);
         setChapters(parts.data ?? []);
+        setReaderCount(readersMetric.count ?? 0);
+        setStarCount(starsMetric.count ?? 0);
+        setViewCount(viewsMetric.count ?? 0);
+        setCommentCount(commentsMetric.count ?? 0);
+        setStarred(!!myStar.data);
       } catch (loadError) {
         console.error('Eser görüntüleme hatası:', loadError);
         if (alive) setError('Eser bulunamadı veya okumak için yetkin yok.');
@@ -113,6 +133,12 @@ export default function WorkReader() {
   useEffect(() => {
     if (!userId || selected === null || !chapters[selected]) return;
     const chapterId = chapters[selected].id;
+    void supabase.from('work_readers').upsert(
+      { work_id: id, user_id: userId, last_read_at: new Date().toISOString() },
+      { onConflict: 'work_id,user_id' }
+    ).then(({ error: readerError }) => {
+      if (!readerError) setReaderCount((current) => Math.max(1, current));
+    });
     void AsyncStorage
       .setItem(`work-progress:${userId}:${id}`, chapterId)
       .then(() => setLastChapterId(chapterId))
@@ -136,6 +162,20 @@ export default function WorkReader() {
       setSaveError('Kaydetme işlemi tamamlanamadı. Tekrar deneyebilirsin.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function toggleStar() {
+    if (!userId) return;
+    const next = !starred;
+    setStarred(next);
+    setStarCount((current) => Math.max(0, current + (next ? 1 : -1)));
+    const result = next
+      ? await supabase.from('work_stars').insert({ work_id: id, user_id: userId })
+      : await supabase.from('work_stars').delete().eq('work_id', id).eq('user_id', userId);
+    if (result.error) {
+      setStarred(!next);
+      setStarCount((current) => Math.max(0, current + (next ? -1 : 1)));
     }
   }
 
@@ -272,6 +312,25 @@ export default function WorkReader() {
               <Text style={styles.metaPill}>{work.completed ? 'Tamamlandı' : 'Devam ediyor'}</Text>
               <Text style={styles.metaPill}>{audienceLabel(work.audience)}</Text>
             </View>
+          </View>
+        </View>
+
+        <View style={styles.metricsBar}>
+          <View style={styles.metricItem}>
+            <Feather name="book-open" size={20} color={colors.textSecondary} />
+            <Text style={styles.metricValue}>{readerCount.toLocaleString('tr-TR')}</Text>
+          </View>
+          <Pressable onPress={() => void toggleStar()} style={styles.metricItem}>
+            <Feather name="star" size={21} color={starred ? colors.primary : colors.textSecondary} />
+            <Text style={[styles.metricValue, starred && { color: colors.primary }]}>{starCount.toLocaleString('tr-TR')}</Text>
+          </Pressable>
+          <View style={styles.metricItem}>
+            <Feather name="eye" size={21} color={colors.textSecondary} />
+            <Text style={styles.metricValue}>{viewCount.toLocaleString('tr-TR')}</Text>
+          </View>
+          <View style={styles.metricItem}>
+            <Feather name="message-circle" size={21} color={colors.textSecondary} />
+            <Text style={styles.metricValue}>{commentCount.toLocaleString('tr-TR')}</Text>
           </View>
         </View>
 
@@ -423,6 +482,9 @@ const baseStyles = StyleSheet.create({
   metaWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   metaPill: { color: '#AAA0BE', fontSize: 9, borderRadius: 999, backgroundColor: '#19151F', borderWidth: 1, borderColor: '#332842', paddingHorizontal: 8, paddingVertical: 5 },
 
+  metricsBar: { minHeight: 54, borderRadius: 16, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  metricItem: { minHeight: 44, minWidth: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 8 },
+  metricValue: { color: '#B6B7C0', fontSize: 14, fontWeight: '800' },
   ctaCard: { borderRadius: 20, borderWidth: 1, borderColor: '#3A2A54', backgroundColor: '#121018', padding: 16 },
   ctaTitle: { color: '#F4F4F6', fontSize: 17, fontWeight: '900' },
   ctaDescription: { color: '#858791', fontSize: 11, lineHeight: 17, marginTop: 5 },
