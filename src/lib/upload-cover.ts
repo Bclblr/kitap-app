@@ -14,8 +14,7 @@ export async function pickWorkCover(): Promise<string | null> {
 
   const picked = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
-    allowsEditing: true,
-    aspect: WORK_COVER_ASPECT,
+    allowsEditing: false,
     quality: 1,
   });
 
@@ -30,7 +29,6 @@ export async function pickWorkCover(): Promise<string | null> {
       {
         resize: {
           width: WORK_COVER_WIDTH,
-          height: WORK_COVER_HEIGHT,
         },
       },
     ],
