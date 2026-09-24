@@ -2906,6 +2906,8 @@ export type Database = {
           audience: string
           author_id: string
           completed: boolean
+          content_warnings: string[]
+          copyright_license: string
           cover_url: string | null
           created_at: string
           description: string
@@ -2917,11 +2919,14 @@ export type Database = {
           tags: string[]
           title: string
           updated_at: string
+          work_type: string
         }
         Insert: {
           audience?: string
           author_id: string
           completed?: boolean
+          content_warnings?: string[]
+          copyright_license?: string
           cover_url?: string | null
           created_at?: string
           description?: string
@@ -2933,11 +2938,14 @@ export type Database = {
           tags?: string[]
           title: string
           updated_at?: string
+          work_type?: string
         }
         Update: {
           audience?: string
           author_id?: string
           completed?: boolean
+          content_warnings?: string[]
+          copyright_license?: string
           cover_url?: string | null
           created_at?: string
           description?: string
@@ -2949,6 +2957,7 @@ export type Database = {
           tags?: string[]
           title?: string
           updated_at?: string
+          work_type?: string
         }
         Relationships: []
       }
