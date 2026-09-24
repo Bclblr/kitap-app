@@ -1,5 +1,7 @@
-import { ReactNode, useMemo, useState } from 'react';
-import { Image, ImageProps } from 'react-native';
+import { ReactNode, useMemo } from 'react';
+import { ImageProps } from 'react-native';
+
+import SafeImage from '@/components/SafeImage';
 
 function normalizeImageUri(value: string | null): string | null {
   if (!value) return null;
@@ -17,29 +19,27 @@ function normalizeImageUri(value: string | null): string | null {
   }
 }
 
-export default function BookCover({ uri, style, children }: {
+export default function BookCover({
+  uri,
+  style,
+  children,
+  resizeMode = 'cover',
+}: {
   uri: string | null;
   style: ImageProps['style'];
   children: ReactNode;
+  resizeMode?: ImageProps['resizeMode'];
 }) {
   const safeUri = useMemo(() => normalizeImageUri(uri), [uri]);
-  const [failedUri, setFailedUri] = useState<string | null>(null);
 
-  if (!safeUri || safeUri === failedUri) return <>{children}</>;
+  if (!safeUri) return <>{children}</>;
 
   return (
-    <Image
+    <SafeImage
       source={{ uri: safeUri }}
       style={style}
-      resizeMode="cover"
-      onError={(event) => {
-        console.warn(
-          'Kitap kapak görseli yüklenemedi:',
-          safeUri,
-          event.nativeEvent?.error ?? ''
-        );
-        setFailedUri(safeUri);
-      }}
+      resizeMode={resizeMode}
+      accessibilityLabel="Kitap kapağı"
     />
   );
 }
