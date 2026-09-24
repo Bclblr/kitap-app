@@ -71,6 +71,9 @@ export default function WorkReader() {
           throw Error('Eser bulunamadı.');
         }
 
+        const activeUserId = userId;
+        if (!activeUserId) throw Error('Oturum bulunamadı.');
+
         const [profile, bookmark, progress] = await Promise.all([
           supabase
             .from('profiles')
@@ -81,9 +84,9 @@ export default function WorkReader() {
             .from('saved_works')
             .select('work_id')
             .eq('work_id', id)
-            .eq('user_id', userId)
+            .eq('user_id', activeUserId)
             .maybeSingle(),
-          AsyncStorage.getItem(`work-progress:${userId}:${id}`).catch(() => null),
+          AsyncStorage.getItem(`work-progress:${activeUserId}:${id}`).catch(() => null),
         ]);
 
         if (!alive) return;
