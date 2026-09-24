@@ -14,12 +14,14 @@ export default function WorksList({
   status,
   genre = '',
   sort = 'new',
+  savedByUserId,
 }: {
   authorId?: string;
   own?: boolean;
   status?: 'draft' | 'published';
   genre?: string;
   sort?: 'new' | 'popular';
+  savedByUserId?: string;
 }) {
   const router = useRouter();
   const { colors } = useAppTheme();
@@ -35,8 +37,23 @@ export default function WorksList({
         setLoading(true);
         setError('');
         try {
+          let savedIds: string[] | null = null;
+          if (savedByUserId) {
+            const savedResult = await supabase
+              .from('saved_works')
+              .select('work_id')
+              .eq('user_id', savedByUserId)
+              .order('created_at', { ascending: false });
+            if (savedResult.error) throw savedResult.error;
+            savedIds = (savedResult.data ?? []).map((item) => item.work_id);
+            if (!savedIds.length) {
+              if (alive) setWorks([]);
+              return;
+            }
+          }
+
           const popularity =
-            !own && sort === 'popular'
+            !own && !savedByUserId && sort === 'popular'
               ? await supabase.rpc('work_popularity', { genre_filter: genre.trim() })
               : null;
 
@@ -61,6 +78,7 @@ export default function WorksList({
             .limit(50);
 
           if (popularity) query = query.in('id', [...counts.keys()]);
+          if (savedIds) query = query.in('id', savedIds);
           if (authorId) query = query.eq('author_id', authorId);
           if (!own) query = query.eq('status', 'published');
           if (own && status) query = query.eq('status', status);
@@ -92,16 +110,18 @@ export default function WorksList({
         alive = false;
         clearTimeout(timer);
       };
-    }, [authorId, genre, own, sort, status])
+    }, [authorId, genre, own, savedByUserId, sort, status])
   );
 
-  const heading = own
-    ? status === 'draft'
-      ? 'Taslaklar'
-      : 'Yayındakiler'
-    : sort === 'popular'
-      ? 'Popüler eserler'
-      : 'Yeni çıkan eserler';
+  const heading = savedByUserId
+    ? 'Kaydedilen eserler'
+    : own
+      ? status === 'draft'
+        ? 'Taslaklar'
+        : 'Yayındakiler'
+      : sort === 'popular'
+        ? 'Popüler eserler'
+        : 'Yeni çıkan eserler';
 
   if (loading) {
     return (
@@ -144,9 +164,11 @@ export default function WorksList({
           </View>
           <Text style={styles.emptyTitle}>Henüz eser yok</Text>
           <Text style={styles.emptyText}>
-            {genre.trim()
-              ? 'Bu kategoriyle eşleşen yayımlanmış bir eser bulunamadı.'
-              : 'Yayımlanan eserler burada görünecek.'}
+            {savedByUserId
+              ? 'Daha sonra okumak için kaydettiğin eserler burada görünecek.'
+              : genre.trim()
+                ? 'Bu kategoriyle eşleşen yayımlanmış bir eser bulunamadı.'
+                : 'Yayımlanan eserler burada görünecek.'}
           </Text>
         </View>
       ) : (
