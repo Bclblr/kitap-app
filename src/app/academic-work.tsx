@@ -4,9 +4,11 @@ import {
   AcademicWork,
   CrossrefWork,
   academicAuthorLine,
+  academicWorkTypeLabel,
   getAcademicWork,
   getCrossrefWorkByDoi,
   getRelatedAcademicWorks,
+  isAcademicThesis,
 } from '@/lib/academic';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -183,24 +185,27 @@ export default function AcademicWorkScreen() {
   }
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color={colors.primary} /><Text style={styles.loadingText}>Makale yükleniyor...</Text></View>;
+    return <View style={styles.center}><ActivityIndicator color={colors.primary} /><Text style={styles.loadingText}>Akademik çalışma yükleniyor...</Text></View>;
   }
 
   if (!work) {
     return <View style={styles.center}><Text style={styles.errorTitle}>Çalışma bulunamadı</Text><Pressable onPress={() => safeBack(router, '/academic-search' as any)}><Text style={styles.linkText}>Akademik aramaya dön</Text></Pressable></View>;
   }
 
+  const thesis = isAcademicThesis(work);
+  const workLabel = academicWorkTypeLabel(work);
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topBar}>
           <Pressable onPress={() => safeBack(router, '/academic-search' as any)} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
-          <Text style={styles.pageTitle}>Makale Detayı</Text>
+          <Text style={styles.pageTitle}>{thesis ? 'Tez Detayı' : 'Makale Detayı'}</Text>
           <Pressable onPress={() => void toggleSaved()} style={styles.iconButton}><Feather name={saved ? 'bookmark' : 'bookmark'} size={20} color={saved ? colors.primary : colors.textMuted} /></Pressable>
         </View>
 
         <View style={styles.hero}>
-          <View style={styles.eyebrow}><Feather name="file-text" size={14} color={colors.primary} /><Text style={styles.eyebrowText}>AKADEMİK ÇALIŞMA</Text></View>
+          <View style={styles.eyebrow}><Feather name={thesis ? 'book-open' : 'file-text'} size={14} color={colors.primary} /><Text style={styles.eyebrowText}>{workLabel.toLocaleUpperCase('tr-TR')}</Text></View>
           <Text style={styles.title}>{work.title}</Text>
           <View style={styles.authorLinks}>
             {work.authors.map((author, index) => (
@@ -241,7 +246,7 @@ export default function AcademicWorkScreen() {
         ) : null}
 
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Yayın Bilgileri</Text>
+          <Text style={styles.sectionTitle}>{thesis ? 'Tez Bilgileri' : 'Yayın Bilgileri'}</Text>
           {work.journal ? <Pressable onPress={() => router.push({ pathname: '/journal' as any, params: { id: work.journal!.id } })}><Text style={styles.infoLink}>{work.journal.name}</Text></Pressable> : null}
           {crossref?.publisher || work.journal?.publisher ? <Text style={styles.infoText}>Yayıncı: {crossref?.publisher || work.journal?.publisher}</Text> : null}
           {crossref?.volume ? <Text style={styles.infoText}>Cilt: {crossref.volume}{crossref.issue ? ` · Sayı: ${crossref.issue}` : ''}</Text> : null}
@@ -267,7 +272,7 @@ export default function AcademicWorkScreen() {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Özel Notlarım</Text>
-          <TextInput value={noteText} onChangeText={setNoteText} multiline maxLength={5000} placeholder="Bu makale hakkında özel not ekle..." placeholderTextColor={colors.textMuted} style={[styles.noteInput, { color: colors.text }]} />
+          <TextInput value={noteText} onChangeText={setNoteText} multiline maxLength={5000} placeholder={thesis ? 'Bu tez hakkında özel not ekle...' : 'Bu makale hakkında özel not ekle...'} placeholderTextColor={colors.textMuted} style={[styles.noteInput, { color: colors.text }]} />
           <Pressable onPress={() => void saveNote()} disabled={!noteText.trim() || savingNote} style={[styles.noteSave, (!noteText.trim() || savingNote) && styles.disabled]}>
             {savingNote ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.noteSaveText}>Notu Kaydet</Text>}
           </Pressable>
@@ -281,7 +286,7 @@ export default function AcademicWorkScreen() {
 
         {related.length ? (
           <View style={styles.relatedSection}>
-            <Text style={styles.sectionTitle}>Benzer Makaleler</Text>
+            <Text style={styles.sectionTitle}>{thesis ? 'Benzer Akademik Çalışmalar' : 'Benzer Makaleler'}</Text>
             {related.map((item) => <AcademicWorkCard key={item.id} work={item} compact onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: item.id } })} />)}
           </View>
         ) : null}
