@@ -9,6 +9,7 @@ const PRIVATE_STORAGE_BUCKETS = new Set([
   'story-images',
   'avatars',
   'event-images',
+  'community-images',
 ]);
 
 type PrivateStorageRef = {
