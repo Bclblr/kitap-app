@@ -283,12 +283,43 @@ async function fetchJson(url: string, signal?: AbortSignal) {
   throw new Error('Academic API request failed');
 }
 
+async function searchAcademicWorksByType(
+  query: string,
+  type: 'article' | 'dissertation',
+  limit = 20,
+  signal?: AbortSignal,
+): Promise<AcademicWork[]> {
+  const clean = query.trim();
+  if (!clean) return [];
+  const url = `${OPENALEX_BASE}/works?search=${encodeURIComponent(clean)}&filter=type:${type}&per-page=${Math.min(50, Math.max(1, limit))}`;
+  const data = (await fetchJson(url, signal)) as OpenAlexList<any>;
+  return (data.results ?? []).map(normalizeAcademicWork);
+}
+
 export async function searchAcademicWorks(query: string, limit = 20, signal?: AbortSignal): Promise<AcademicWork[]> {
   const clean = query.trim();
   if (!clean) return [];
   const url = `${OPENALEX_BASE}/works?search=${encodeURIComponent(clean)}&per-page=${Math.min(50, Math.max(1, limit))}`;
   const data = (await fetchJson(url, signal)) as OpenAlexList<any>;
   return (data.results ?? []).map(normalizeAcademicWork);
+}
+
+export function searchAcademicArticles(query: string, limit = 20, signal?: AbortSignal) {
+  return searchAcademicWorksByType(query, 'article', limit, signal);
+}
+
+export function searchAcademicTheses(query: string, limit = 20, signal?: AbortSignal) {
+  return searchAcademicWorksByType(query, 'dissertation', limit, signal);
+}
+
+export function isAcademicThesis(work: Pick<AcademicWork, 'type'>) {
+  return work.type?.toLowerCase() === 'dissertation';
+}
+
+export function academicWorkTypeLabel(work: Pick<AcademicWork, 'type'>) {
+  if (isAcademicThesis(work)) return 'Tez';
+  if (work.type?.toLowerCase() === 'article') return 'Makale';
+  return 'Akademik çalışma';
 }
 
 export async function searchAcademicAuthors(query: string, limit = 20, signal?: AbortSignal): Promise<AcademicAuthorSummary[]> {
