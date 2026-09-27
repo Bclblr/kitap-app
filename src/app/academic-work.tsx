@@ -27,7 +27,7 @@ type Note = {
 };
 
 export default function AcademicWorkScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, kind } = useLocalSearchParams<{ id?: string; kind?: string }>();
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -192,8 +192,8 @@ export default function AcademicWorkScreen() {
     return <View style={styles.center}><Text style={styles.errorTitle}>Çalışma bulunamadı</Text><Pressable onPress={() => safeBack(router, '/academic-search' as any)}><Text style={styles.linkText}>Akademik aramaya dön</Text></Pressable></View>;
   }
 
-  const thesis = isAcademicThesis(work);
-  const workLabel = academicWorkTypeLabel(work);
+  const thesis = kind === 'thesis' || isAcademicThesis(work);
+  const workLabel = thesis ? 'Tez' : academicWorkTypeLabel(work);
 
   return (
     <View style={styles.container}>
