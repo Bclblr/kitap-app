@@ -908,8 +908,6 @@ export default function CommunityScreen() {
           ) : (
             <Text style={styles.emptySmall}>Henüz paylaşım yok.</Text>
           )}
-        </View>
-
         </View> : null}
 
         {activeTab === 'about' ? (
