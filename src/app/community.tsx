@@ -4,6 +4,7 @@ import { readerDate } from '@/lib/reader-date';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
+import { pickCommunityImage } from '@/lib/upload-community-image';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -26,6 +27,11 @@ type CommunityDetail = {
   image_url: string | null;
   created_by: string | null;
   created_at: string;
+  kind: string;
+  visibility: string;
+  rules: string;
+  tags: string[];
+  current_book: string | null;
 };
 
 type CommunityMemberPreview = {
@@ -51,6 +57,7 @@ type CommunityPost = {
   username: string;
   profile_image: string | null;
   text: string;
+  image_url: string | null;
   created_at: string;
   likes_count: number;
   liked: boolean;
@@ -62,6 +69,7 @@ type CommunityPostRow = {
   community_id: string;
   user_id: string;
   text: string;
+  image_url: string | null;
   created_at: string;
 };
 
@@ -75,6 +83,7 @@ export default function CommunityScreen() {
   const communityId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [community, setCommunity] = useState<CommunityDetail | null>(null);
+  const [activeTab, setActiveTab] = useState<'feed' | 'about' | 'members'>('feed');
   const [members, setMembers] = useState<CommunityMemberPreview[]>([]);
   const [memberCount, setMemberCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -90,6 +99,8 @@ export default function CommunityScreen() {
   const [communityPostsOffset, setCommunityPostsOffset] = useState(0);
 
   const [postText, setPostText] = useState('');
+  const [postImageUrl, setPostImageUrl] = useState<string | null>(null);
+  const [postImageBusy, setPostImageBusy] = useState(false);
   const [posting, setPosting] = useState(false);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [pendingLikePostIds, setPendingLikePostIds] = useState<Set<string>>(new Set());
@@ -118,7 +129,7 @@ export default function CommunityScreen() {
 
         const { data, error } = await supabase
           .from('communities')
-          .select('id, name, description, image_url, created_by, created_at')
+          .select('id, name, description, image_url, created_by, created_at, kind, visibility, rules, tags, current_book')
           .eq('id', communityId)
           .maybeSingle();
 
@@ -260,7 +271,7 @@ export default function CommunityScreen() {
 
         const { data, error } = await supabase
           .from('community_posts')
-          .select('id, community_id, user_id, text, created_at')
+          .select('id, community_id, user_id, text, image_url, created_at')
           .eq('community_id', communityId)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
@@ -475,18 +486,32 @@ export default function CommunityScreen() {
     }
   }
 
+  async function choosePostImage() {
+    if (postImageBusy) return;
+    setPostImageBusy(true);
+    try {
+      const url = await pickCommunityImage('post');
+      if (url) setPostImageUrl(url);
+    } catch (error) {
+      Alert.alert('Görsel eklenemedi', error instanceof Error ? error.message : 'Tekrar deneyebilirsin.');
+    } finally {
+      setPostImageBusy(false);
+    }
+  }
+
   async function createCommunityPost() {
     const text = postText.trim();
-    if (!communityId || !currentUserId || !isMember || posting || !text) return;
+    if (!communityId || !currentUserId || !isMember || posting || (!text && !postImageUrl)) return;
 
     setPosting(true);
     try {
       const { error } = await supabase
         .from('community_posts')
-        .insert({ community_id: communityId, user_id: currentUserId, text });
+        .insert({ community_id: communityId, user_id: currentUserId, text, image_url: postImageUrl });
       if (error) throw error;
 
       setPostText('');
+      setPostImageUrl(null);
       setCommunityPostsOffset(0);
       setCommunityPostsHasMore(true);
       await loadCommunityPosts(true);
@@ -640,7 +665,23 @@ export default function CommunityScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.feed}>
+        <View style={styles.tabBar}>
+          {[
+            { key: 'feed' as const, label: 'Akış', icon: 'message-square' as const },
+            { key: 'about' as const, label: 'Hakkında', icon: 'info' as const },
+            { key: 'members' as const, label: 'Üyeler', icon: 'users' as const },
+          ].map((tab) => {
+            const selected = activeTab === tab.key;
+            return (
+              <Pressable key={tab.key} onPress={() => setActiveTab(tab.key)} style={[styles.tabButton, selected && styles.tabButtonActive]}>
+                <Feather name={tab.icon} size={15} color={selected ? colors.primary : colors.textMuted} />
+                <Text style={[styles.tabText, selected && styles.tabTextActive]}>{tab.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {activeTab === 'feed' ? <View style={styles.feed}>
           <View style={styles.feedHeading}>
             <View>
               <Text style={styles.feedEyebrow}>SOHBET & PAYLAŞIM</Text>
@@ -672,12 +713,26 @@ export default function CommunityScreen() {
                 maxLength={2000}
                 style={styles.postInput}
               />
+              {postImageUrl ? (
+                <View style={styles.postImagePreviewWrap}>
+                  <Image source={{ uri: postImageUrl }} style={styles.postImagePreview} />
+                  <Pressable onPress={() => setPostImageUrl(null)} style={styles.removePostImage} accessibilityLabel="Görseli kaldır">
+                    <Feather name="x" size={16} color="#FFF" />
+                  </Pressable>
+                </View>
+              ) : null}
+              <View style={styles.composerTools}>
+                <Pressable disabled={postImageBusy} onPress={() => void choosePostImage()} style={styles.composerToolButton}>
+                  {postImageBusy ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="image" size={17} color={colors.primary} />}
+                  <Text style={styles.composerToolText}>{postImageUrl ? 'Görseli değiştir' : 'Görsel ekle'}</Text>
+                </Pressable>
+              </View>
               <View style={styles.composerFooter}>
                 <Text style={styles.postCounter}>{postText.length}/2000</Text>
                 <Pressable
-                  disabled={posting || !postText.trim()}
+                  disabled={posting || (!postText.trim() && !postImageUrl)}
                   onPress={createCommunityPost}
-                  style={[styles.composerSend, (posting || !postText.trim()) && styles.composerSendDisabled]}
+                  style={[styles.composerSend, (posting || (!postText.trim() && !postImageUrl)) && styles.composerSendDisabled]}
                 >
                   {posting ? <ActivityIndicator size="small" color="#FFF" /> : <Feather name="send" size={15} color="#FFF" />}
                   <Text style={styles.composerSendText}>{posting ? 'Paylaşılıyor' : 'Paylaş'}</Text>
@@ -716,7 +771,8 @@ export default function CommunityScreen() {
                     </View>
                   </Pressable>
 
-                  <Text style={styles.postBody}>{post.text}</Text>
+                  {post.text ? <Text style={styles.postBody}>{post.text}</Text> : null}
+                  {post.image_url ? <Image source={{ uri: post.image_url }} style={styles.feedPostImage} /> : null}
 
                   <View style={styles.actionRow}>
                     <Pressable
@@ -854,6 +910,34 @@ export default function CommunityScreen() {
           )}
         </View>
 
+        </View> : null}
+
+        {activeTab === 'about' ? (
+          <View style={styles.aboutPanel}>
+            <View style={styles.aboutCard}>
+              <View style={styles.aboutIcon}><Feather name="info" size={18} color={colors.primary} /></View>
+              <Text style={styles.aboutTitle}>Topluluk hakkında</Text>
+              <Text style={styles.aboutBody}>{community.description || 'Bu topluluk için henüz açıklama eklenmemiş.'}</Text>
+            </View>
+            {community.current_book ? (
+              <View style={styles.aboutCard}>
+                <View style={styles.aboutIcon}><Feather name="book-open" size={18} color={colors.primary} /></View>
+                <Text style={styles.aboutTitle}>Şu an okunuyor</Text>
+                <Text style={styles.currentBook}>{community.current_book}</Text>
+              </View>
+            ) : null}
+            <View style={styles.aboutCard}>
+              <View style={styles.aboutIcon}><Feather name="shield" size={18} color={colors.primary} /></View>
+              <Text style={styles.aboutTitle}>Topluluk kuralları</Text>
+              <Text style={styles.aboutBody}>{community.rules || 'Henüz özel bir topluluk kuralı eklenmemiş.'}</Text>
+            </View>
+            {community.tags?.length ? (
+              <View style={styles.tagWrap}>{community.tags.map((tag) => <View key={tag} style={styles.tag}><Text style={styles.tagText}>#{tag}</Text></View>)}</View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {activeTab === 'members' ? <>
         <View style={styles.membersSectionHeader}>
           <View>
             <Text style={styles.feedEyebrow}>TOPLULUK</Text>
@@ -893,6 +977,7 @@ export default function CommunityScreen() {
         ) : (
           <Text style={styles.empty}>Henüz üye yok.</Text>
         )}
+        </> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -925,7 +1010,12 @@ const baseStyles = StyleSheet.create({
   description: { color: '#A2A3AC', marginTop: 13, lineHeight: 19, fontSize: 11 },
   cta: { backgroundColor: '#6232B5', borderRadius: 14, minHeight: 47, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center', marginTop: 15 },
   ctaText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
-  feed: { marginTop: 25 },
+  tabBar: { marginTop: 14, minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', padding: 5, flexDirection: 'row', gap: 5 },
+  tabButton: { flex: 1, minHeight: 40, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  tabButtonActive: { backgroundColor: '#21172F' },
+  tabText: { color: '#737580', fontSize: 9, fontWeight: '900' },
+  tabTextActive: { color: '#D9C7FA' },
+  feed: { marginTop: 22 },
   feedHeading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 },
   feedEyebrow: { color: '#8065AD', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
   section: { color: '#F2F2F5', fontSize: 20, fontWeight: '900', marginTop: 3 },
@@ -938,6 +1028,12 @@ const baseStyles = StyleSheet.create({
   composerTitle: { color: '#EDEDF0', fontSize: 11, fontWeight: '900' },
   composerSubtitle: { color: '#737580', fontSize: 8, marginTop: 2 },
   postInput: { minHeight: 88, maxHeight: 180, backgroundColor: '#17181E', borderColor: '#2C2D35', borderWidth: 1, borderRadius: 15, color: '#F4F4F6', paddingHorizontal: 13, paddingVertical: 12, fontSize: 12, lineHeight: 18, textAlignVertical: 'top' },
+  postImagePreviewWrap: { marginTop: 10, borderRadius: 15, overflow: 'hidden', position: 'relative' },
+  postImagePreview: { width: '100%', height: 210, backgroundColor: '#17181E' },
+  removePostImage: { position: 'absolute', top: 9, right: 9, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(10,10,14,0.78)', alignItems: 'center', justifyContent: 'center' },
+  composerTools: { flexDirection: 'row', alignItems: 'center', marginTop: 9 },
+  composerToolButton: { minHeight: 36, borderRadius: 11, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#191522' },
+  composerToolText: { color: '#BCA4E8', fontSize: 9, fontWeight: '800' },
   composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 9 },
   postCounter: { color: '#5F616C', fontSize: 8 },
   composerSend: { minWidth: 94, minHeight: 39, borderRadius: 12, backgroundColor: '#6232B5', paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
@@ -949,6 +1045,7 @@ const baseStyles = StyleSheet.create({
   postAuthorInfo: { flex: 1, marginLeft: 11 },
   postDate: { color: '#666873', fontSize: 9, marginTop: 3 },
   postBody: { color: '#E8E8EC', fontSize: 12, lineHeight: 19, marginTop: 14 },
+  feedPostImage: { width: '100%', height: 260, borderRadius: 15, marginTop: 12, backgroundColor: '#17181E' },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 13, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#23242B' },
   socialAction: { minWidth: 44, height: 38, paddingHorizontal: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   socialActionActive: { backgroundColor: '#1D1728', borderWidth: 1, borderColor: '#302342' },
@@ -974,7 +1071,16 @@ const baseStyles = StyleSheet.create({
   commentDeleteText: { color: '#D88A8A', fontSize: 9, fontWeight: '700', marginTop: 6, alignSelf: 'flex-start' },
   noComments: { color: '#777983', fontSize: 10 },
   emptySmall: { color: '#8A8C96', paddingVertical: 15, fontSize: 10 },
-  membersSectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 29, marginBottom: 11 },
+  aboutPanel: { marginTop: 18, gap: 10 },
+  aboutCard: { borderRadius: 18, borderWidth: 1, borderColor: '#292A33', backgroundColor: '#111218', padding: 15 },
+  aboutIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#21172F', alignItems: 'center', justifyContent: 'center', marginBottom: 11 },
+  aboutTitle: { color: '#F0F0F3', fontSize: 12, fontWeight: '900' },
+  aboutBody: { color: '#9697A0', fontSize: 10, lineHeight: 17, marginTop: 7 },
+  currentBook: { color: '#DCCBFF', fontSize: 14, fontWeight: '900', marginTop: 7 },
+  tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tag: { borderRadius: 999, backgroundColor: '#1C1725', paddingHorizontal: 10, paddingVertical: 7 },
+  tagText: { color: '#BCA4E8', fontSize: 9, fontWeight: '800' },
+  membersSectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 22, marginBottom: 11 },
   membersSeeAll: { color: '#B58AF6', fontSize: 10, fontWeight: '900', paddingVertical: 8, paddingLeft: 12 },
   member: { flexDirection: 'row', alignItems: 'center', padding: 11, backgroundColor: '#111218', borderWidth: 1, borderColor: '#252630', borderRadius: 14, marginBottom: 7 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#24253A' },
