@@ -621,46 +621,31 @@ export default function CommunityScreen() {
           ) : <View style={styles.settingsPlaceholder} />}
         </View>
 
-        <View style={styles.hero}>
+        <View style={styles.communityIdentity}>
           {community.image_url ? (
-            <Image source={{ uri: community.image_url }} style={styles.cover} />
+            <Image source={{ uri: community.image_url }} style={styles.communityAvatar} />
           ) : (
-            <View style={[styles.cover, styles.mark]}>
-              <Text style={styles.markText}>{initial}</Text>
+            <View style={[styles.communityAvatar, styles.mark]}>
+              <Text style={styles.communityAvatarInitial}>{initial}</Text>
             </View>
           )}
-
-          <View style={styles.heroTitleRow}>
-            <View style={styles.heroTitleCopy}>
-              <Text style={styles.title}>{community.name}</Text>
-              <View style={styles.metaRow}>
-                <View style={styles.metaPill}>
-                  <Feather name="users" size={13} color={colors.primary} />
-                  <Text style={styles.count}>{memberCount} üye</Text>
-                </View>
-                {isAdmin ? (
-                  <View style={styles.adminPill}>
-                    <Feather name="shield" size={12} color="#CDBBFF" />
-                    <Text style={styles.adminPillText}>Yönetici</Text>
-                  </View>
-                ) : null}
-              </View>
+          <View style={styles.communityIdentityCopy}>
+            <View style={styles.communityNameRow}>
+              <Text style={styles.communityName} numberOfLines={1}>{community.name}</Text>
+              {isAdmin ? <Feather name="shield" size={14} color={colors.primary} /> : null}
             </View>
+            <Text style={styles.communityMeta}>
+              {memberCount} üye · {community.kind === 'book_club' ? 'Kitap kulübü' : 'Topluluk'}
+            </Text>
+            {community.description ? <Text style={styles.communityBlurb} numberOfLines={2}>{community.description}</Text> : null}
           </View>
-
-          {community.description ? <Text style={styles.description}>{community.description}</Text> : null}
-
           <Pressable
             disabled={membershipUpdating || !currentUserId || community.created_by === currentUserId}
             onPress={toggleMembership}
-            style={styles.cta}
+            style={[styles.joinButton, isMember && styles.joinButtonJoined]}
           >
-            <Text style={styles.ctaText}>
-              {membershipUpdating
-                ? 'Güncelleniyor...'
-                : isMember
-                  ? 'Topluluktan Ayrıl'
-                  : 'Topluluğa Katıl'}
+            <Text style={[styles.joinButtonText, isMember && styles.joinButtonTextJoined]}>
+              {membershipUpdating ? '...' : isMember ? 'Katıldın' : 'Katıl'}
             </Text>
           </Pressable>
         </View>
@@ -683,14 +668,8 @@ export default function CommunityScreen() {
 
         {activeTab === 'feed' ? <View style={styles.feed}>
           <View style={styles.feedHeading}>
-            <View>
-              <Text style={styles.feedEyebrow}>SOHBET & PAYLAŞIM</Text>
-              <Text style={styles.section}>Topluluk Akışı</Text>
-            </View>
-            <View style={styles.livePill}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>Akış</Text>
-            </View>
+            <Text style={styles.section}>Son paylaşımlar</Text>
+            <Text style={styles.feedHint}>Yeni → eski</Text>
           </View>
 
           {isMember ? (
@@ -699,10 +678,7 @@ export default function CommunityScreen() {
                 <View style={styles.composerIcon}>
                   <Feather name="edit-3" size={16} color={colors.primary} />
                 </View>
-                <View>
-                  <Text style={styles.composerTitle}>Topluluğa yaz</Text>
-                  <Text style={styles.composerSubtitle}>Fikrini, sorunu veya okuma notunu paylaş.</Text>
-                </View>
+                <Text style={styles.composerTitle}>Yeni paylaşım</Text>
               </View>
               <TextInput
                 value={postText}
@@ -821,7 +797,7 @@ export default function CommunityScreen() {
                             onChangeText={(text) =>
                               setCommentTexts((current) => ({ ...current, [post.id]: text }))
                             }
-                            placeholder="Yorum yaz..."
+                            placeholder="Konuşmaya katıl..."
                             placeholderTextColor="#777983"
                             multiline
                             style={styles.commentInput}
@@ -993,6 +969,18 @@ const baseStyles = StyleSheet.create({
   settingsButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: '#2B2C35', backgroundColor: '#111218', alignItems: 'center', justifyContent: 'center' },
   settingsPlaceholder: { width: 42 },
   back: { color: '#B58AF6', fontSize: 15, marginBottom: 14 },
+  communityIdentity: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#22232A' },
+  communityAvatar: { width: 54, height: 54, borderRadius: 18, backgroundColor: '#21172F' },
+  communityAvatarInitial: { color: '#DCCBFF', fontSize: 22, fontWeight: '900' },
+  communityIdentityCopy: { flex: 1, minWidth: 0 },
+  communityNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  communityName: { color: '#F5F5F7', fontSize: 16, fontWeight: '900', flexShrink: 1 },
+  communityMeta: { color: '#858792', fontSize: 9, fontWeight: '700', marginTop: 3 },
+  communityBlurb: { color: '#9B9CA5', fontSize: 9, lineHeight: 13, marginTop: 5 },
+  joinButton: { minWidth: 65, height: 36, borderRadius: 999, backgroundColor: '#6232B5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  joinButtonJoined: { backgroundColor: '#17181E', borderWidth: 1, borderColor: '#34353E' },
+  joinButtonText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
+  joinButtonTextJoined: { color: '#B6B7BF' },
   hero: { backgroundColor: '#111218', borderColor: '#302F3A', borderWidth: 1, borderRadius: 24, padding: 14, overflow: 'hidden' },
   cover: { width: '100%', height: 190, borderRadius: 18, backgroundColor: '#24253A' },
   mark: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#21172F' },
@@ -1013,19 +1001,20 @@ const baseStyles = StyleSheet.create({
   tabButtonActive: { backgroundColor: '#21172F' },
   tabText: { color: '#737580', fontSize: 9, fontWeight: '900' },
   tabTextActive: { color: '#D9C7FA' },
-  feed: { marginTop: 22 },
-  feedHeading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 },
+  feed: { marginTop: 16 },
+  feedHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 2 },
   feedEyebrow: { color: '#8065AD', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
-  section: { color: '#F2F2F5', fontSize: 20, fontWeight: '900', marginTop: 3 },
+  section: { color: '#F2F2F5', fontSize: 13, fontWeight: '900', marginTop: 3 },
+  feedHint: { color: '#666873', fontSize: 8, fontWeight: '700' },
   livePill: { minHeight: 28, borderRadius: 999, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#15161B', borderWidth: 1, borderColor: '#292A32' },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8D65D4' },
   liveText: { color: '#9697A0', fontSize: 8, fontWeight: '800' },
-  composerCard: { borderRadius: 20, borderWidth: 1, borderColor: '#2D2936', backgroundColor: '#111218', padding: 13 },
-  composerHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 11 },
-  composerIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#21172F', alignItems: 'center', justifyContent: 'center' },
+  composerCard: { borderRadius: 16, borderWidth: 1, borderColor: '#292A31', backgroundColor: '#101116', padding: 11, marginBottom: 7 },
+  composerHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 9 },
+  composerIcon: { width: 31, height: 31, borderRadius: 10, backgroundColor: '#21172F', alignItems: 'center', justifyContent: 'center' },
   composerTitle: { color: '#EDEDF0', fontSize: 11, fontWeight: '900' },
   composerSubtitle: { color: '#737580', fontSize: 8, marginTop: 2 },
-  postInput: { minHeight: 88, maxHeight: 180, backgroundColor: '#17181E', borderColor: '#2C2D35', borderWidth: 1, borderRadius: 15, color: '#F4F4F6', paddingHorizontal: 13, paddingVertical: 12, fontSize: 12, lineHeight: 18, textAlignVertical: 'top' },
+  postInput: { minHeight: 70, maxHeight: 180, backgroundColor: '#15161B', borderColor: '#292A31', borderWidth: 1, borderRadius: 13, color: '#F4F4F6', paddingHorizontal: 12, paddingVertical: 11, fontSize: 12, lineHeight: 18, textAlignVertical: 'top' },
   postImagePreviewWrap: { marginTop: 10, borderRadius: 15, overflow: 'hidden', position: 'relative' },
   postImagePreview: { width: '100%', height: 210, backgroundColor: '#17181E' },
   removePostImage: { position: 'absolute', top: 9, right: 9, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(10,10,14,0.78)', alignItems: 'center', justifyContent: 'center' },
@@ -1038,13 +1027,16 @@ const baseStyles = StyleSheet.create({
   composerSendDisabled: { opacity: 0.42 },
   composerSendText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
   postsLoader: { margin: 20 },
-  postCard: { backgroundColor: '#111218', borderColor: '#292A33', borderWidth: 1, borderRadius: 20, padding: 14, marginTop: 11 },
+  postCard: { backgroundColor: '#0E0F13', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#24252B', paddingVertical: 13, paddingHorizontal: 2, marginTop: 4 },
   postAuthorRow: { flexDirection: 'row', alignItems: 'center' },
-  postAuthorInfo: { flex: 1, marginLeft: 11 },
+  postAuthorInfo: { flex: 1, marginLeft: 10 },
+  moreButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   postDate: { color: '#666873', fontSize: 9, marginTop: 3 },
-  postBody: { color: '#E8E8EC', fontSize: 12, lineHeight: 19, marginTop: 14 },
-  feedPostImage: { width: '100%', height: 260, borderRadius: 15, marginTop: 12, backgroundColor: '#17181E' },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 13, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#23242B' },
+  postBody: { color: '#E8E8EC', fontSize: 13, lineHeight: 20, marginTop: 11 },
+  feedPostImage: { width: '100%', height: 280, borderRadius: 14, marginTop: 11, backgroundColor: '#17181E' },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  voteButton: { minWidth: 58, height: 36, borderRadius: 999, borderWidth: 1, borderColor: '#2C2D34', backgroundColor: '#15161B', paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  commentAction: { minHeight: 36, borderRadius: 999, borderWidth: 1, borderColor: '#2C2D34', backgroundColor: '#15161B', paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6 },
   socialAction: { minWidth: 44, height: 38, paddingHorizontal: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   socialActionActive: { backgroundColor: '#1D1728', borderWidth: 1, borderColor: '#302342' },
   socialCount: { color: '#777983', fontSize: 10, fontWeight: '800' },
@@ -1052,7 +1044,7 @@ const baseStyles = StyleSheet.create({
   loadMoreButton: { minHeight: 46, marginTop: 14, borderRadius: 14, borderWidth: 1, borderColor: '#302342', backgroundColor: '#1D1728', alignItems: 'center', justifyContent: 'center' },
   loadMoreText: { color: '#CDBBFF', fontSize: 11, fontWeight: '900' },
   endOfFeed: { color: '#686A74', fontSize: 9, textAlign: 'center', paddingVertical: 18 },
-  commentsBox: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#25262E', gap: 10 },
+  commentsBox: { marginTop: 12, paddingTop: 12, paddingLeft: 13, borderTopWidth: 1, borderTopColor: '#25262E', borderLeftWidth: 1, borderLeftColor: '#34353D', gap: 11 },
   commentLoader: { marginVertical: 10 },
   commentComposer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 4 },
   commentInput: { flex: 1, minHeight: 42, maxHeight: 100, backgroundColor: '#17181F', borderWidth: 1, borderColor: '#292A34', borderRadius: 13, paddingHorizontal: 12, paddingVertical: 10, color: '#F5F5F7', fontSize: 11 },
@@ -1063,7 +1055,7 @@ const baseStyles = StyleSheet.create({
   commentItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   commentAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#24253A' },
   commentAvatarText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
-  commentContent: { flex: 1, backgroundColor: '#17181F', borderRadius: 12, paddingHorizontal: 11, paddingVertical: 8 },
+  commentContent: { flex: 1, paddingHorizontal: 2, paddingVertical: 4 },
   commentUsername: { color: '#F5F5F7', fontSize: 10, fontWeight: '900', marginBottom: 3 },
   commentText: { color: '#C5C6CE', fontSize: 10, lineHeight: 16 },
   commentDeleteText: { color: '#D88A8A', fontSize: 9, fontWeight: '700', marginTop: 6, alignSelf: 'flex-start' },
