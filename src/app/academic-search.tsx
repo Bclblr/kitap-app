@@ -5,10 +5,11 @@ import {
   AcademicInstitutionSummary,
   AcademicJournalSummary,
   AcademicWork,
+  searchAcademicArticles,
   searchAcademicAuthors,
   searchAcademicInstitutions,
   searchAcademicJournals,
-  searchAcademicWorks,
+  searchAcademicTheses,
 } from '@/lib/academic';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
@@ -17,7 +18,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-type Tab = 'works' | 'authors' | 'journals' | 'institutions';
+type Tab = 'works' | 'theses' | 'authors' | 'journals' | 'institutions';
 
 export default function AcademicSearchScreen() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function AcademicSearchScreen() {
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<Tab>('works');
   const [works, setWorks] = useState<AcademicWork[]>([]);
+  const [theses, setTheses] = useState<AcademicWork[]>([]);
   const [authors, setAuthors] = useState<AcademicAuthorSummary[]>([]);
   const [journals, setJournals] = useState<AcademicJournalSummary[]>([]);
   const [institutions, setInstitutions] = useState<AcademicInstitutionSummary[]>([]);
@@ -41,8 +43,9 @@ export default function AcademicSearchScreen() {
     setLoading(true);
     setSearched(true);
     try {
-      const [workResult, authorResult, journalResult, institutionResult] = await Promise.allSettled([
-        searchAcademicWorks(clean, 24),
+      const [workResult, thesisResult, authorResult, journalResult, institutionResult] = await Promise.allSettled([
+        searchAcademicArticles(clean, 24),
+        searchAcademicTheses(clean, 24),
         searchAcademicAuthors(clean, 24),
         searchAcademicJournals(clean, 24),
         searchAcademicInstitutions(clean, 24),
@@ -50,11 +53,12 @@ export default function AcademicSearchScreen() {
       if (requestId !== requestRef.current) return;
 
       setWorks(workResult.status === 'fulfilled' ? workResult.value : []);
+      setTheses(thesisResult.status === 'fulfilled' ? thesisResult.value : []);
       setAuthors(authorResult.status === 'fulfilled' ? authorResult.value : []);
       setJournals(journalResult.status === 'fulfilled' ? journalResult.value : []);
       setInstitutions(institutionResult.status === 'fulfilled' ? institutionResult.value : []);
 
-      const failed = [workResult, authorResult, journalResult, institutionResult]
+      const failed = [workResult, thesisResult, authorResult, journalResult, institutionResult]
         .filter((result) => result.status === 'rejected');
       if (failed.length) {
         console.warn(`Akademik aramada ${failed.length} kaynak geçici olarak yanıt vermedi.`);
@@ -77,20 +81,22 @@ export default function AcademicSearchScreen() {
       setLoading(true);
       setSearched(true);
       void Promise.allSettled([
-        searchAcademicWorks(initial, 24, controller.signal),
+        searchAcademicArticles(initial, 24, controller.signal),
+        searchAcademicTheses(initial, 24, controller.signal),
         searchAcademicAuthors(initial, 24, controller.signal),
         searchAcademicJournals(initial, 24, controller.signal),
         searchAcademicInstitutions(initial, 24, controller.signal),
       ])
-        .then(([workResult, authorResult, journalResult, institutionResult]) => {
+        .then(([workResult, thesisResult, authorResult, journalResult, institutionResult]) => {
           if (!active || requestId !== requestRef.current) return;
 
           setWorks(workResult.status === 'fulfilled' ? workResult.value : []);
+          setTheses(thesisResult.status === 'fulfilled' ? thesisResult.value : []);
           setAuthors(authorResult.status === 'fulfilled' ? authorResult.value : []);
           setJournals(journalResult.status === 'fulfilled' ? journalResult.value : []);
           setInstitutions(institutionResult.status === 'fulfilled' ? institutionResult.value : []);
 
-          const failed = [workResult, authorResult, journalResult, institutionResult]
+          const failed = [workResult, thesisResult, authorResult, journalResult, institutionResult]
             .filter((result) => result.status === 'rejected' && (result.reason as Error)?.name !== 'AbortError');
           if (failed.length) {
             console.warn(`Akademik aramada ${failed.length} kaynak geçici olarak yanıt vermedi.`);
@@ -110,6 +116,7 @@ export default function AcademicSearchScreen() {
 
   const counts: Record<Tab, number> = {
     works: works.length,
+    theses: theses.length,
     authors: authors.length,
     journals: journals.length,
     institutions: institutions.length,
@@ -124,7 +131,7 @@ export default function AcademicSearchScreen() {
           </Pressable>
           <View style={styles.headerCopy}>
             <Text style={styles.title}>Akademik Keşif</Text>
-            <Text style={styles.subtitle}>Makaleler, akademisyenler, dergiler ve kurumlar</Text>
+            <Text style={styles.subtitle}>Makaleler, tezler, akademisyenler, dergiler ve kurumlar</Text>
           </View>
           <Pressable onPress={() => router.push('/academic-library' as any)} style={styles.iconButton}>
             <Feather name="bookmark" size={20} color={colors.primary} />
@@ -138,7 +145,7 @@ export default function AcademicSearchScreen() {
             onChangeText={setQuery}
             onSubmitEditing={() => void search()}
             returnKeyType="search"
-            placeholder="Konu, makale, akademisyen veya dergi ara"
+            placeholder="Konu, makale, tez, akademisyen veya dergi ara"
             placeholderTextColor={colors.textMuted}
             style={[styles.input, { color: colors.text }]}
           />
@@ -150,6 +157,7 @@ export default function AcademicSearchScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
           {([
             ['works', 'Makaleler'],
+            ['theses', 'Tezler'],
             ['authors', 'Akademisyenler'],
             ['journals', 'Dergiler'],
             ['institutions', 'Kurumlar'],
@@ -173,7 +181,7 @@ export default function AcademicSearchScreen() {
           <View style={styles.hero}>
             <View style={styles.heroIcon}><Feather name="book-open" size={28} color={colors.primary} /></View>
             <Text style={styles.heroTitle}>Kitapların ötesine geç</Text>
-            <Text style={styles.heroText}>OpenAlex ve Crossref verileriyle akademik yayınları, akademisyenleri ve dergileri keşfet.</Text>
+            <Text style={styles.heroText}>OpenAlex ve Crossref verileriyle makaleleri, tezleri, akademisyenleri ve dergileri keşfet.</Text>
           </View>
         ) : null}
 
@@ -181,6 +189,12 @@ export default function AcademicSearchScreen() {
           works.length ? works.map((work) => (
             <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })} />
           )) : <Text style={styles.empty}>Makale bulunamadı.</Text>
+        ) : null}
+
+        {!loading && searched && tab === 'theses' ? (
+          theses.length ? theses.map((work) => (
+            <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })} />
+          )) : <Text style={styles.empty}>Tez bulunamadı.</Text>
         ) : null}
 
         {!loading && searched && tab === 'authors' ? (
