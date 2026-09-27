@@ -193,7 +193,7 @@ export default function AcademicSearchScreen() {
 
         {!loading && searched && tab === 'theses' ? (
           theses.length ? theses.map((work) => (
-            <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })} />
+            <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id, kind: 'thesis' } })} />
           )) : <Text style={styles.empty}>Tez bulunamadı.</Text>
         ) : null}
 
