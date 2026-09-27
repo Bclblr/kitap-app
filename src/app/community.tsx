@@ -89,13 +89,11 @@ export default function CommunityScreen() {
   const [communityPostsLoading, setCommunityPostsLoading] = useState(false);
   const [communityPostsLoadingMore, setCommunityPostsLoadingMore] = useState(false);
   const [communityPostsHasMore, setCommunityPostsHasMore] = useState(true);
-  const [communityPostsOffset, setCommunityPostsOffset] = useState(0);
   const communityPostsLoadingRef = useRef(false);
   const communityPostsLoadingMoreRef = useRef(false);
   const communityPostsHasMoreRef = useRef(true);
   const communityPostsOffsetRef = useRef(0);
-  const activeCommunityIdRef = useRef<string | undefined>(communityId);
-  activeCommunityIdRef.current = communityId;
+  const communityPostsGenerationRef = useRef(0);
 
   const [postText, setPostText] = useState('');
   const [posting, setPosting] = useState(false);
@@ -256,6 +254,7 @@ export default function CommunityScreen() {
       if (!reset && !communityPostsHasMoreRef.current) return;
 
       const requestCommunityId = communityId;
+      const requestGeneration = communityPostsGenerationRef.current;
       if (reset) {
         communityPostsLoadingRef.current = true;
         setCommunityPostsLoading(true);
@@ -284,7 +283,7 @@ export default function CommunityScreen() {
 
         const rows = (data ?? []) as CommunityPostRow[];
         const enriched = await enrichCommunityPosts(rows, activeUserId);
-        if (activeCommunityIdRef.current !== requestCommunityId) return;
+        if (communityPostsGenerationRef.current !== requestGeneration) return;
 
         const hasMore = rows.length === COMMUNITY_POST_PAGE_SIZE;
         const nextOffset = offset + rows.length;
@@ -297,18 +296,16 @@ export default function CommunityScreen() {
         communityPostsHasMoreRef.current = hasMore;
         communityPostsOffsetRef.current = nextOffset;
         setCommunityPostsHasMore(hasMore);
-        setCommunityPostsOffset(nextOffset);
       } catch (error) {
         console.error('Community posts error:', error);
-        if (reset && activeCommunityIdRef.current === requestCommunityId) {
+        if (reset && communityPostsGenerationRef.current === requestGeneration) {
           communityPostsOffsetRef.current = 0;
           communityPostsHasMoreRef.current = true;
           setCommunityPosts([]);
-          setCommunityPostsOffset(0);
           setCommunityPostsHasMore(true);
         }
       } finally {
-        if (activeCommunityIdRef.current === requestCommunityId) {
+        if (communityPostsGenerationRef.current === requestGeneration) {
           if (reset) {
             communityPostsLoadingRef.current = false;
             setCommunityPostsLoading(false);
@@ -323,12 +320,12 @@ export default function CommunityScreen() {
   );
 
   useEffect(() => {
+    communityPostsGenerationRef.current += 1;
     communityPostsLoadingRef.current = false;
     communityPostsLoadingMoreRef.current = false;
     communityPostsOffsetRef.current = 0;
     communityPostsHasMoreRef.current = true;
     setCommunityPosts([]);
-    setCommunityPostsOffset(0);
     setCommunityPostsHasMore(true);
     setCommunityPostsLoading(false);
     setCommunityPostsLoadingMore(false);
@@ -514,7 +511,6 @@ export default function CommunityScreen() {
       setPostText('');
       communityPostsOffsetRef.current = 0;
       communityPostsHasMoreRef.current = true;
-      setCommunityPostsOffset(0);
       setCommunityPostsHasMore(true);
       await loadCommunityPosts(true);
     } catch (error) {
@@ -539,7 +535,6 @@ export default function CommunityScreen() {
 
       setCommunityPosts((items) => items.filter((item) => item.id !== post.id));
       communityPostsOffsetRef.current = Math.max(0, communityPostsOffsetRef.current - 1);
-      setCommunityPostsOffset(communityPostsOffsetRef.current);
     } catch (error) {
       console.error('Community post delete error:', error);
       Alert.alert('Hata', 'Paylaşım silinemedi.');
