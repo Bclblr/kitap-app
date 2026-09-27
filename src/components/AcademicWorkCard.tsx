@@ -1,6 +1,6 @@
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
-import { AcademicWork, academicAuthorLine } from '@/lib/academic';
+import { AcademicWork, academicAuthorLine, academicWorkTypeLabel, isAcademicThesis } from '@/lib/academic';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -13,13 +13,17 @@ type Props = {
 export default function AcademicWorkCard({ work, onPress, compact = false }: Props) {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
+  const thesis = isAcademicThesis(work);
 
   return (
     <Pressable onPress={onPress} style={[styles.card, compact && styles.compactCard]}>
       <View style={styles.iconWrap}>
-        <Feather name="file-text" size={18} color={colors.primary} />
+        <Feather name={thesis ? 'book-open' : 'file-text'} size={18} color={colors.primary} />
       </View>
       <View style={styles.copy}>
+        <View style={styles.typeRow}>
+          <Text style={styles.typeBadge}>{academicWorkTypeLabel(work)}</Text>
+        </View>
         <Text style={styles.title} numberOfLines={compact ? 2 : 3}>{work.title}</Text>
         <Text style={styles.authors} numberOfLines={2}>{academicAuthorLine(work)}</Text>
         <View style={styles.metaRow}>
@@ -60,6 +64,8 @@ const baseStyles = StyleSheet.create({
     borderColor: '#3B2B56',
   },
   copy: { flex: 1, minWidth: 0 },
+  typeRow: { flexDirection: 'row', marginBottom: 5 },
+  typeBadge: { color: '#BCA2F6', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
   title: { color: '#F2F2F5', fontSize: 14, fontWeight: '800', lineHeight: 20 },
   authors: { color: '#A4A5AE', fontSize: 11, lineHeight: 16, marginTop: 4 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginTop: 7 },
