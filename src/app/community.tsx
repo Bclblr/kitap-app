@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -90,6 +90,12 @@ export default function CommunityScreen() {
   const [communityPostsLoadingMore, setCommunityPostsLoadingMore] = useState(false);
   const [communityPostsHasMore, setCommunityPostsHasMore] = useState(true);
   const [communityPostsOffset, setCommunityPostsOffset] = useState(0);
+  const communityPostsLoadingRef = useRef(false);
+  const communityPostsLoadingMoreRef = useRef(false);
+  const communityPostsHasMoreRef = useRef(true);
+  const communityPostsOffsetRef = useRef(0);
+  const activeCommunityIdRef = useRef<string | undefined>(communityId);
+  activeCommunityIdRef.current = communityId;
 
   const [postText, setPostText] = useState('');
   const [posting, setPosting] = useState(false);
@@ -246,13 +252,19 @@ export default function CommunityScreen() {
   const loadCommunityPosts = useCallback(
     async (reset = true) => {
       if (!communityId) return;
-      if (reset ? communityPostsLoading : communityPostsLoadingMore) return;
-      if (!reset && !communityPostsHasMore) return;
+      if (reset ? communityPostsLoadingRef.current : communityPostsLoadingMoreRef.current) return;
+      if (!reset && !communityPostsHasMoreRef.current) return;
 
-      if (reset) setCommunityPostsLoading(true);
-      else setCommunityPostsLoadingMore(true);
+      const requestCommunityId = communityId;
+      if (reset) {
+        communityPostsLoadingRef.current = true;
+        setCommunityPostsLoading(true);
+      } else {
+        communityPostsLoadingMoreRef.current = true;
+        setCommunityPostsLoadingMore(true);
+      }
 
-      const offset = reset ? 0 : communityPostsOffset;
+      const offset = reset ? 0 : communityPostsOffsetRef.current;
 
       try {
         const {
@@ -263,7 +275,7 @@ export default function CommunityScreen() {
         const { data, error } = await supabase
           .from('community_posts')
           .select('id, community_id, user_id, text, created_at')
-          .eq('community_id', communityId)
+          .eq('community_id', requestCommunityId)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
           .range(offset, offset + COMMUNITY_POST_PAGE_SIZE - 1);
@@ -272,44 +284,55 @@ export default function CommunityScreen() {
 
         const rows = (data ?? []) as CommunityPostRow[];
         const enriched = await enrichCommunityPosts(rows, activeUserId);
+        if (activeCommunityIdRef.current !== requestCommunityId) return;
+
+        const hasMore = rows.length === COMMUNITY_POST_PAGE_SIZE;
+        const nextOffset = offset + rows.length;
 
         setCommunityPosts((current) => {
           if (reset) return enriched;
           const existingIds = new Set(current.map((item) => item.id));
           return [...current, ...enriched.filter((item) => !existingIds.has(item.id))];
         });
-        setCommunityPostsHasMore(rows.length === COMMUNITY_POST_PAGE_SIZE);
-        setCommunityPostsOffset(offset + rows.length);
+        communityPostsHasMoreRef.current = hasMore;
+        communityPostsOffsetRef.current = nextOffset;
+        setCommunityPostsHasMore(hasMore);
+        setCommunityPostsOffset(nextOffset);
       } catch (error) {
         console.error('Community posts error:', error);
-        if (reset) {
+        if (reset && activeCommunityIdRef.current === requestCommunityId) {
+          communityPostsOffsetRef.current = 0;
+          communityPostsHasMoreRef.current = true;
           setCommunityPosts([]);
           setCommunityPostsOffset(0);
           setCommunityPostsHasMore(true);
         }
       } finally {
-        if (reset) setCommunityPostsLoading(false);
-        else setCommunityPostsLoadingMore(false);
+        if (activeCommunityIdRef.current === requestCommunityId) {
+          if (reset) {
+            communityPostsLoadingRef.current = false;
+            setCommunityPostsLoading(false);
+          } else {
+            communityPostsLoadingMoreRef.current = false;
+            setCommunityPostsLoadingMore(false);
+          }
+        }
       }
     },
-    [
-      communityId,
-      communityPostsHasMore,
-      communityPostsLoading,
-      communityPostsLoadingMore,
-      communityPostsOffset,
-      enrichCommunityPosts,
-    ],
+    [communityId, enrichCommunityPosts],
   );
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setCommunityPosts([]);
-      setCommunityPostsOffset(0);
-      setCommunityPostsHasMore(true);
-      void loadCommunityPosts(true);
-    }, 0);
-    return () => clearTimeout(timer);
+    communityPostsLoadingRef.current = false;
+    communityPostsLoadingMoreRef.current = false;
+    communityPostsOffsetRef.current = 0;
+    communityPostsHasMoreRef.current = true;
+    setCommunityPosts([]);
+    setCommunityPostsOffset(0);
+    setCommunityPostsHasMore(true);
+    setCommunityPostsLoading(false);
+    setCommunityPostsLoadingMore(false);
+    void loadCommunityPosts(true);
   }, [communityId, loadCommunityPosts]);
 
   async function toggleCommunityPostLike(post: CommunityPost) {
@@ -489,6 +512,8 @@ export default function CommunityScreen() {
       if (error) throw error;
 
       setPostText('');
+      communityPostsOffsetRef.current = 0;
+      communityPostsHasMoreRef.current = true;
       setCommunityPostsOffset(0);
       setCommunityPostsHasMore(true);
       await loadCommunityPosts(true);
@@ -513,7 +538,8 @@ export default function CommunityScreen() {
       if (error) throw error;
 
       setCommunityPosts((items) => items.filter((item) => item.id !== post.id));
-      setCommunityPostsOffset((offset) => Math.max(0, offset - 1));
+      communityPostsOffsetRef.current = Math.max(0, communityPostsOffsetRef.current - 1);
+      setCommunityPostsOffset(communityPostsOffsetRef.current);
     } catch (error) {
       console.error('Community post delete error:', error);
       Alert.alert('Hata', 'Paylaşım silinemedi.');
