@@ -18,6 +18,7 @@ import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { getRuntimeControls, hasActiveRestriction, settingBoolean } from '@/lib/runtime-controls';
 import { requirePermanentImage } from '@/lib/image-policy';
+import { pickCommunityImage } from '@/lib/upload-community-image';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 
@@ -53,6 +54,7 @@ export default function CommunityEditor() {
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -101,6 +103,20 @@ export default function CommunityEditor() {
       alive = false;
     };
   }, [id]);
+
+  async function chooseImage() {
+    if (imageBusy) return;
+    setImageBusy(true);
+    setError('');
+    try {
+      const url = await pickCommunityImage('cover');
+      if (url) setForm((current) => ({ ...current, image_url: url }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Görsel seçilemedi.');
+    } finally {
+      setImageBusy(false);
+    }
+  }
 
   async function save() {
     if (lock.current || !ready || !form.name.trim()) return;
@@ -264,20 +280,24 @@ export default function CommunityEditor() {
               />
               <Text style={styles.counter}>{form.description.length}/500</Text>
 
-              <Text style={styles.label}>Kapak / profil görseli</Text>
-              <View style={styles.iconInput}>
-                <Feather name="image" size={17} color={colors.textMuted} />
-                <TextInput
-                  value={form.image_url}
-                  onChangeText={(image_url) => setForm((current) => ({ ...current, image_url }))}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                  placeholder="https://..."
-                  placeholderTextColor={colors.textMuted}
-                  style={styles.iconInputField}
-                />
+              <Text style={styles.label}>Kapak görseli</Text>
+              <View style={styles.mediaPicker}>
+                <View style={styles.mediaPickerIcon}>
+                  <Feather name="image" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.mediaPickerCopy}>
+                  <Text style={styles.mediaPickerTitle}>{form.image_url ? 'Kapak hazır' : 'Galeriden kapak seç'}</Text>
+                  <Text style={styles.mediaPickerText}>Görseli uygulama otomatik olarak optimize edip yükler.</Text>
+                </View>
+                <Pressable disabled={imageBusy} onPress={() => void chooseImage()} style={styles.mediaPickerButton}>
+                  {imageBusy ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.mediaPickerButtonText}>{form.image_url ? 'Değiştir' : 'Seç'}</Text>}
+                </Pressable>
               </View>
+              {form.image_url ? (
+                <Pressable onPress={() => setForm((current) => ({ ...current, image_url: '' }))}>
+                  <Text style={styles.removeImage}>Kapak görselini kaldır</Text>
+                </Pressable>
+              ) : null}
             </View>
 
             <View style={styles.sectionCard}>
@@ -435,6 +455,14 @@ const baseStyles = StyleSheet.create({
   counter: { color: '#666873', fontSize: 8, textAlign: 'right', marginTop: 5 },
   iconInput: { minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: '#30313A', backgroundColor: '#17181E', paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9 },
   iconInputField: { flex: 1, minHeight: 46, color: '#F3F3F5', fontSize: 12 },
+  mediaPicker: { minHeight: 72, borderRadius: 15, borderWidth: 1, borderColor: '#30313A', backgroundColor: '#17181E', padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  mediaPickerIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: '#21172F', alignItems: 'center', justifyContent: 'center' },
+  mediaPickerCopy: { flex: 1 },
+  mediaPickerTitle: { color: '#E8E8EC', fontSize: 10, fontWeight: '900' },
+  mediaPickerText: { color: '#71737D', fontSize: 8, lineHeight: 12, marginTop: 3 },
+  mediaPickerButton: { minWidth: 62, height: 36, borderRadius: 11, backgroundColor: '#6232B5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  mediaPickerButtonText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
+  removeImage: { color: '#B98C96', fontSize: 9, fontWeight: '800', marginTop: 8, alignSelf: 'flex-start' },
   choiceRow: { flexDirection: 'row', gap: 9 },
   choice: { flex: 1, minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: '#30313A', backgroundColor: '#17181E', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   choiceSelected: { borderColor: '#6945A9', backgroundColor: '#1E1628' },
