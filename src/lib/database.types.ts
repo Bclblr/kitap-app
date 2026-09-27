@@ -916,6 +916,7 @@ export type Database = {
           community_id: string
           created_at: string
           id: string
+          image_url: string | null
           text: string
           user_id: string
         }
@@ -923,6 +924,7 @@ export type Database = {
           community_id: string
           created_at?: string
           id?: string
+          image_url?: string | null
           text: string
           user_id: string
         }
@@ -930,6 +932,7 @@ export type Database = {
           community_id?: string
           created_at?: string
           id?: string
+          image_url?: string | null
           text?: string
           user_id?: string
         }
@@ -2902,34 +2905,162 @@ export type Database = {
         ]
       }
       work_comments: {
-        Row: { created_at: string; id: string; text: string; user_id: string; work_id: string }
-        Insert: { created_at?: string; id?: string; text: string; user_id: string; work_id: string }
-        Update: { created_at?: string; id?: string; text?: string; user_id?: string; work_id?: string }
-        Relationships: []
+        Row: {
+          created_at: string
+          id: string
+          text: string
+          user_id: string
+          work_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          text: string
+          user_id: string
+          work_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          text?: string
+          user_id?: string
+          work_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_comments_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "works"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       work_ratings: {
-        Row: { created_at: string; rating: number; updated_at: string; user_id: string; work_id: string }
-        Insert: { created_at?: string; rating: number; updated_at?: string; user_id: string; work_id: string }
-        Update: { created_at?: string; rating?: number; updated_at?: string; user_id?: string; work_id?: string }
-        Relationships: []
+        Row: {
+          created_at: string
+          rating: number
+          updated_at: string
+          user_id: string
+          work_id: string
+        }
+        Insert: {
+          created_at?: string
+          rating: number
+          updated_at?: string
+          user_id: string
+          work_id: string
+        }
+        Update: {
+          created_at?: string
+          rating?: number
+          updated_at?: string
+          user_id?: string
+          work_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_ratings_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "works"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       work_readers: {
-        Row: { last_chapter_id: string | null; last_read_at: string; progress_percent: number; started_at: string; user_id: string; work_id: string }
-        Insert: { last_chapter_id?: string | null; last_read_at?: string; progress_percent?: number; started_at?: string; user_id: string; work_id: string }
-        Update: { last_chapter_id?: string | null; last_read_at?: string; progress_percent?: number; started_at?: string; user_id?: string; work_id?: string }
-        Relationships: []
+        Row: {
+          last_chapter_id: string | null
+          last_read_at: string
+          progress_percent: number
+          started_at: string
+          user_id: string
+          work_id: string
+        }
+        Insert: {
+          last_chapter_id?: string | null
+          last_read_at?: string
+          progress_percent?: number
+          started_at?: string
+          user_id: string
+          work_id: string
+        }
+        Update: {
+          last_chapter_id?: string | null
+          last_read_at?: string
+          progress_percent?: number
+          started_at?: string
+          user_id?: string
+          work_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_readers_last_chapter_id_fkey"
+            columns: ["last_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "work_chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_readers_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "works"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       work_stars: {
-        Row: { created_at: string; user_id: string; work_id: string }
-        Insert: { created_at?: string; user_id: string; work_id: string }
-        Update: { created_at?: string; user_id?: string; work_id?: string }
-        Relationships: []
+        Row: {
+          created_at: string
+          user_id: string
+          work_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+          work_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+          work_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_stars_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "works"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       work_views: {
-        Row: { user_id: string; viewed_at: string; work_id: string }
-        Insert: { user_id: string; viewed_at?: string; work_id: string }
-        Update: { user_id?: string; viewed_at?: string; work_id?: string }
-        Relationships: []
+        Row: {
+          user_id: string
+          viewed_at: string
+          work_id: string
+        }
+        Insert: {
+          user_id: string
+          viewed_at?: string
+          work_id: string
+        }
+        Update: {
+          user_id?: string
+          viewed_at?: string
+          work_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_views_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "works"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       works: {
         Row: {
