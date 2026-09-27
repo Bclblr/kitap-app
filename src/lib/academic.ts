@@ -308,8 +308,11 @@ export function searchAcademicArticles(query: string, limit = 20, signal?: Abort
   return searchAcademicWorksByType(query, 'article', limit, signal);
 }
 
-export function searchAcademicTheses(query: string, limit = 20, signal?: AbortSignal) {
-  return searchAcademicWorksByType(query, 'dissertation', limit, signal);
+export async function searchAcademicTheses(query: string, limit = 20, signal?: AbortSignal) {
+  const works = await searchAcademicWorksByType(query, 'dissertation', limit, signal);
+  // Results requested through the dedicated thesis filter must stay thesis-labelled
+  // even when upstream metadata uses a missing or inconsistent work type.
+  return works.map((work) => ({ ...work, type: 'dissertation' }));
 }
 
 export function isAcademicThesis(work: Pick<AcademicWork, 'type'>) {
