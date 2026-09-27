@@ -135,8 +135,8 @@ export default function AcademicLibraryScreen() {
 
         {loading ? <View style={styles.loading}><ActivityIndicator color={colors.primary} /></View> : null}
 
-        {!loading && tab === 'saved' ? (saved.length ? saved.map(renderWork) : <Text style={styles.empty}>Henüz kaydedilmiş makale yok.</Text>) : null}
-        {!loading && (tab === 'want' || tab === 'reading' || tab === 'read') ? (statusRows.length ? statusRows.map(renderWork) : <Text style={styles.empty}>Bu rafta henüz makale yok.</Text>) : null}
+        {!loading && tab === 'saved' ? (saved.length ? saved.map(renderWork) : <Text style={styles.empty}>Henüz kaydedilmiş akademik çalışma yok.</Text>) : null}
+        {!loading && (tab === 'want' || tab === 'reading' || tab === 'read') ? (statusRows.length ? statusRows.map(renderWork) : <Text style={styles.empty}>Bu rafta henüz akademik çalışma yok.</Text>) : null}
         {!loading && tab === 'following' ? (
           following.length ? following.map((item) => (
             <Pressable key={`${item.entity_type}:${item.entity_openalex_id}`} onPress={() => openEntity(item)} style={styles.card}>
