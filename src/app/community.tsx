@@ -1,6 +1,5 @@
 import { safeBack } from '@/lib/navigation';
 import Image from '@/components/SafeImage';
-import { Action } from '@/components/ReaderUI';
 import { readerDate } from '@/lib/reader-date';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -578,9 +577,24 @@ export default function CommunityScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Pressable onPress={goBack} accessibilityRole="button" accessibilityLabel="Geri dön">
-          <Text style={styles.back}>‹ Geri</Text>
-        </Pressable>
+        <View style={styles.topBar}>
+          <Pressable onPress={goBack} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Geri dön">
+            <Feather name="chevron-left" size={22} color={colors.textPrimary} />
+          </Pressable>
+          <View style={styles.topBarCopy}>
+            <Text style={styles.topEyebrow}>TOPLULUK</Text>
+            <Text style={styles.topTitle} numberOfLines={1}>{community.name}</Text>
+          </View>
+          {isAdmin ? (
+            <Pressable
+              onPress={() => router.push({ pathname: '/community-editor', params: { id: communityId } })}
+              style={styles.settingsButton}
+              accessibilityLabel="Topluluğu düzenle"
+            >
+              <Feather name="settings" size={18} color={colors.textSecondary} />
+            </Pressable>
+          ) : <View style={styles.settingsPlaceholder} />}
+        </View>
 
         <View style={styles.hero}>
           {community.image_url ? (
@@ -591,14 +605,23 @@ export default function CommunityScreen() {
             </View>
           )}
 
-          <Text style={styles.title}>{community.name}</Text>
-          <Text style={styles.count}>{memberCount} üye</Text>
-          {isAdmin ? (
-            <Action
-              label="Topluluğu düzenle"
-              onPress={() => router.push({ pathname: '/community-editor', params: { id: communityId } })}
-            />
-          ) : null}
+          <View style={styles.heroTitleRow}>
+            <View style={styles.heroTitleCopy}>
+              <Text style={styles.title}>{community.name}</Text>
+              <View style={styles.metaRow}>
+                <View style={styles.metaPill}>
+                  <Feather name="users" size={13} color={colors.primary} />
+                  <Text style={styles.count}>{memberCount} üye</Text>
+                </View>
+                {isAdmin ? (
+                  <View style={styles.adminPill}>
+                    <Feather name="shield" size={12} color="#CDBBFF" />
+                    <Text style={styles.adminPillText}>Yönetici</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </View>
 
           {community.description ? <Text style={styles.description}>{community.description}</Text> : null}
 
@@ -618,22 +641,49 @@ export default function CommunityScreen() {
         </View>
 
         <View style={styles.feed}>
-          <Text style={styles.section}>Topluluk Akışı</Text>
+          <View style={styles.feedHeading}>
+            <View>
+              <Text style={styles.feedEyebrow}>SOHBET & PAYLAŞIM</Text>
+              <Text style={styles.section}>Topluluk Akışı</Text>
+            </View>
+            <View style={styles.livePill}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>Akış</Text>
+            </View>
+          </View>
 
           {isMember ? (
-            <>
+            <View style={styles.composerCard}>
+              <View style={styles.composerHeader}>
+                <View style={styles.composerIcon}>
+                  <Feather name="edit-3" size={16} color={colors.primary} />
+                </View>
+                <View>
+                  <Text style={styles.composerTitle}>Topluluğa yaz</Text>
+                  <Text style={styles.composerSubtitle}>Fikrini, sorunu veya okuma notunu paylaş.</Text>
+                </View>
+              </View>
               <TextInput
                 value={postText}
                 onChangeText={setPostText}
-                placeholder="Topluluğa bir şey yaz..."
+                placeholder="Ne düşünüyorsun?"
                 placeholderTextColor="#777983"
                 multiline
+                maxLength={2000}
                 style={styles.postInput}
               />
-              <Pressable disabled={posting} onPress={createCommunityPost} style={styles.cta}>
-                <Text style={styles.ctaText}>{posting ? 'Paylaşılıyor...' : 'Paylaş'}</Text>
-              </Pressable>
-            </>
+              <View style={styles.composerFooter}>
+                <Text style={styles.postCounter}>{postText.length}/2000</Text>
+                <Pressable
+                  disabled={posting || !postText.trim()}
+                  onPress={createCommunityPost}
+                  style={[styles.composerSend, (posting || !postText.trim()) && styles.composerSendDisabled]}
+                >
+                  {posting ? <ActivityIndicator size="small" color="#FFF" /> : <Feather name="send" size={15} color="#FFF" />}
+                  <Text style={styles.composerSendText}>{posting ? 'Paylaşılıyor' : 'Paylaş'}</Text>
+                </Pressable>
+              </View>
+            </View>
           ) : (
             <Text style={styles.emptySmall}>Paylaşım yapmak için topluluğa katıl.</Text>
           )}
@@ -805,7 +855,10 @@ export default function CommunityScreen() {
         </View>
 
         <View style={styles.membersSectionHeader}>
-          <Text style={styles.section}>Üyeler</Text>
+          <View>
+            <Text style={styles.feedEyebrow}>TOPLULUK</Text>
+            <Text style={styles.section}>Üyeler</Text>
+          </View>
           {memberCount > 0 ? (
             <Pressable
               onPress={() => router.push({ pathname: '/community-members', params: { id: communityId } })}
@@ -847,204 +900,87 @@ export default function CommunityScreen() {
 
 const baseStyles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#08090D' },
-  content: { padding: 18, paddingBottom: 50 },
+  content: { width: '100%', maxWidth: 780, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 70 },
   loader: { marginTop: 80 },
+  topBar: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 12 },
+  backButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: '#2B2C35', backgroundColor: '#111218', alignItems: 'center', justifyContent: 'center' },
+  topBarCopy: { flex: 1, minWidth: 0 },
+  topEyebrow: { color: '#8F72C3', fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
+  topTitle: { color: '#F1F1F4', fontSize: 14, fontWeight: '900', marginTop: 2 },
+  settingsButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: '#2B2C35', backgroundColor: '#111218', alignItems: 'center', justifyContent: 'center' },
+  settingsPlaceholder: { width: 42 },
   back: { color: '#B58AF6', fontSize: 15, marginBottom: 14 },
-  hero: {
-    backgroundColor: '#111218',
-    borderColor: '#302F4A',
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 18,
-  },
-  cover: {
-    width: '100%',
-    height: 130,
-    borderRadius: 14,
-    backgroundColor: '#24253A',
-  },
-  mark: { justifyContent: 'center', alignItems: 'center' },
-  markText: { color: '#D5D7FF', fontSize: 48, fontWeight: '900' },
-  title: { color: '#F7F7F9', fontSize: 24, fontWeight: '900', marginTop: 15 },
-  count: { color: '#B58AF6', marginTop: 5 },
-  description: { color: '#9A9CA7', marginTop: 10, lineHeight: 19 },
-  cta: {
-    backgroundColor: '#8058D9',
-    borderRadius: 13,
-    padding: 13,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  ctaText: { color: '#FFF', fontWeight: '800' },
-  feed: { marginTop: 4 },
-  section: {
-    color: '#F2F2F5',
-    fontSize: 18,
-    fontWeight: '800',
-    marginTop: 22,
-    marginBottom: 8,
-  },
-  postInput: {
-    minHeight: 80,
-    backgroundColor: '#111218',
-    borderColor: '#302F4A',
-    borderWidth: 1,
-    borderRadius: 14,
-    color: '#F4F4F6',
-    padding: 12,
-    textAlignVertical: 'top',
-  },
+  hero: { backgroundColor: '#111218', borderColor: '#302F3A', borderWidth: 1, borderRadius: 24, padding: 14, overflow: 'hidden' },
+  cover: { width: '100%', height: 190, borderRadius: 18, backgroundColor: '#24253A' },
+  mark: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#21172F' },
+  markText: { color: '#D5C4FA', fontSize: 58, fontWeight: '900' },
+  heroTitleRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 15 },
+  heroTitleCopy: { flex: 1 },
+  title: { color: '#F7F7F9', fontSize: 25, lineHeight: 31, fontWeight: '900' },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
+  metaPill: { minHeight: 29, borderRadius: 999, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1C1725' },
+  count: { color: '#BCA4E8', fontSize: 9, fontWeight: '800' },
+  adminPill: { minHeight: 29, borderRadius: 999, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#21172F' },
+  adminPillText: { color: '#CDBBFF', fontSize: 9, fontWeight: '800' },
+  description: { color: '#A2A3AC', marginTop: 13, lineHeight: 19, fontSize: 11 },
+  cta: { backgroundColor: '#6232B5', borderRadius: 14, minHeight: 47, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center', marginTop: 15 },
+  ctaText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
+  feed: { marginTop: 25 },
+  feedHeading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 },
+  feedEyebrow: { color: '#8065AD', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  section: { color: '#F2F2F5', fontSize: 20, fontWeight: '900', marginTop: 3 },
+  livePill: { minHeight: 28, borderRadius: 999, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#15161B', borderWidth: 1, borderColor: '#292A32' },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8D65D4' },
+  liveText: { color: '#9697A0', fontSize: 8, fontWeight: '800' },
+  composerCard: { borderRadius: 20, borderWidth: 1, borderColor: '#2D2936', backgroundColor: '#111218', padding: 13 },
+  composerHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 11 },
+  composerIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#21172F', alignItems: 'center', justifyContent: 'center' },
+  composerTitle: { color: '#EDEDF0', fontSize: 11, fontWeight: '900' },
+  composerSubtitle: { color: '#737580', fontSize: 8, marginTop: 2 },
+  postInput: { minHeight: 88, maxHeight: 180, backgroundColor: '#17181E', borderColor: '#2C2D35', borderWidth: 1, borderRadius: 15, color: '#F4F4F6', paddingHorizontal: 13, paddingVertical: 12, fontSize: 12, lineHeight: 18, textAlignVertical: 'top' },
+  composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 9 },
+  postCounter: { color: '#5F616C', fontSize: 8 },
+  composerSend: { minWidth: 94, minHeight: 39, borderRadius: 12, backgroundColor: '#6232B5', paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  composerSendDisabled: { opacity: 0.42 },
+  composerSendText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
   postsLoader: { margin: 20 },
-  postCard: {
-    backgroundColor: '#111218',
-    borderColor: '#2D2E37',
-    borderWidth: 1,
-    borderRadius: 15,
-    padding: 13,
-    marginTop: 10,
-  },
+  postCard: { backgroundColor: '#111218', borderColor: '#292A33', borderWidth: 1, borderRadius: 20, padding: 14, marginTop: 11 },
   postAuthorRow: { flexDirection: 'row', alignItems: 'center' },
-  postAuthorInfo: { flex: 1, marginLeft: 12 },
-  postDate: { color: '#777983', fontSize: 10, marginTop: 4 },
-  postBody: { color: '#F4F4F6', fontSize: 14, lineHeight: 20, marginTop: 14 },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#25262E',
-  },
-  socialAction: {
-    minWidth: 46,
-    height: 38,
-    paddingHorizontal: 10,
-    borderRadius: 13,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-  },
-  socialActionActive: {
-    backgroundColor: '#1D1728',
-    borderWidth: 1,
-    borderColor: '#302342',
-  },
-  socialCount: { color: '#777983', fontSize: 11, fontWeight: '700' },
+  postAuthorInfo: { flex: 1, marginLeft: 11 },
+  postDate: { color: '#666873', fontSize: 9, marginTop: 3 },
+  postBody: { color: '#E8E8EC', fontSize: 12, lineHeight: 19, marginTop: 14 },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 13, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#23242B' },
+  socialAction: { minWidth: 44, height: 38, paddingHorizontal: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  socialActionActive: { backgroundColor: '#1D1728', borderWidth: 1, borderColor: '#302342' },
+  socialCount: { color: '#777983', fontSize: 10, fontWeight: '800' },
   likedText: { color: '#9B72F2' },
-  loadMoreButton: {
-    minHeight: 46,
-    marginTop: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#302342',
-    backgroundColor: '#1D1728',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadMoreText: { color: '#CDBBFF', fontSize: 13, fontWeight: '800' },
-  endOfFeed: { color: '#777983', fontSize: 12, textAlign: 'center', paddingVertical: 16 },
-  commentsBox: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#25262E',
-    gap: 12,
-  },
+  loadMoreButton: { minHeight: 46, marginTop: 14, borderRadius: 14, borderWidth: 1, borderColor: '#302342', backgroundColor: '#1D1728', alignItems: 'center', justifyContent: 'center' },
+  loadMoreText: { color: '#CDBBFF', fontSize: 11, fontWeight: '900' },
+  endOfFeed: { color: '#686A74', fontSize: 9, textAlign: 'center', paddingVertical: 18 },
+  commentsBox: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#25262E', gap: 10 },
   commentLoader: { marginVertical: 10 },
-  commentComposer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    marginBottom: 4,
-  },
-  commentInput: {
-    flex: 1,
-    minHeight: 42,
-    maxHeight: 100,
-    backgroundColor: '#17181F',
-    borderWidth: 1,
-    borderColor: '#292A34',
-    borderRadius: 13,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#F5F5F7',
-    fontSize: 14,
-  },
-  commentSendButton: {
-    minHeight: 42,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#8058D9',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-  },
+  commentComposer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 4 },
+  commentInput: { flex: 1, minHeight: 42, maxHeight: 100, backgroundColor: '#17181F', borderWidth: 1, borderColor: '#292A34', borderRadius: 13, paddingHorizontal: 12, paddingVertical: 10, color: '#F5F5F7', fontSize: 11 },
+  commentSendButton: { minHeight: 42, justifyContent: 'center', alignItems: 'center', backgroundColor: '#6232B5', borderRadius: 12, paddingHorizontal: 14 },
   commentSendButtonDisabled: { opacity: 0.45 },
-  commentSendText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  commentMemberNotice: { color: '#777983', fontSize: 12, marginBottom: 4 },
+  commentSendText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
+  commentMemberNotice: { color: '#777983', fontSize: 10, marginBottom: 4 },
   commentItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  commentAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#24253A',
-  },
-  commentAvatarText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  commentContent: {
-    flex: 1,
-    backgroundColor: '#17181F',
-    borderRadius: 12,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  commentUsername: { color: '#F5F5F7', fontSize: 13, fontWeight: '800', marginBottom: 3 },
-  commentText: { color: '#C5C6CE', fontSize: 13, lineHeight: 18 },
-  commentDeleteText: {
-    color: '#D88A8A',
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 6,
-    alignSelf: 'flex-start',
-  },
-  noComments: { color: '#777983', fontSize: 13 },
-  emptySmall: { color: '#8A8C96', paddingVertical: 15 },
-  membersSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 22,
-    marginBottom: 10,
-  },
-  membersSeeAll: {
-    color: '#B58AF6',
-    fontSize: 13,
-    fontWeight: '800',
-    paddingVertical: 8,
-    paddingLeft: 12,
-  },
-  member: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#111218',
-    borderBottomWidth: 1,
-    borderBottomColor: '#252630',
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#24253A',
-  },
-  avatarMark: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#7F8FEF',
-  },
+  commentAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#24253A' },
+  commentAvatarText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  commentContent: { flex: 1, backgroundColor: '#17181F', borderRadius: 12, paddingHorizontal: 11, paddingVertical: 8 },
+  commentUsername: { color: '#F5F5F7', fontSize: 10, fontWeight: '900', marginBottom: 3 },
+  commentText: { color: '#C5C6CE', fontSize: 10, lineHeight: 16 },
+  commentDeleteText: { color: '#D88A8A', fontSize: 9, fontWeight: '700', marginTop: 6, alignSelf: 'flex-start' },
+  noComments: { color: '#777983', fontSize: 10 },
+  emptySmall: { color: '#8A8C96', paddingVertical: 15, fontSize: 10 },
+  membersSectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 29, marginBottom: 11 },
+  membersSeeAll: { color: '#B58AF6', fontSize: 10, fontWeight: '900', paddingVertical: 8, paddingLeft: 12 },
+  member: { flexDirection: 'row', alignItems: 'center', padding: 11, backgroundColor: '#111218', borderWidth: 1, borderColor: '#252630', borderRadius: 14, marginBottom: 7 },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#24253A' },
+  avatarMark: { justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#6C4CA4' },
   avatarText: { color: '#D5D7FF', fontWeight: '800' },
-  memberName: { color: '#F4F4F6', flex: 1 },
-  arrow: { color: '#B58AF6', fontSize: 22 },
+  memberName: { color: '#F4F4F6', flex: 1, fontSize: 11, fontWeight: '800' },
+  arrow: { color: '#8C6AC8', fontSize: 20 },
   empty: { color: '#8A8C96', textAlign: 'center', marginTop: 60 },
 });
