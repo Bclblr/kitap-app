@@ -4,6 +4,7 @@ import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import Image from '@/components/SafeImage';
 import type { HouseAdCampaign } from '@/lib/house-ads';
+import { usePremium } from '@/providers/PremiumProvider';
 
 function AdVideo({ uri, variant }: { uri: string; variant: 'banner' | 'feed' }) {
   const player = useVideoPlayer(
@@ -30,10 +31,13 @@ function AdVideo({ uri, variant }: { uri: string; variant: 'banner' | 'feed' }) 
 export default function HouseAd({
   ad,
   variant,
+  ignorePremium = false,
 }: {
   ad: HouseAdCampaign;
   variant: 'banner' | 'feed';
+  ignorePremium?: boolean;
 }) {
+  const premium = usePremium();
   async function openTarget() {
     try {
       const supported = await Linking.canOpenURL(ad.target_url);
@@ -42,6 +46,8 @@ export default function HouseAd({
       console.warn('Reklam bağlantısı açılamadı:', error);
     }
   }
+
+  if (!ignorePremium && (!premium.ready || premium.isPremium)) return null;
 
   if (variant === 'banner') {
     return (
