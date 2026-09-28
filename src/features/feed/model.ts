@@ -34,6 +34,10 @@ export type FeedReview = BookCoverData & {
   reposts?: number;
   reposted?: boolean;
   view_count?: number;
+  contentKind?: 'book' | 'academic';
+  academicWorkId?: string | null;
+  academicWorkType?: string | null;
+  academicAuthorSummary?: string | null;
 };
 
 export type FeedPost = BookCoverData & {
@@ -69,6 +73,10 @@ export type FeedPost = BookCoverData & {
   reviewTags?: string[];
   containsSpoiler?: boolean;
   view_count?: number;
+  contentKind?: 'book' | 'academic';
+  academicWorkId?: string | null;
+  academicWorkType?: string | null;
+  academicAuthorSummary?: string | null;
 };
 
 export type FeedProfile = {
