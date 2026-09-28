@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import BookCover from '@/components/BookCover';
 import { existingBookCover, openLibraryUrl } from '@/lib/open-library-cover';
+import { getOpenLibraryRecord } from '@/lib/open-library-api';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 
@@ -160,9 +161,8 @@ export default function PersonalizedBookSuggestions({ limit = 8 }: { limit?: num
               const url = openLibraryUrl(item.book_key);
               if (!url) return item;
               try {
-                const response = await fetch(url);
-                if (!response.ok) return item;
-                const metadata = await response.json();
+                const metadata = await getOpenLibraryRecord(item.book_key);
+                if (!metadata) return item;
                 return { ...item, coverUrl: existingBookCover(metadata) };
               } catch {
                 return item;
