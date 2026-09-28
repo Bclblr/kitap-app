@@ -552,12 +552,6 @@ export default function StoryCreateScreen() {
                   { color: textColor, textAlign },
                 ]}
               />
-              {!!storyText.trim() && !textEditing ? (
-                <View style={styles.dragHint} pointerEvents="none">
-                  <Feather name="move" size={13} color="#FFF" />
-                  <Text style={styles.dragHintText}>Sürükleyerek taşı</Text>
-                </View>
-              ) : null}
             </View>
           ) : null}
 
@@ -730,8 +724,6 @@ const styles = StyleSheet.create({
   storyTextInputBackground: { backgroundColor: 'rgba(0,0,0,0.58)', borderRadius: 8, paddingHorizontal: 12, textShadowColor: 'transparent' },
   storyTextInputStrong: { fontWeight: '900', fontSize: 27, lineHeight: 34 },
   storyTextInputLarge: { maxHeight: '72%', backgroundColor: 'transparent', fontSize: 32, lineHeight: 41, fontWeight: '800' },
-  dragHint: { alignSelf: 'center', marginTop: 6, minHeight: 28, borderRadius: 14, paddingHorizontal: 10, backgroundColor: 'rgba(8,8,12,0.54)', flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dragHintText: { color: '#FFF', fontSize: 9.5, fontWeight: '700' },
   zoomHint: { position: 'absolute', left: 0, right: 0, bottom: 80, zIndex: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   zoomHintText: { color: 'rgba(255,255,255,0.82)', fontSize: 9.5, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   editFooter: { position: 'absolute', left: 14, right: 14, bottom: 18, flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 22 },
