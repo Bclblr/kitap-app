@@ -121,6 +121,7 @@ export function HomeStories({
   styles,
   colors,
   profileImage,
+  currentUserId,
   loading,
   groups,
   onCreate,
@@ -129,48 +130,69 @@ export function HomeStories({
   styles: any;
   colors: any;
   profileImage: string | null;
+  currentUserId: string | null;
   loading: boolean;
   groups: HomeStoryGroup[];
   onCreate: () => void;
   onOpenGroup: (index: number) => void;
 }) {
+  const ownGroupIndex = currentUserId ? groups.findIndex(group => group.key === currentUserId) : -1;
+  const ownGroup = ownGroupIndex >= 0 ? groups[ownGroupIndex] : null;
+  const otherGroups = groups
+    .map((group, index) => ({ group, index }))
+    .filter(({ index }) => index !== ownGroupIndex);
+
   return (
     <View style={styles.storySection}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Hikâyeler</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyList}>
-        <Pressable onPress={onCreate} style={styles.storyItem}>
-          <View style={styles.addStoryCircle}>
+        <Pressable
+          onPress={() => ownGroup ? onOpenGroup(ownGroupIndex) : onCreate()}
+          style={styles.storyItem}
+        >
+          <View
+            style={[
+              styles.storyRing,
+              ownGroup ? (ownGroup.hasUnseen ? styles.storyRingUnseen : styles.storyRingSeen) : styles.storyRingSeen,
+            ]}
+          >
             {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.addStoryAvatar} resizeMode="cover" />
+              <Image source={{ uri: profileImage }} style={styles.storyCircleInner} resizeMode="cover" />
             ) : (
-              <Feather name="user" size={28} color={colors.textSecondary} />
+              <View style={[styles.storyCircleInner, styles.storyTextCircle]}>
+                <Feather name="user" size={25} color={colors.textSecondary} />
+              </View>
             )}
-            <View style={styles.addStoryBadge}>
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation();
+                onCreate();
+              }}
+              hitSlop={7}
+              style={styles.addStoryBadge}
+              accessibilityLabel="Yeni hikâye ekle"
+            >
               <Text style={styles.addStoryIcon}>+</Text>
-            </View>
+            </Pressable>
+            {ownGroup && ownGroup.stories.length > 1 ? (
+              <View style={styles.storyCountBadge}>
+                <Text style={styles.storyCountText}>{ownGroup.stories.length}</Text>
+              </View>
+            ) : null}
           </View>
-          <Text style={styles.storyName}>Hikâyen</Text>
+          <Text style={[styles.storyName, ownGroup && !ownGroup.hasUnseen && styles.storyNameSeen]}>Hikâyen</Text>
         </Pressable>
 
         {loading ? (
-          <ActivityIndicator />
+          <View style={styles.storyItem}><ActivityIndicator color={colors.primary} /></View>
         ) : (
-          groups.map((group, groupIndex) => {
+          otherGroups.map(({ group, index: groupIndex }) => {
             const previewStory = group.stories[group.stories.length - 1];
             return (
-              <Pressable
-                key={group.key}
-                onPress={() => onOpenGroup(groupIndex)}
-                style={styles.storyItem}
-              >
-                <View
-                  style={[
-                    styles.storyRing,
-                    group.hasUnseen ? styles.storyRingUnseen : styles.storyRingSeen,
-                  ]}
-                >
+              <Pressable key={group.key} onPress={() => onOpenGroup(groupIndex)} style={styles.storyItem}>
+                <View style={[styles.storyRing, group.hasUnseen ? styles.storyRingUnseen : styles.storyRingSeen]}>
                   {group.profile_image || previewStory?.image_url ? (
                     <Image
                       source={{ uri: group.profile_image || previewStory?.image_url || '' }}
@@ -178,7 +200,7 @@ export function HomeStories({
                     />
                   ) : (
                     <View style={[styles.storyCircleInner, styles.storyTextCircle]}>
-                      <Text style={styles.storyFallbackIcon}>📖</Text>
+                      <Feather name="book-open" size={21} color={colors.textSecondary} />
                     </View>
                   )}
                   {group.stories.length > 1 ? (
@@ -187,10 +209,7 @@ export function HomeStories({
                     </View>
                   ) : null}
                 </View>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.storyName, !group.hasUnseen && styles.storyNameSeen]}
-                >
+                <Text numberOfLines={1} style={[styles.storyName, !group.hasUnseen && styles.storyNameSeen]}>
                   {group.username}
                 </Text>
               </Pressable>
