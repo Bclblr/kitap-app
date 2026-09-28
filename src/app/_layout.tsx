@@ -79,6 +79,7 @@ const AUTHENTICATED_ROUTES = [
 const ADMIN_ROUTES = [
   'admin',
   'admin-admins',
+  'admin-ads',
   'admin-analytics',
   'admin-announcements',
   'admin-audit',
