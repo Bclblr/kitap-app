@@ -41,6 +41,22 @@ type SocialProfile = {
   profile_image: string | null;
 };
 
+function formatNotificationTimestamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  const time = date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+  return sameDay
+    ? `Bugün • ${time}`
+    : `${date.toLocaleDateString('tr-TR')} • ${time}`;
+}
+
 export default function NotificationsScreen() {
   const router = useRouter();
   const styles = useThemedStyles(baseStyles);
@@ -455,7 +471,7 @@ export default function NotificationsScreen() {
         {notifications.length === 0 ? <View style={styles.empty}><Feather name="bell" size={30} color={colors.primary} /><Text style={styles.emptyTitle}>Henüz bildirim yok</Text><Text style={styles.muted}>Etkileşimlerin, takip isteklerin ve duyurular burada görünecek.</Text></View> :
           notifications.map((item) => <Pressable key={`${item.source}:${item.id}`} onPress={() => void markAsRead(item)} style={[styles.card, !item.read && styles.unreadCard]}>
             {item.source !== 'admin' && item.profile_image ? <Image source={{ uri: item.profile_image }} style={styles.avatar} /> : <View style={styles.iconCircle}><Feather name={icon(item) as any} size={19} color={colors.primary} /></View>}
-            <View style={styles.cardBody}><View style={styles.row}><Text style={styles.type}>{title(item)}</Text>{!item.read ? <View style={[styles.dot, { backgroundColor: colors.primary }]} /> : null}</View><Text style={styles.message}>{message(item)}</Text>{item.source === 'interaction' && item.target_preview ? <View style={styles.targetCard}><Text style={styles.targetLabel}>{targetLabel(item)}</Text><Text numberOfLines={2} style={styles.targetPreview}>{item.target_preview}</Text></View> : null}<Text style={styles.date}>{new Date(item.created_at).toLocaleDateString('tr-TR')}</Text></View>
+            <View style={styles.cardBody}><View style={styles.row}><Text style={styles.type}>{title(item)}</Text>{!item.read ? <View style={[styles.dot, { backgroundColor: colors.primary }]} /> : null}</View><Text style={styles.message}>{message(item)}</Text>{item.source === 'interaction' && item.target_preview ? <View style={styles.targetCard}><Text style={styles.targetLabel}>{targetLabel(item)}</Text><Text numberOfLines={2} style={styles.targetPreview}>{item.target_preview}</Text></View> : null}<Text style={styles.date}>{formatNotificationTimestamp(item.created_at)}</Text></View>
           </Pressable>)}
       </ScrollView>}
       <BottomNav />
