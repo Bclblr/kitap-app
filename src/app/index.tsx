@@ -315,14 +315,24 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    const channel = supabase
-      .channel('house-ad-campaign-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'ad_campaigns' },
-        () => { void loadHouseAds(); }
-      )
-      .subscribe();
+    // Realtime channel names must be unique for each effect lifecycle. During
+    // React remounts/Fast Refresh an older channel can still be joining while
+    // the next effect starts; reusing the same topic can then make Supabase
+    // reject a new postgres_changes listener after subscribe().
+    const channelName = `house-ad-campaign-sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const channel = supabase.channel(channelName);
+
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'ad_campaigns' },
+      () => { void loadHouseAds(); }
+    );
+
+    channel.subscribe((status, error) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Reklam Realtime bağlantısı kurulamadı:', status, error);
+      }
+    });
 
     return () => {
       void supabase.removeChannel(channel);
