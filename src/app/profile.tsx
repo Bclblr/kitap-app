@@ -4,7 +4,7 @@ import QuoteMetadata from '@/components/QuoteMetadata';
 import ReadersList from '@/components/ReadersList';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Image from '@/components/SafeImage';
@@ -275,6 +275,7 @@ export default function ProfileScreen() {
     useState<ProfileData>(DEFAULT_PROFILE);
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [bookCount, setBookCount] = useState(0);
@@ -1861,6 +1862,19 @@ export default function ProfileScreen() {
         }
         contentContainerStyle={
           styles.scrollContent
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+            onRefresh={() => {
+              setRefreshing(true);
+              setLoadError(null);
+              void Promise.all([loadProfile(), loadStats(), loadFollowData()])
+                .finally(() => setRefreshing(false));
+            }}
+          />
         }
       >
         <Text
