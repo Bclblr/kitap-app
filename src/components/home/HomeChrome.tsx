@@ -62,8 +62,6 @@ export function HomeDrawer({
   onProfileSettings: () => void;
   onSignOut: () => void;
 }) {
-  const [mediaSize, setMediaSize] = useState({ width: 0, height: 0 });
-
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.drawerOverlay}>
@@ -260,6 +258,8 @@ export function HomeStoryViewer({
   onPrevious: () => void;
   onDeleted: (storyId: string) => void;
 }) {
+  const [mediaSize, setMediaSize] = useState({ width: 0, height: 0 });
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={[styles.storyModalOverlay, { paddingTop: topInset, paddingBottom: bottomInset }]}>
