@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase';
+
 const OPENALEX_BASE = 'https://api.openalex.org';
 const CROSSREF_BASE = 'https://api.crossref.org';
 
@@ -283,6 +285,24 @@ async function fetchJson(url: string, signal?: AbortSignal) {
   throw new Error('Academic API request failed');
 }
 
+async function fetchAcademicBackend<T>(
+  mode: string,
+  payload: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (signal?.aborted) throw abortError();
+
+  const { data, error } = await supabase.functions.invoke('academic-search', {
+    body: { mode, ...payload },
+  });
+
+  if (signal?.aborted) throw abortError();
+  if (error) throw new Error(error.message || 'Academic backend request failed');
+  if (!data || !('data' in data)) throw new Error('Academic backend returned an invalid response');
+
+  return data.data as T;
+}
+
 async function searchAcademicWorksByType(
   query: string,
   type: 'article' | 'dissertation',
@@ -291,17 +311,16 @@ async function searchAcademicWorksByType(
 ): Promise<AcademicWork[]> {
   const clean = query.trim();
   if (!clean) return [];
-  const url = `${OPENALEX_BASE}/works?search=${encodeURIComponent(clean)}&filter=type:${type}&per-page=${Math.min(50, Math.max(1, limit))}`;
-  const data = (await fetchJson(url, signal)) as OpenAlexList<any>;
-  return (data.results ?? []).map(normalizeAcademicWork);
+  const mode = type === 'article' ? 'articles' : 'theses';
+  const rows = await fetchAcademicBackend<any[]>(mode, { query: clean, limit }, signal);
+  return rows.map(normalizeAcademicWork);
 }
 
 export async function searchAcademicWorks(query: string, limit = 20, signal?: AbortSignal): Promise<AcademicWork[]> {
   const clean = query.trim();
   if (!clean) return [];
-  const url = `${OPENALEX_BASE}/works?search=${encodeURIComponent(clean)}&per-page=${Math.min(50, Math.max(1, limit))}`;
-  const data = (await fetchJson(url, signal)) as OpenAlexList<any>;
-  return (data.results ?? []).map(normalizeAcademicWork);
+  const rows = await fetchAcademicBackend<any[]>('works', { query: clean, limit }, signal);
+  return rows.map(normalizeAcademicWork);
 }
 
 export async function searchAcademicArticles(query: string, limit = 20, signal?: AbortSignal) {
@@ -372,73 +391,67 @@ export function academicWorkTypeLabel(work: Pick<AcademicWork, 'type' | 'title'>
 export async function searchAcademicAuthors(query: string, limit = 20, signal?: AbortSignal): Promise<AcademicAuthorSummary[]> {
   const clean = query.trim();
   if (!clean) return [];
-  const url = `${OPENALEX_BASE}/authors?search=${encodeURIComponent(clean)}&per-page=${Math.min(50, Math.max(1, limit))}`;
-  const data = (await fetchJson(url, signal)) as OpenAlexList<any>;
-  return (data.results ?? []).map(normalizeAcademicAuthor);
+  const rows = await fetchAcademicBackend<any[]>('authors', { query: clean, limit }, signal);
+  return rows.map(normalizeAcademicAuthor);
 }
 
 export async function searchAcademicJournals(query: string, limit = 20, signal?: AbortSignal): Promise<AcademicJournalSummary[]> {
   const clean = query.trim();
   if (!clean) return [];
-  const url = `${OPENALEX_BASE}/sources?search=${encodeURIComponent(clean)}&filter=type:journal&per-page=${Math.min(50, Math.max(1, limit))}`;
-  const data = (await fetchJson(url, signal)) as OpenAlexList<any>;
-  return (data.results ?? []).map(normalizeAcademicJournal).filter((item): item is AcademicJournalSummary => !!item);
+  const rows = await fetchAcademicBackend<any[]>('journals', { query: clean, limit }, signal);
+  return rows.map(normalizeAcademicJournal).filter((item): item is AcademicJournalSummary => !!item);
 }
 
 export async function searchAcademicInstitutions(query: string, limit = 20, signal?: AbortSignal): Promise<AcademicInstitutionSummary[]> {
   const clean = query.trim();
   if (!clean) return [];
-  const url = `${OPENALEX_BASE}/institutions?search=${encodeURIComponent(clean)}&per-page=${Math.min(50, Math.max(1, limit))}`;
-  const data = (await fetchJson(url, signal)) as OpenAlexList<any>;
-  return (data.results ?? []).map(normalizeAcademicInstitution);
+  const rows = await fetchAcademicBackend<any[]>('institutions', { query: clean, limit }, signal);
+  return rows.map(normalizeAcademicInstitution);
 }
 
 export async function getAcademicWork(id: string, signal?: AbortSignal): Promise<AcademicWork | null> {
-  const url = openAlexEntityPath(id, 'W');
-  if (!url) return null;
-  return normalizeAcademicWork(await fetchJson(url, signal));
+  const clean = cleanOpenAlexId(id, 'W');
+  if (!clean) return null;
+  return normalizeAcademicWork(await fetchAcademicBackend<any>('work_detail', { id: clean }, signal));
 }
 
 export async function getAcademicAuthor(id: string, signal?: AbortSignal): Promise<AcademicAuthorSummary | null> {
-  const url = openAlexEntityPath(id, 'A');
-  if (!url) return null;
-  return normalizeAcademicAuthor(await fetchJson(url, signal));
+  const clean = cleanOpenAlexId(id, 'A');
+  if (!clean) return null;
+  return normalizeAcademicAuthor(await fetchAcademicBackend<any>('author_detail', { id: clean }, signal));
 }
 
 export async function getAcademicJournal(id: string, signal?: AbortSignal): Promise<AcademicJournalSummary | null> {
-  const url = openAlexEntityPath(id, 'S');
-  if (!url) return null;
-  return normalizeAcademicJournal(await fetchJson(url, signal));
+  const clean = cleanOpenAlexId(id, 'S');
+  if (!clean) return null;
+  return normalizeAcademicJournal(await fetchAcademicBackend<any>('journal_detail', { id: clean }, signal));
 }
 
 export async function getAcademicInstitution(id: string, signal?: AbortSignal): Promise<AcademicInstitutionSummary | null> {
-  const url = openAlexEntityPath(id, 'I');
-  if (!url) return null;
-  return normalizeAcademicInstitution(await fetchJson(url, signal));
+  const clean = cleanOpenAlexId(id, 'I');
+  if (!clean) return null;
+  return normalizeAcademicInstitution(await fetchAcademicBackend<any>('institution_detail', { id: clean }, signal));
 }
 
 export async function getAuthorWorks(authorId: string, limit = 30, signal?: AbortSignal): Promise<AcademicWork[]> {
   const id = cleanOpenAlexId(authorId, 'A');
   if (!id) return [];
-  const url = `${OPENALEX_BASE}/works?filter=authorships.author.id:${encodeURIComponent(id)}&sort=publication_date:desc&per-page=${Math.min(50, Math.max(1, limit))}`;
-  const data = (await fetchJson(url, signal)) as OpenAlexList<any>;
-  return (data.results ?? []).map(normalizeAcademicWork);
+  const rows = await fetchAcademicBackend<any[]>('author_works', { id, limit }, signal);
+  return rows.map(normalizeAcademicWork);
 }
 
 export async function getJournalWorks(journalId: string, limit = 30, signal?: AbortSignal): Promise<AcademicWork[]> {
   const id = cleanOpenAlexId(journalId, 'S');
   if (!id) return [];
-  const url = `${OPENALEX_BASE}/works?filter=primary_location.source.id:${encodeURIComponent(id)}&sort=publication_date:desc&per-page=${Math.min(50, Math.max(1, limit))}`;
-  const data = (await fetchJson(url, signal)) as OpenAlexList<any>;
-  return (data.results ?? []).map(normalizeAcademicWork);
+  const rows = await fetchAcademicBackend<any[]>('journal_works', { id, limit }, signal);
+  return rows.map(normalizeAcademicWork);
 }
 
 export async function getInstitutionAuthors(institutionId: string, limit = 30, signal?: AbortSignal): Promise<AcademicAuthorSummary[]> {
   const id = cleanOpenAlexId(institutionId, 'I');
   if (!id) return [];
-  const url = `${OPENALEX_BASE}/authors?filter=last_known_institutions.id:${encodeURIComponent(id)}&sort=cited_by_count:desc&per-page=${Math.min(50, Math.max(1, limit))}`;
-  const data = (await fetchJson(url, signal)) as OpenAlexList<any>;
-  return (data.results ?? []).map(normalizeAcademicAuthor);
+  const rows = await fetchAcademicBackend<any[]>('institution_authors', { id, limit }, signal);
+  return rows.map(normalizeAcademicAuthor);
 }
 
 export async function getRelatedAcademicWorks(workId: string, limit = 10, signal?: AbortSignal): Promise<AcademicWork[]> {
