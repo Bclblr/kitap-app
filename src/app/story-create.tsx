@@ -25,6 +25,8 @@ import { safeBack } from '@/lib/navigation';
 import { requirePermanentImage } from '@/lib/image-policy';
 import { supabase } from '@/lib/supabase';
 
+const STORY_TEXT_COLORS = ['#FFFFFF', '#FFE66D', '#FF7AA2', '#A985FF', '#69E3FF'] as const;
+
 export default function StoryCreateScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -38,6 +40,10 @@ export default function StoryCreateScreen() {
   const [textMode, setTextMode] = useState(false);
   const [textEditing, setTextEditing] = useState(false);
   const [storyText, setStoryText] = useState('');
+  const [textColor, setTextColor] = useState<(typeof STORY_TEXT_COLORS)[number]>('#FFFFFF');
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('center');
+  const [textBackground, setTextBackground] = useState(false);
+  const [textStyle, setTextStyle] = useState<'classic' | 'strong'>('classic');
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [allowLikes, setAllowLikes] = useState(true);
   const [allowReplies, setAllowReplies] = useState(true);
@@ -46,7 +52,7 @@ export default function StoryCreateScreen() {
   const [capturing, setCapturing] = useState(false);
 
   const stageSize = useMemo(() => {
-    const stageWidth = Math.min(Math.max(280, width - 16), 520);
+    const stageWidth = Math.min(Math.max(280, width), 520);
     const availableHeight = Math.max(360, height - insets.top - insets.bottom - 78);
     return {
       width: stageWidth,
@@ -189,6 +195,10 @@ export default function StoryCreateScreen() {
         storage_path: uploadedPath,
         allow_likes: allowLikes,
         allow_replies: allowReplies,
+        text_color: textColor,
+        text_align: textAlign,
+        text_background: textBackground,
+        text_style: textStyle,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       });
       if (result.error) throw result.error;
@@ -218,6 +228,7 @@ export default function StoryCreateScreen() {
         <View
           style={[
             styles.stage,
+            capturedUri && styles.previewStage,
             {
               width: stageSize.width,
               height: stageSize.height,
@@ -312,8 +323,63 @@ export default function StoryCreateScreen() {
             </View>
           ) : null}
 
+          {showTextEditor && textEditing ? (
+            <View style={styles.textToolbar}>
+              <Pressable
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setTextBackground((value) => !value);
+                }}
+                style={[styles.textToolButton, textBackground && styles.textToolButtonActive]}
+                accessibilityLabel="Yazı arka planını değiştir"
+              >
+                <Text style={styles.textToolAa}>A</Text>
+              </Pressable>
+              <Pressable
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setTextAlign((current) => current === 'left' ? 'center' : current === 'center' ? 'right' : 'left');
+                }}
+                style={styles.textToolButton}
+                accessibilityLabel="Yazı hizalamasını değiştir"
+              >
+                <Feather
+                  name={textAlign === 'left' ? 'align-left' : textAlign === 'right' ? 'align-right' : 'align-center'}
+                  size={19}
+                  color="#FFF"
+                />
+              </Pressable>
+              <Pressable
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setTextStyle((current) => current === 'classic' ? 'strong' : 'classic');
+                }}
+                style={[styles.textStylePill, textStyle === 'strong' && styles.textToolButtonActive]}
+              >
+                <Text style={[styles.textStylePillText, textStyle === 'strong' && styles.textStylePillTextStrong]}>
+                  {textStyle === 'strong' ? 'Güçlü' : 'Klasik'}
+                </Text>
+              </Pressable>
+              <View style={styles.colorRail}>
+                {STORY_TEXT_COLORS.map((color) => (
+                  <Pressable
+                    key={color}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      setTextColor(color);
+                    }}
+                    style={[styles.colorDotOuter, textColor === color && styles.colorDotSelected]}
+                    accessibilityLabel="Yazı rengini değiştir"
+                  >
+                    <View style={[styles.colorDot, { backgroundColor: color }]} />
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
           {showTextEditor ? (
-            <View style={[styles.textEditorWrap, textMode && styles.textEditorTextOnly]}>
+            <View style={[styles.textEditorWrap, textMode && styles.textEditorTextOnly]} pointerEvents="box-none">
               <TextInput
                 ref={textInputRef}
                 value={storyText}
@@ -321,13 +387,20 @@ export default function StoryCreateScreen() {
                 onFocus={() => setTextEditing(true)}
                 onBlur={() => setTextEditing(false)}
                 onPressIn={(event) => event.stopPropagation()}
-                placeholder={textMode ? 'Bir şeyler yaz…' : 'Hikâyene yazı ekle…'}
-                placeholderTextColor={textMode ? '#A4A8B0' : '#D4D5DA'}
+                placeholder={textMode ? 'Bir şeyler yaz…' : 'Yazmaya başla…'}
+                placeholderTextColor="rgba(255,255,255,0.72)"
                 multiline
                 maxLength={1000}
-                textAlign="center"
+                textAlign={textAlign}
                 textAlignVertical="center"
-                style={[styles.storyTextInput, textMode && styles.storyTextInputLarge]}
+                selectionColor={textColor}
+                style={[
+                  styles.storyTextInput,
+                  textMode && styles.storyTextInputLarge,
+                  textBackground && styles.storyTextInputBackground,
+                  textStyle === 'strong' && styles.storyTextInputStrong,
+                  { color: textColor, textAlign },
+                ]}
               />
             </View>
           ) : null}
@@ -454,7 +527,8 @@ export default function StoryCreateScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#050609' },
   keyboardRoot: { flex: 1, alignItems: 'center', justifyContent: 'space-between' },
-  stage: { alignSelf: 'center', borderRadius: 30, overflow: 'hidden', backgroundColor: '#090A0E', position: 'relative' },
+  stage: { alignSelf: 'center', borderRadius: 26, overflow: 'hidden', backgroundColor: '#090A0E', position: 'relative' },
+  previewStage: { borderRadius: 0 },
   blankStage: { ...StyleSheet.absoluteFill, backgroundColor: '#0B0C11' },
   textCanvas: { ...StyleSheet.absoluteFill, backgroundColor: '#171120' },
   scrimTop: { position: 'absolute', left: 0, right: 0, top: 0, height: 140, backgroundColor: 'rgba(0,0,0,0.16)' },
@@ -474,10 +548,23 @@ const styles = StyleSheet.create({
   shutterBusy: { backgroundColor: '#FFF', opacity: 0.9 },
   galleryButton: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(16,17,22,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   flipButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(16,17,22,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
-  textEditorWrap: { position: 'absolute', left: 18, right: 18, bottom: 92, zIndex: 16, alignItems: 'center' },
-  textEditorTextOnly: { top: 92, bottom: 92, justifyContent: 'center' },
-  storyTextInput: { width: '100%', maxHeight: 180, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 12, color: '#FFF', backgroundColor: 'rgba(0,0,0,0.46)', fontSize: 18, lineHeight: 25, fontWeight: '700' },
-  storyTextInputLarge: { maxHeight: '72%', backgroundColor: 'transparent', fontSize: 30, lineHeight: 39, fontWeight: '900' },
+  textToolbar: { position: 'absolute', left: 12, right: 12, top: 68, minHeight: 44, zIndex: 28, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  textToolButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(10,10,14,0.64)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', alignItems: 'center', justifyContent: 'center' },
+  textToolButtonActive: { backgroundColor: 'rgba(255,255,255,0.92)', borderColor: '#FFF' },
+  textToolAa: { color: '#FFF', fontSize: 17, fontWeight: '900', backgroundColor: '#17171C', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
+  textStylePill: { height: 40, borderRadius: 20, paddingHorizontal: 12, backgroundColor: 'rgba(10,10,14,0.64)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', alignItems: 'center', justifyContent: 'center' },
+  textStylePillText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+  textStylePillTextStrong: { color: '#111218', fontWeight: '900' },
+  colorRail: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
+  colorDotOuter: { width: 27, height: 27, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
+  colorDotSelected: { borderColor: '#FFF' },
+  colorDot: { width: 19, height: 19, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,0,0,0.18)' },
+  textEditorWrap: { position: 'absolute', left: 22, right: 22, top: '31%', zIndex: 16, alignItems: 'center', justifyContent: 'center' },
+  textEditorTextOnly: { top: 112, bottom: 92, justifyContent: 'center' },
+  storyTextInput: { width: '100%', maxHeight: 210, paddingHorizontal: 10, paddingVertical: 8, color: '#FFF', backgroundColor: 'transparent', fontSize: 24, lineHeight: 31, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.30)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  storyTextInputBackground: { backgroundColor: 'rgba(0,0,0,0.58)', borderRadius: 8, paddingHorizontal: 12, textShadowColor: 'transparent' },
+  storyTextInputStrong: { fontWeight: '900', fontSize: 27, lineHeight: 34 },
+  storyTextInputLarge: { maxHeight: '72%', backgroundColor: 'transparent', fontSize: 32, lineHeight: 41, fontWeight: '800' },
   editFooter: { position: 'absolute', left: 14, right: 14, bottom: 18, flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 22 },
   retake: { height: 48, paddingHorizontal: 18, borderRadius: 24, backgroundColor: 'rgba(14,15,20,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   retakeText: { color: '#FFF', fontSize: 13, fontWeight: '800' },
