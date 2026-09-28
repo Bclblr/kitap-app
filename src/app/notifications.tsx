@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Image from '@/components/SafeImage';
 import BottomNav from '@/components/BottomNav';
 import {
@@ -49,6 +49,7 @@ export default function NotificationsScreen() {
   const { backendReachable, retrySignal } = useNetworkStatus();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState('');
 
   const loadNotifications = useCallback(async () => {
@@ -374,7 +375,21 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container}>
       {loading ? <View style={styles.loading}><ActivityIndicator color={colors.primary} /><Text style={styles.muted}>Bildirimler yükleniyor...</Text></View> :
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+            onRefresh={() => {
+              setRefreshing(true);
+              void loadNotifications().finally(() => setRefreshing(false));
+            }}
+          />
+        }
+      >
         <View style={styles.header}><View><Text style={styles.pageTitle}>Bildirimler</Text><Text style={styles.muted}>{unreadCount ? `${unreadCount} okunmamış bildirim` : 'Tüm bildirimleri okudun'}</Text></View>
           {notifications.length > 0 ? <Pressable onPress={() => void markAllAsRead()} style={styles.readAll}><Text style={styles.readAllText}>Tümünü oku</Text></Pressable> : null}</View>
         {loadError ? (
