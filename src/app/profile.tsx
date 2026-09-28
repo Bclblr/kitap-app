@@ -1913,6 +1913,24 @@ export default function ProfileScreen() {
           }
         />
 
+        {isOwnProfile ? (
+          <Pressable
+            onPress={() => router.push('/academic-library' as any)}
+            style={styles.academicProfileShortcut}
+            accessibilityRole="button"
+            accessibilityLabel="Akademik çalışmalarımı aç"
+          >
+            <View style={styles.academicProfileShortcutIcon}>
+              <Feather name="file-text" size={18} color={colors.primary} />
+            </View>
+            <View style={styles.academicProfileShortcutCopy}>
+              <Text style={styles.academicProfileShortcutTitle}>Akademik Çalışmalarım</Text>
+              <Text style={styles.academicProfileShortcutText}>Okuyacağım · Okuyorum · Okudum · Yarım bıraktım</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
+
         {/* =====================================================
             TEK AKIŞ
             ===================================================== */}
@@ -2835,6 +2853,31 @@ const baseStyles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  academicProfileShortcut: {
+    minHeight: 72,
+    marginHorizontal: 14,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#302641',
+    backgroundColor: '#15121C',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  academicProfileShortcutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#21182F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  academicProfileShortcutCopy: { flex: 1 },
+  academicProfileShortcutTitle: { color: '#F0EDF7', fontSize: 13.5, fontWeight: '900' },
+  academicProfileShortcutText: { color: '#8E8998', fontSize: 10, lineHeight: 14, marginTop: 3 },
   section: {
     marginTop: 28,
     marginHorizontal: 0,
