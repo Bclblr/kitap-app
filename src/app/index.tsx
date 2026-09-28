@@ -286,6 +286,7 @@ export default function HomeScreen() {
 
   const [, setLoading] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [loadingStories, setLoadingStories] = useState(false);
   const [loadingMoreFeed, setLoadingMoreFeed] = useState(false);
@@ -1909,6 +1910,13 @@ export default function HomeScreen() {
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          void Promise.all([loadPosts(true), loadStories(), loadHouseAds()])
+            .finally(() => setRefreshing(false));
+        }}
+        progressViewOffset={12}
         contentContainerStyle={styles.content}
         initialNumToRender={8}
         maxToRenderPerBatch={8}
