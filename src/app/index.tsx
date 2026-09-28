@@ -311,6 +311,21 @@ export default function HomeScreen() {
     }
   }, []);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('house-ad-campaign-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ad_campaigns' },
+        () => { void loadHouseAds(); }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadHouseAds]);
+
   const [commentingReviewId, setCommentingReviewId] =
     useState<string | null>(null);
 
