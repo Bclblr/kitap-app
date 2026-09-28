@@ -26,6 +26,24 @@ type Note = {
   created_at: string;
 };
 
+type AcademicReviewPreview = {
+  id: string;
+  user_id: string;
+  rating: number;
+  text: string;
+  title: string | null;
+  created_at: string;
+};
+
+type AcademicQuotePreview = {
+  id: string;
+  user_id: string;
+  text: string;
+  title: string | null;
+  page_number: number | null;
+  created_at: string;
+};
+
 export default function AcademicWorkScreen() {
   const { id, kind } = useLocalSearchParams<{ id?: string; kind?: string }>();
   const router = useRouter();
@@ -40,6 +58,10 @@ export default function AcademicWorkScreen() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [communityReviews, setCommunityReviews] = useState<AcademicReviewPreview[]>([]);
+  const [communityQuotes, setCommunityQuotes] = useState<AcademicQuotePreview[]>([]);
+  const [communityReviewCount, setCommunityReviewCount] = useState(0);
+  const [communityQuoteCount, setCommunityQuoteCount] = useState(0);
 
   useEffect(() => {
     const workId = typeof id === 'string' ? id : '';
@@ -65,11 +87,39 @@ export default function AcademicWorkScreen() {
         setCrossref(crossrefData);
         setRelated(relatedData);
 
+        const db = supabase as any;
+        const [reviewPreviewResult, quotePreviewResult, reviewCountResult, quoteCountResult] = await Promise.all([
+          db.from('reviews')
+            .select('id,user_id,rating,text,title,created_at')
+            .eq('content_kind', 'academic')
+            .eq('academic_work_id', loaded.id)
+            .order('created_at', { ascending: false })
+            .limit(3),
+          db.from('quotes')
+            .select('id,user_id,text,title,page_number,created_at')
+            .eq('content_kind', 'academic')
+            .eq('academic_work_id', loaded.id)
+            .order('created_at', { ascending: false })
+            .limit(3),
+          db.from('reviews')
+            .select('id', { count: 'exact', head: true })
+            .eq('content_kind', 'academic')
+            .eq('academic_work_id', loaded.id),
+          db.from('quotes')
+            .select('id', { count: 'exact', head: true })
+            .eq('content_kind', 'academic')
+            .eq('academic_work_id', loaded.id),
+        ]);
+        if (!active) return;
+        if (!reviewPreviewResult.error) setCommunityReviews((reviewPreviewResult.data ?? []) as AcademicReviewPreview[]);
+        if (!quotePreviewResult.error) setCommunityQuotes((quotePreviewResult.data ?? []) as AcademicQuotePreview[]);
+        setCommunityReviewCount(reviewCountResult.count ?? 0);
+        setCommunityQuoteCount(quoteCountResult.count ?? 0);
+
         const { data: authData } = await supabase.auth.getUser();
         const user = authData.user;
         if (!user) return;
 
-        const db = supabase as any;
         const [savedResult, statusResult, noteResult] = await Promise.all([
           db.from('saved_academic_works').select('work_openalex_id').eq('user_id', user.id).eq('work_openalex_id', loaded.id).maybeSingle(),
           db.from('academic_reading_status').select('status').eq('user_id', user.id).eq('work_openalex_id', loaded.id).maybeSingle(),
@@ -283,6 +333,47 @@ export default function AcademicWorkScreen() {
           </View>
         </View>
 
+        {(communityReviewCount > 0 || communityQuoteCount > 0) ? (
+          <View style={styles.sectionCard}>
+            <View style={styles.communityHeader}>
+              <Text style={styles.sectionTitle}>Topluluk</Text>
+              <Text style={styles.communityCount}>{communityReviewCount} inceleme · {communityQuoteCount} alıntı</Text>
+            </View>
+
+            {communityReviews.map((review) => (
+              <Pressable
+                key={`review-${review.id}`}
+                onPress={() => router.push({ pathname: '/profile', params: { userId: review.user_id } })}
+                style={styles.communityItem}
+              >
+                <View style={styles.communityItemTop}>
+                  <Text style={styles.communityType}>AKADEMİK İNCELEME</Text>
+                  <Text style={styles.communityRating}>{'★'.repeat(Math.max(0, Math.min(5, review.rating || 0)))} {review.rating}/5</Text>
+                </View>
+                {review.title ? <Text style={styles.communityTitle}>{review.title}</Text> : null}
+                <Text style={styles.communityText} numberOfLines={4}>{review.text}</Text>
+                <Text style={styles.communityDate}>{new Date(review.created_at).toLocaleDateString('tr-TR')}</Text>
+              </Pressable>
+            ))}
+
+            {communityQuotes.map((quote) => (
+              <Pressable
+                key={`quote-${quote.id}`}
+                onPress={() => router.push({ pathname: '/profile', params: { userId: quote.user_id } })}
+                style={styles.communityItem}
+              >
+                <View style={styles.communityItemTop}>
+                  <Text style={styles.communityType}>AKADEMİK ALINTI</Text>
+                  {quote.page_number ? <Text style={styles.communityDate}>s. {quote.page_number}</Text> : null}
+                </View>
+                {quote.title ? <Text style={styles.communityTitle}>{quote.title}</Text> : null}
+                <Text style={styles.communityQuote} numberOfLines={4}>“{quote.text}”</Text>
+                <Text style={styles.communityDate}>{new Date(quote.created_at).toLocaleDateString('tr-TR')}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
         {work.abstract ? (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Özet</Text>
@@ -378,6 +469,16 @@ const baseStyles = StyleSheet.create({
   primaryButtonText: { color: '#FFF', fontSize: 12, fontWeight: '900' },
   secondaryButton: { minWidth: 92, minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: '#4A3470', backgroundColor: '#171321', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   secondaryButtonText: { color: '#CDB8FF', fontSize: 12, fontWeight: '900' },
+  communityHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  communityCount: { color: '#7F818C', fontSize: 9.5, fontWeight: '700' },
+  communityItem: { borderTopWidth: 1, borderTopColor: '#292A33', paddingTop: 12, marginTop: 12 },
+  communityItemTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  communityType: { color: '#A985FF', fontSize: 9, fontWeight: '900', letterSpacing: 0.6 },
+  communityRating: { color: '#D9B95F', fontSize: 10, fontWeight: '800' },
+  communityTitle: { color: '#E9E9EE', fontSize: 12, fontWeight: '900', marginTop: 8 },
+  communityText: { color: '#B9BBC3', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  communityQuote: { color: '#D2C7E9', fontSize: 13, lineHeight: 20, fontStyle: 'italic', marginTop: 7 },
+  communityDate: { color: '#737681', fontSize: 9.5, marginTop: 7 },
   noteInput: { minHeight: 90, borderRadius: 13, borderWidth: 1, borderColor: '#30313A', backgroundColor: '#0B0C11', padding: 12, textAlignVertical: 'top', fontSize: 12 },
   noteSave: { alignSelf: 'flex-end', marginTop: 9, minHeight: 38, paddingHorizontal: 15, borderRadius: 11, backgroundColor: '#6232B5', alignItems: 'center', justifyContent: 'center' },
   noteSaveText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
