@@ -253,7 +253,7 @@ export default function AcademicWorkScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topBar}>
           <Pressable onPress={() => safeBack(router, '/academic-search' as any)} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
-          <Text style={styles.pageTitle}>{thesis ? 'Tez Detayı' : 'Makale Detayı'}</Text>
+          <Text style={styles.pageTitle}>{workLabel} Detayı</Text>
           <Pressable onPress={() => void toggleSaved()} style={styles.iconButton}><Feather name={saved ? 'bookmark' : 'bookmark'} size={20} color={saved ? colors.primary : colors.textMuted} /></Pressable>
         </View>
 
