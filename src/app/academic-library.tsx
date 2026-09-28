@@ -22,7 +22,7 @@ type StatusWork = {
   author_summary: string | null;
   journal_name: string | null;
   publication_year: number | null;
-  status: 'want' | 'reading' | 'read';
+  status: 'want' | 'reading' | 'read' | 'abandoned';
   updated_at: string;
 };
 
@@ -33,7 +33,7 @@ type FollowedEntity = {
   created_at: string;
 };
 
-type Tab = 'saved' | 'want' | 'reading' | 'read' | 'following';
+type Tab = 'saved' | 'want' | 'reading' | 'read' | 'abandoned' | 'following';
 
 export default function AcademicLibraryScreen() {
   const router = useRouter();
@@ -89,6 +89,7 @@ export default function AcademicLibraryScreen() {
     { key: 'want', label: 'Okuyacağım', count: statuses.filter((item) => item.status === 'want').length },
     { key: 'reading', label: 'Okuyorum', count: statuses.filter((item) => item.status === 'reading').length },
     { key: 'read', label: 'Okudum', count: statuses.filter((item) => item.status === 'read').length },
+    { key: 'abandoned', label: 'Yarım bıraktım', count: statuses.filter((item) => item.status === 'abandoned').length },
     { key: 'following', label: 'Takip', count: following.length },
   ];
 
@@ -121,7 +122,7 @@ export default function AcademicLibraryScreen() {
           <Pressable onPress={() => safeBack(router, '/academic-search' as any)} style={styles.iconButton}><Feather name="arrow-left" size={21} color={colors.text} /></Pressable>
           <View style={styles.headerCopy}>
             <Text style={styles.title}>Akademik Kitaplığım</Text>
-            <Text style={styles.subtitle}>Kaydettiğin ve takip ettiğin akademik içerikler</Text>
+            <Text style={styles.subtitle}>Akademik çalışmaların, okuma durumların ve takiplerin</Text>
           </View>
         </View>
 
@@ -136,7 +137,7 @@ export default function AcademicLibraryScreen() {
         {loading ? <View style={styles.loading}><ActivityIndicator color={colors.primary} /></View> : null}
 
         {!loading && tab === 'saved' ? (saved.length ? saved.map(renderWork) : <Text style={styles.empty}>Henüz kaydedilmiş akademik çalışma yok.</Text>) : null}
-        {!loading && (tab === 'want' || tab === 'reading' || tab === 'read') ? (statusRows.length ? statusRows.map(renderWork) : <Text style={styles.empty}>Bu rafta henüz akademik çalışma yok.</Text>) : null}
+        {!loading && (tab === 'want' || tab === 'reading' || tab === 'read' || tab === 'abandoned') ? (statusRows.length ? statusRows.map(renderWork) : <Text style={styles.empty}>Bu rafta henüz akademik çalışma yok.</Text>) : null}
         {!loading && tab === 'following' ? (
           following.length ? following.map((item) => (
             <Pressable key={`${item.entity_type}:${item.entity_openalex_id}`} onPress={() => openEntity(item)} style={styles.card}>
