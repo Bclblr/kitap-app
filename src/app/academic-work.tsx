@@ -23,6 +23,7 @@ type AcademicStatus = 'want' | 'reading' | 'read' | 'abandoned';
 type Note = {
   id: string;
   content: string;
+  page_number: number | null;
   created_at: string;
 };
 
@@ -57,6 +58,8 @@ export default function AcademicWorkScreen() {
   const [status, setStatus] = useState<AcademicStatus | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [noteText, setNoteText] = useState('');
+  const [notePageInput, setNotePageInput] = useState('');
+  const [showNoteBox, setShowNoteBox] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
   const [communityReviews, setCommunityReviews] = useState<AcademicReviewPreview[]>([]);
   const [communityQuotes, setCommunityQuotes] = useState<AcademicQuotePreview[]>([]);
@@ -123,7 +126,7 @@ export default function AcademicWorkScreen() {
         const [savedResult, statusResult, noteResult] = await Promise.all([
           db.from('saved_academic_works').select('work_openalex_id').eq('user_id', user.id).eq('work_openalex_id', loaded.id).maybeSingle(),
           db.from('academic_reading_status').select('status').eq('user_id', user.id).eq('work_openalex_id', loaded.id).maybeSingle(),
-          db.from('academic_work_notes').select('id,content,created_at').eq('user_id', user.id).eq('work_openalex_id', loaded.id).order('created_at', { ascending: false }),
+          db.from('academic_work_notes').select('id,content,page_number,created_at').eq('user_id', user.id).eq('work_openalex_id', loaded.id).order('created_at', { ascending: false }),
         ]);
 
         if (!active) return;
@@ -202,6 +205,14 @@ export default function AcademicWorkScreen() {
   async function saveNote() {
     const clean = noteText.trim();
     if (!clean || !work || savingNote) return;
+
+    const cleanPage = notePageInput.trim();
+    const pageNumber = cleanPage ? Number.parseInt(cleanPage, 10) : null;
+    if (cleanPage && (!Number.isFinite(pageNumber) || !pageNumber || pageNumber < 1)) {
+      Alert.alert('Sayfa numarası geçersiz', 'Sayfa numarası 1 veya daha büyük olmalı.');
+      return;
+    }
+
     const user = await requireUser();
     if (!user) return;
     setSavingNote(true);
@@ -211,10 +222,14 @@ export default function AcademicWorkScreen() {
         work_openalex_id: work.id,
         work_title: work.title,
         content: clean,
-      }).select('id,content,created_at').single();
+        page_number: pageNumber,
+      }).select('id,content,page_number,created_at').single();
       if (error) throw error;
       setNotes((current) => [data as Note, ...current]);
       setNoteText('');
+      setNotePageInput('');
+      setShowNoteBox(false);
+      Alert.alert('Not kaydedildi', 'Bu not yalnızca senin hesabında görünür.');
     } catch (error) {
       Alert.alert('Not kaydedilemedi', error instanceof Error ? error.message : 'Lütfen tekrar dene.');
     } finally {
@@ -292,46 +307,175 @@ export default function AcademicWorkScreen() {
           </View>
         </View>
 
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Paylaş</Text>
-          <Text style={styles.infoText}>Bu {thesis ? 'tez' : 'akademik çalışma'} hakkında kitaplarda olduğu gibi inceleme veya alıntı paylaşabilirsin.</Text>
-          <View style={styles.actionRow}>
-            <Pressable
-              onPress={() => router.push({
-                pathname: '/review' as any,
-                params: {
-                  key: work.id,
-                  title: work.title,
-                  author: academicAuthorLine(work),
-                  contentKind: 'academic',
-                  academicWorkId: work.id,
-                  academicWorkType: work.type ?? '',
-                },
-              })}
-              style={styles.primaryButton}
-            >
-              <Feather name="edit-3" size={16} color="#FFF" />
-              <Text style={styles.primaryButtonText}>İnceleme Yaz</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => router.push({
-                pathname: '/quote-create' as any,
-                params: {
-                  key: work.id,
-                  book: work.title,
-                  author: academicAuthorLine(work),
-                  contentKind: 'academic',
-                  academicWorkId: work.id,
-                  academicWorkType: work.type ?? '',
-                },
-              })}
-              style={styles.secondaryButton}
-            >
-              <Feather name="message-square" size={16} color={colors.primary} />
-              <Text style={styles.secondaryButtonText}>Alıntı Ekle</Text>
-            </Pressable>
-          </View>
+        <View style={styles.actionGrid}>
+          <Pressable
+            onPress={() => router.push({
+              pathname: '/review' as any,
+              params: {
+                key: work.id,
+                title: work.title,
+                author: academicAuthorLine(work),
+                contentKind: 'academic',
+                academicWorkId: work.id,
+                academicWorkType: work.type ?? '',
+              },
+            })}
+            style={styles.actionCard}
+          >
+            <View style={styles.actionIcon}>
+              <Feather name="edit-3" size={20} color="#C8B6FF" />
+            </View>
+            <View style={styles.actionCopy}>
+              <Text style={styles.actionTitle}>İnceleme Yaz</Text>
+              <Text style={styles.actionSubtitle}>Çalışma hakkındaki düşüncelerini paylaş</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color="#707784" />
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push({
+              pathname: '/quote-create' as any,
+              params: {
+                key: work.id,
+                book: work.title,
+                author: academicAuthorLine(work),
+                contentKind: 'academic',
+                academicWorkId: work.id,
+                academicWorkType: work.type ?? '',
+              },
+            })}
+            style={styles.actionCard}
+          >
+            <View style={styles.actionIcon}>
+              <Feather name="type" size={20} color="#C8B6FF" />
+            </View>
+            <View style={styles.actionCopy}>
+              <Text style={styles.actionTitle}>Alıntı Ekle</Text>
+              <Text style={styles.actionSubtitle}>Altını çizdiğin bir bölümü paylaş</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color="#707784" />
+          </Pressable>
+
+          <Pressable onPress={() => setShowNoteBox((value) => !value)} style={styles.actionCard}>
+            <View style={styles.actionIcon}>
+              <Feather name="file-text" size={20} color="#C8B6FF" />
+            </View>
+            <View style={styles.actionCopy}>
+              <Text style={styles.actionTitle}>Not Ekle</Text>
+              <Text style={styles.actionSubtitle}>Sadece sana özel çalışma notu kaydet</Text>
+            </View>
+            <Feather name={showNoteBox ? 'chevron-up' : 'chevron-right'} size={20} color="#707784" />
+          </Pressable>
         </View>
+
+        {showNoteBox ? (
+          <View style={styles.noteBox}>
+            <View style={styles.noteHeader}>
+              <View style={styles.noteHeaderCopy}>
+                <Text style={styles.noteTitle}>Yeni Not</Text>
+                <Text style={styles.noteSubtitle}>Bu not gizlidir; yalnızca sen görebilirsin.</Text>
+              </View>
+              <Text style={styles.characterCount}>{noteText.length}/5000</Text>
+            </View>
+
+            <TextInput
+              value={noteText}
+              onChangeText={setNoteText}
+              placeholder="Çalışmayla ilgili notunu yaz..."
+              placeholderTextColor="#676E7A"
+              multiline
+              maxLength={5000}
+              textAlignVertical="top"
+              style={styles.noteInput}
+            />
+
+            <View style={styles.notePageRow}>
+              <View style={styles.notePageInputWrap}>
+                <Feather name="bookmark" size={14} color="#8574B8" />
+                <TextInput
+                  value={notePageInput}
+                  onChangeText={setNotePageInput}
+                  placeholder="Sayfa (isteğe bağlı)"
+                  placeholderTextColor="#676E7A"
+                  keyboardType="number-pad"
+                  style={styles.notePageInput}
+                />
+              </View>
+            </View>
+
+            <View style={styles.quoteActions}>
+              <Pressable
+                onPress={() => {
+                  setShowNoteBox(false);
+                  setNoteText('');
+                  setNotePageInput('');
+                }}
+                style={styles.cancelQuoteButton}
+              >
+                <Text style={styles.cancelQuoteText}>Vazgeç</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void saveNote()}
+                disabled={savingNote || !noteText.trim()}
+                style={[styles.saveQuoteButton, (savingNote || !noteText.trim()) && styles.disabledButton]}
+              >
+                {savingNote ? (
+                  <ActivityIndicator size="small" color="#0B0C0F" />
+                ) : (
+                  <Feather name="check" size={16} color="#0B0C0F" />
+                )}
+                <Text style={styles.saveQuoteText}>{savingNote ? 'Kaydediliyor...' : 'Notu Kaydet'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {notes.length > 0 ? (
+          <View style={styles.notesSection}>
+            <View style={styles.notesSectionHeader}>
+              <View>
+                <Text style={styles.notesSectionTitle}>Notlarım</Text>
+                <Text style={styles.notesSectionSubtitle}>Bu çalışmaya kaydettiğin özel notlar</Text>
+              </View>
+              <View style={styles.notesCountBadge}>
+                <Text style={styles.notesCountText}>{notes.length}</Text>
+              </View>
+            </View>
+
+            {notes.map((note) => (
+              <View key={note.id} style={styles.noteItem}>
+                <View style={styles.noteItemTop}>
+                  <View style={styles.noteMetaRow}>
+                    {note.page_number ? (
+                      <View style={styles.notePageBadge}>
+                        <Feather name="bookmark" size={11} color="#BCA8F6" />
+                        <Text style={styles.notePageBadgeText}>s. {note.page_number}</Text>
+                      </View>
+                    ) : null}
+                    <Text style={styles.noteDate}>
+                      {new Date(note.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => Alert.alert(
+                      'Notu sil',
+                      'Bu not kalıcı olarak silinsin mi?',
+                      [
+                        { text: 'Vazgeç', style: 'cancel' },
+                        { text: 'Sil', style: 'destructive', onPress: () => void deleteNote(note.id) },
+                      ]
+                    )}
+                    hitSlop={10}
+                    style={styles.noteDeleteButton}
+                  >
+                    <Feather name="trash-2" size={16} color="#A96C76" />
+                  </Pressable>
+                </View>
+                <Text style={styles.noteContent}>{note.content}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         {(communityReviewCount > 0 || communityQuoteCount > 0) ? (
           <View style={styles.sectionCard}>
@@ -405,20 +549,6 @@ export default function AcademicWorkScreen() {
             ) : null}
           </View>
         ) : null}
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Özel Notlarım</Text>
-          <TextInput value={noteText} onChangeText={setNoteText} multiline maxLength={5000} placeholder={thesis ? 'Bu tez hakkında özel not ekle...' : 'Bu makale hakkında özel not ekle...'} placeholderTextColor={colors.textMuted} style={[styles.noteInput, { color: colors.text }]} />
-          <Pressable onPress={() => void saveNote()} disabled={!noteText.trim() || savingNote} style={[styles.noteSave, (!noteText.trim() || savingNote) && styles.disabled]}>
-            {savingNote ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.noteSaveText}>Notu Kaydet</Text>}
-          </Pressable>
-          {notes.map((note) => (
-            <View key={note.id} style={styles.noteItem}>
-              <View style={styles.noteTop}><Text style={styles.noteDate}>{new Date(note.created_at).toLocaleDateString('tr-TR')}</Text><Pressable onPress={() => void deleteNote(note.id)}><Feather name="trash-2" size={15} color={colors.danger} /></Pressable></View>
-              <Text style={styles.noteText}>{note.content}</Text>
-            </View>
-          ))}
-        </View>
 
         {related.length ? (
           <View style={styles.relatedSection}>
