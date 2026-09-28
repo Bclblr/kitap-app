@@ -1176,10 +1176,6 @@ export default function HomeScreen() {
         createdAt: data.created_at,
       };
       setPosts((current) => current.map((item) => item.id === postId ? { ...item, comments: [...(item.comments ?? []), newComment] } : item));
-      if (postData.user_id && postData.user_id !== user.id) {
-        const { error: notificationError } = await supabase.from('notifications').insert({ user_id: postData.user_id, actor_id: user.id, type: 'comment', message: 'gönderine yorum yaptı.', read: false });
-        if (notificationError) console.error('Post yorum bildirimi oluşturulamadı:', notificationError);
-      }
       setPostCommentText('');
     } catch (error) {
       console.error('Post yorum işlemi hatası:', error);
