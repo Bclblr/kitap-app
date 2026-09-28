@@ -154,6 +154,7 @@ export type Database = {
           updated_at: string
           user_id: string
           work_openalex_id: string
+          work_type: string | null
         }
         Insert: {
           author_summary?: string | null
@@ -165,6 +166,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           work_openalex_id: string
+          work_type?: string | null
         }
         Update: {
           author_summary?: string | null
@@ -176,6 +178,49 @@ export type Database = {
           updated_at?: string
           user_id?: string
           work_openalex_id?: string
+          work_type?: string | null
+        }
+        Relationships: []
+      }
+      academic_search_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          entity_type: string
+          expires_at: string
+          hit_count: number
+          last_accessed_at: string
+          query_text: string
+          result_count: number
+          result_limit: number
+          results: Json
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          entity_type: string
+          expires_at: string
+          hit_count?: number
+          last_accessed_at?: string
+          query_text: string
+          result_count?: number
+          result_limit?: number
+          results?: Json
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          entity_type?: string
+          expires_at?: string
+          hit_count?: number
+          last_accessed_at?: string
+          query_text?: string
+          result_count?: number
+          result_limit?: number
+          results?: Json
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2089,9 +2134,13 @@ export type Database = {
       }
       quotes: {
         Row: {
+          academic_author_summary: string | null
+          academic_work_id: string | null
+          academic_work_type: string | null
           book_key: string
           book_title: string
           card_template_key: string
+          content_kind: string
           created_at: string
           id: string
           note: string | null
@@ -2103,9 +2152,13 @@ export type Database = {
           view_count: number
         }
         Insert: {
+          academic_author_summary?: string | null
+          academic_work_id?: string | null
+          academic_work_type?: string | null
           book_key: string
           book_title: string
           card_template_key?: string
+          content_kind?: string
           created_at?: string
           id?: string
           note?: string | null
@@ -2117,9 +2170,13 @@ export type Database = {
           view_count?: number
         }
         Update: {
+          academic_author_summary?: string | null
+          academic_work_id?: string | null
+          academic_work_type?: string | null
           book_key?: string
           book_title?: string
           card_template_key?: string
+          content_kind?: string
           created_at?: string
           id?: string
           note?: string | null
@@ -2382,9 +2439,13 @@ export type Database = {
       }
       reviews: {
         Row: {
+          academic_author_summary: string | null
+          academic_work_id: string | null
+          academic_work_type: string | null
           book_key: string
           book_title: string
           contains_spoiler: boolean
+          content_kind: string
           created_at: string
           id: string
           rating: number
@@ -2396,9 +2457,13 @@ export type Database = {
           view_count: number
         }
         Insert: {
+          academic_author_summary?: string | null
+          academic_work_id?: string | null
+          academic_work_type?: string | null
           book_key: string
           book_title: string
           contains_spoiler?: boolean
+          content_kind?: string
           created_at?: string
           id?: string
           rating: number
@@ -2410,9 +2475,13 @@ export type Database = {
           view_count?: number
         }
         Update: {
+          academic_author_summary?: string | null
+          academic_work_id?: string | null
+          academic_work_type?: string | null
           book_key?: string
           book_title?: string
           contains_spoiler?: boolean
+          content_kind?: string
           created_at?: string
           id?: string
           rating?: number
@@ -2435,6 +2504,7 @@ export type Database = {
           title: string
           user_id: string
           work_openalex_id: string
+          work_type: string | null
         }
         Insert: {
           author_summary?: string | null
@@ -2445,6 +2515,7 @@ export type Database = {
           title: string
           user_id: string
           work_openalex_id: string
+          work_type?: string | null
         }
         Update: {
           author_summary?: string | null
@@ -2455,6 +2526,7 @@ export type Database = {
           title?: string
           user_id?: string
           work_openalex_id?: string
+          work_type?: string | null
         }
         Relationships: []
       }
