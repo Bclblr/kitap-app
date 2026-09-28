@@ -96,6 +96,10 @@ module.exports = ({ config }) => {
     plugins.push('expo-sharing');
   }
 
+  if (!plugins.some((plugin) => plugin === 'expo-video' || (Array.isArray(plugin) && plugin[0] === 'expo-video'))) {
+    plugins.push('expo-video');
+  }
+
   plugins.push([
     'expo-build-properties',
     {
