@@ -881,7 +881,6 @@ export default function HomeScreen() {
       const pageItems = [...preparedPosts, ...reviewPosts, ...quotePosts]
         .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
-  const storyTopAd = pickStoryTopAd(houseAds);
 
       const postRows = (postResult.data ?? []) as any[];
       const reviewRows = (reviewResult.data ?? []) as any[];
@@ -1496,6 +1495,7 @@ export default function HomeScreen() {
     )
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
+  const storyTopAd = pickStoryTopAd(houseAds);
 
   function renderFeedPost({ item: post, index: feedIndex }: { item: Post; index: number }) {
             const reviewForPost = post.isReview ? reviews.find((review) => review.id === post.id) : undefined;
