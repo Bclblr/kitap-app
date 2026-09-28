@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 
 async function invokeBookCatalog<T>(
-  mode: 'book_search' | 'book_author_search' | 'book_record',
+  mode: 'book_search' | 'book_author_search' | 'book_author_works' | 'book_record',
   payload: Record<string, unknown>
 ): Promise<T> {
   const { data, error } = await supabase.functions.invoke('book-catalog', {
@@ -24,6 +24,12 @@ export function searchOpenLibraryAuthors(query: string, limit = 10) {
   const clean = query.trim();
   if (!clean) return Promise.resolve<any[]>([]);
   return invokeBookCatalog<any[]>('book_author_search', { query: clean, limit });
+}
+
+export function searchOpenLibraryBooksByAuthor(author: string, limit = 60) {
+  const clean = author.trim();
+  if (!clean) return Promise.resolve<any[]>([]);
+  return invokeBookCatalog<any[]>('book_author_works', { query: clean, limit });
 }
 
 export function getOpenLibraryRecord(key: string) {
