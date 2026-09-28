@@ -55,6 +55,10 @@ type Review = {
   containsSpoiler?: boolean;
   createdAt: string;
   viewCount?: number;
+  contentKind?: 'book' | 'academic';
+  academicWorkId?: string | null;
+  academicWorkType?: string | null;
+  academicAuthorSummary?: string | null;
 };
 
 type Quote = {
@@ -69,6 +73,10 @@ type Quote = {
   note?: string | null;
   createdAt: string;
   viewCount?: number;
+  contentKind?: 'book' | 'academic';
+  academicWorkId?: string | null;
+  academicWorkType?: string | null;
+  academicAuthorSummary?: string | null;
 };
 
 type Post = {
@@ -712,7 +720,7 @@ export default function ProfileScreen() {
       if (profileTab === 'review') {
         let query = supabase
           .from('reviews')
-          .select('id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at, view_count')
+          .select('id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at, view_count, content_kind, academic_work_id, academic_work_type, academic_author_summary')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
@@ -746,7 +754,7 @@ export default function ProfileScreen() {
       } else if (profileTab === 'quote') {
         let query = supabase
           .from('quotes')
-          .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at, view_count')
+          .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at, view_count, content_kind, academic_work_id, academic_work_type, academic_author_summary')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
@@ -1132,6 +1140,10 @@ export default function ProfileScreen() {
               item.created_at ||
               new Date().toISOString(),
             viewCount: Number(item.view_count) || 0,
+            contentKind: item.content_kind === 'academic' ? 'academic' : 'book',
+            academicWorkId: item.academic_work_id ? String(item.academic_work_id) : null,
+            academicWorkType: item.academic_work_type ? String(item.academic_work_type) : null,
+            academicAuthorSummary: item.academic_author_summary ? String(item.academic_author_summary) : null,
           })
         );
 
@@ -1188,6 +1200,10 @@ export default function ProfileScreen() {
               item.created_at ||
               new Date().toISOString(),
             viewCount: Number(item.view_count) || 0,
+            contentKind: item.content_kind === 'academic' ? 'academic' : 'book',
+            academicWorkId: item.academic_work_id ? String(item.academic_work_id) : null,
+            academicWorkType: item.academic_work_type ? String(item.academic_work_type) : null,
+            academicAuthorSummary: item.academic_author_summary ? String(item.academic_author_summary) : null,
           })
         );
 
@@ -1533,17 +1549,23 @@ export default function ProfileScreen() {
    */
 
   function openBook(
-    bookKey: string | null | undefined
+    bookKey: string | null | undefined,
+    contentKind: 'book' | 'academic' = 'book',
+    academicWorkId?: string | null
   ) {
-    if (!bookKey) {
+    if (!bookKey && !academicWorkId) return;
+
+    if (contentKind === 'academic') {
+      router.push({
+        pathname: '/academic-work' as any,
+        params: { id: academicWorkId || bookKey || '' },
+      });
       return;
     }
 
     router.push({
       pathname: '/book',
-      params: {
-        key: bookKey,
-      },
+      params: { key: bookKey! },
     });
   }
 
@@ -2020,7 +2042,7 @@ export default function ProfileScreen() {
                             styles.feedType
                           }
                         >
-                          📚 İNCELEME
+                          {review.contentKind === 'academic' ? '📄 AKADEMİK İNCELEME' : '📚 İNCELEME'}
                         </Text>
 
                         <Text
@@ -2047,10 +2069,8 @@ export default function ProfileScreen() {
                             2
                           }
                         >
-                          📖{' '}
-                          {
-                            review.bookTitle
-                          }
+                          {review.contentKind === 'academic' ? '📄 ' : '📖 '}
+                          {review.bookTitle}
                         </Text>
 
                         {review.bookKey && (
@@ -2130,7 +2150,9 @@ export default function ProfileScreen() {
                       }
                       onPress={() =>
                         openBook(
-                          quote.bookKey
+                          quote.bookKey,
+                          quote.contentKind,
+                          quote.academicWorkId
                         )
                       }
                       style={[
@@ -2148,7 +2170,7 @@ export default function ProfileScreen() {
                             styles.feedType
                           }
                         >
-                          ✍️ ALINTI
+                          {quote.contentKind === 'academic' ? '📄 AKADEMİK ALINTI' : '✍️ ALINTI'}
                         </Text>
 
                         <Text
@@ -2175,10 +2197,8 @@ export default function ProfileScreen() {
                             2
                           }
                         >
-                          📖{' '}
-                          {
-                            quote.bookTitle
-                          }
+                          {quote.contentKind === 'academic' ? '📄 ' : '📖 '}
+                          {quote.bookTitle}
                         </Text>
 
                         {quote.bookKey && (
