@@ -7,6 +7,7 @@ import AdSlot from '@/components/AdSlot';
 import PersonalizedBookSuggestions from '@/components/PersonalizedBookSuggestions';
 import ReaderSuggestions from '@/components/ReaderSuggestions';
 import { BookCoverData, existingBookCover, openLibraryUrl } from '@/lib/open-library-cover';
+import { getOpenLibraryRecord, searchOpenLibraryAuthors, searchOpenLibraryBooks } from '@/lib/open-library-api';
 import { AcademicAuthorSummary, AcademicInstitutionSummary, AcademicJournalSummary, AcademicWork, searchAcademicAuthors, searchAcademicInstitutions, searchAcademicJournals, searchAcademicWorks } from '@/lib/academic';
 import { supabase } from '@/lib/supabase';
 import { useReaderSocial } from '@/hooks/use-reader-social';
@@ -148,9 +149,8 @@ export default function ExploreScreen() {
           const url = openLibraryUrl(book.book_key);
           if (!url) return book;
           try {
-            const response = await fetch(url);
-            if (!response.ok) return book;
-            const metadata = await response.json();
+            const metadata = await getOpenLibraryRecord(book.book_key);
+            if (!metadata) return book;
             return {
               ...book,
               coverUrl: existingBookCover(metadata),
@@ -185,9 +185,8 @@ export default function ExploreScreen() {
       await Promise.all(
         candidates.map(async (book) => {
           try {
-            const response = await fetch(`https://openlibrary.org${book.book_key}.json`);
-            if (!response.ok) return;
-            const data = await response.json();
+            const data = await getOpenLibraryRecord(book.book_key);
+            if (!data) return;
             const authorKeys: string[] = Array.isArray(data.authors)
               ? data.authors
                   .map((entry: any) => entry?.author?.key)
@@ -215,9 +214,8 @@ export default function ExploreScreen() {
       const results = await Promise.all(
         authorKeys.map(async (key): Promise<FeaturedAuthor | null> => {
           try {
-            const response = await fetch(`https://openlibrary.org${key}.json`);
-            if (!response.ok) return null;
-            const data = await response.json();
+            const data = await getOpenLibraryRecord(key);
+            if (!data) return null;
             if (!data?.name) return null;
             return {
               key,
@@ -371,14 +369,12 @@ export default function ExploreScreen() {
     try {
       const [userResult, bookResult, authorResult] = await Promise.all([
         supabase.rpc('search_visible_profiles', { p_query: searchText, p_limit: 10 }),
-        fetch(
-          `https://openlibrary.org/search.json?q=${encodeURIComponent(searchText)}&limit=20&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`,
-          { signal: controller.signal }
-        ).then((response) => ({ response, error: null as unknown })).catch((error: unknown) => ({ response: null, error })),
-        fetch(
-          `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(searchText)}&limit=10`,
-          { signal: controller.signal }
-        ).then((response) => ({ response, error: null as unknown })).catch((error: unknown) => ({ response: null, error })),
+        searchOpenLibraryBooks(searchText, 20)
+          .then((data) => ({ data, error: null as unknown }))
+          .catch((error: unknown) => ({ data: [] as any[], error })),
+        searchOpenLibraryAuthors(searchText, 10)
+          .then((data) => ({ data, error: null as unknown }))
+          .catch((error: unknown) => ({ data: [] as any[], error })),
       ]);
 
       if (requestId !== searchRequestIdRef.current) return;
@@ -396,19 +392,17 @@ export default function ExploreScreen() {
         .sort((a, b) => rankText(b.username) - rankText(a.username));
 
       let nextBooks: Book[] = [];
-      if (bookResult.response?.ok) {
-        const bookData = await bookResult.response.json();
-        const docs: Book[] = Array.isArray(bookData.docs) ? bookData.docs : [];
+      if (!bookResult.error) {
+        const docs: Book[] = Array.isArray(bookResult.data) ? bookResult.data : [];
         nextBooks = docs
           .filter((item, index, all) => !!item.key && all.findIndex((candidate) => candidate.key === item.key) === index)
           .sort((a, b) => rankText(b.title) - rankText(a.title));
       }
 
       let nextAuthors: Author[] = [];
-      if (authorResult.response?.ok) {
-        const authorData = await authorResult.response.json();
-        nextAuthors = (Array.isArray(authorData.docs)
-          ? authorData.docs.map((author: any) => ({
+      if (!authorResult.error) {
+        nextAuthors = (Array.isArray(authorResult.data)
+          ? authorResult.data.map((author: any) => ({
               key: author.key || author.author_key?.[0],
               name: author.name,
               birth_date: author.birth_date,
