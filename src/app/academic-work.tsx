@@ -364,7 +364,7 @@ const baseStyles = StyleSheet.create({
   metricLabel: { color: '#737681', fontSize: 8.5, marginTop: 3, textAlign: 'center' },
   statusSection: { marginTop: 16 },
   sectionTitle: { color: '#F0F0F3', fontSize: 15, fontWeight: '900', marginBottom: 11 },
-  statusRow: { flexDirection: 'row', gap: 8 },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   statusButton: { flex: 1, minHeight: 58, borderRadius: 14, borderWidth: 1, borderColor: '#2B2C35', backgroundColor: '#111218', alignItems: 'center', justifyContent: 'center', gap: 5 },
   statusSelected: { borderColor: '#6232B5', backgroundColor: '#211733' },
   statusText: { color: '#898B95', fontSize: 9.5, fontWeight: '800' },
