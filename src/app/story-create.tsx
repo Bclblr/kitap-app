@@ -9,6 +9,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  PanResponder,
   Pressable,
   StyleSheet,
   Switch,
@@ -26,6 +27,17 @@ import { requirePermanentImage } from '@/lib/image-policy';
 import { supabase } from '@/lib/supabase';
 
 const STORY_TEXT_COLORS = ['#FFFFFF', '#FFE66D', '#FF7AA2', '#A985FF', '#69E3FF'] as const;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function touchDistance(touches: readonly any[]) {
+  if (touches.length < 2) return 0;
+  const dx = touches[0].pageX - touches[1].pageX;
+  const dy = touches[0].pageY - touches[1].pageY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
 export default function StoryCreateScreen() {
   const router = useRouter();
@@ -50,6 +62,14 @@ export default function StoryCreateScreen() {
   const [busy, setBusy] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [imageScale, setImageScale] = useState(1);
+  const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 });
+  const [textOffset, setTextOffset] = useState({ x: 0, y: 0 });
+  const imageScaleRef = useRef(1);
+  const imageOffsetRef = useRef({ x: 0, y: 0 });
+  const textOffsetRef = useRef({ x: 0, y: 0 });
+  const imageGestureRef = useRef({ distance: 0, scale: 1, x: 0, y: 0 });
+  const textGestureRef = useRef({ x: 0, y: 0 });
 
   const stageSize = useMemo(() => {
     const stageWidth = Math.min(Math.max(280, width), 520);
@@ -59,6 +79,102 @@ export default function StoryCreateScreen() {
       height: Math.min(availableHeight, stageWidth * (16 / 9)),
     };
   }, [height, insets.bottom, insets.top, width]);
+
+  function setImageTransform(nextScale: number, nextX: number, nextY: number) {
+    const scale = clamp(nextScale, 1, 4);
+    const maxX = ((scale - 1) * stageSize.width) / 2;
+    const maxY = ((scale - 1) * stageSize.height) / 2;
+    const x = scale <= 1.001 ? 0 : clamp(nextX, -maxX, maxX);
+    const y = scale <= 1.001 ? 0 : clamp(nextY, -maxY, maxY);
+    imageScaleRef.current = scale;
+    imageOffsetRef.current = { x, y };
+    setImageScale(scale);
+    setImageOffset({ x, y });
+  }
+
+  function setTextPosition(nextX: number, nextY: number) {
+    const x = clamp(nextX, -stageSize.width * 0.42, stageSize.width * 0.42);
+    const y = clamp(nextY, -stageSize.height * 0.42, stageSize.height * 0.42);
+    textOffsetRef.current = { x, y };
+    setTextOffset({ x, y });
+  }
+
+  function resetTransforms() {
+    imageScaleRef.current = 1;
+    imageOffsetRef.current = { x: 0, y: 0 };
+    textOffsetRef.current = { x: 0, y: 0 };
+    setImageScale(1);
+    setImageOffset({ x: 0, y: 0 });
+    setTextOffset({ x: 0, y: 0 });
+  }
+
+  const imagePanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: (event) => {
+          const touches = event.nativeEvent.touches ?? [];
+          return touches.length >= 2 || imageScaleRef.current > 1.01;
+        },
+        onMoveShouldSetPanResponder: (event, gesture) => {
+          const touches = event.nativeEvent.touches ?? [];
+          return touches.length >= 2 || (imageScaleRef.current > 1.01 && Math.abs(gesture.dx) + Math.abs(gesture.dy) > 2);
+        },
+        onPanResponderGrant: (event) => {
+          const touches = event.nativeEvent.touches ?? [];
+          imageGestureRef.current = {
+            distance: touchDistance(touches),
+            scale: imageScaleRef.current,
+            x: imageOffsetRef.current.x,
+            y: imageOffsetRef.current.y,
+          };
+        },
+        onPanResponderMove: (event, gesture) => {
+          const touches = event.nativeEvent.touches ?? [];
+          if (touches.length >= 2) {
+            const distance = touchDistance(touches);
+            const startDistance = imageGestureRef.current.distance || distance;
+            if (!distance || !startDistance) return;
+            const nextScale = imageGestureRef.current.scale * (distance / startDistance);
+            setImageTransform(nextScale, imageOffsetRef.current.x, imageOffsetRef.current.y);
+            return;
+          }
+          if (imageScaleRef.current <= 1.01) return;
+          setImageTransform(
+            imageScaleRef.current,
+            imageGestureRef.current.x + gesture.dx,
+            imageGestureRef.current.y + gesture.dy
+          );
+        },
+        onPanResponderTerminationRequest: () => false,
+      }),
+    [stageSize.height, stageSize.width]
+  );
+
+  const textPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => !!storyText.trim() && !textEditing,
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          !!storyText.trim() && !textEditing && Math.abs(gesture.dx) + Math.abs(gesture.dy) > 2,
+        onPanResponderGrant: () => {
+          textGestureRef.current = { ...textOffsetRef.current };
+        },
+        onPanResponderMove: (_event, gesture) => {
+          setTextPosition(
+            textGestureRef.current.x + gesture.dx,
+            textGestureRef.current.y + gesture.dy
+          );
+        },
+        onPanResponderRelease: (_event, gesture) => {
+          if (Math.abs(gesture.dx) < 4 && Math.abs(gesture.dy) < 4) {
+            setTextEditing(true);
+            requestAnimationFrame(() => textInputRef.current?.focus());
+          }
+        },
+        onPanResponderTerminationRequest: () => false,
+      }),
+    [storyText, textEditing, stageSize.height, stageSize.width]
+  );
 
   useEffect(() => {
     if (!textMode) return;
@@ -113,6 +229,7 @@ export default function StoryCreateScreen() {
 
       if (!photo?.uri) throw new Error('Fotoğraf dosyası oluşturulamadı.');
 
+      resetTransforms();
       setCapturedUri(photo.uri);
       setTextMode(false);
       setTextEditing(false);
@@ -136,6 +253,7 @@ export default function StoryCreateScreen() {
       quality: 0.88,
     });
     if (!result.canceled && result.assets[0]?.uri) {
+      resetTransforms();
       setCapturedUri(result.assets[0].uri);
       setTextMode(false);
       setTextEditing(false);
@@ -147,6 +265,7 @@ export default function StoryCreateScreen() {
     setCapturedUri(null);
     setTextMode(false);
     setStoryText('');
+    resetTransforms();
   }
 
   async function publish() {
@@ -199,6 +318,11 @@ export default function StoryCreateScreen() {
         text_align: textAlign,
         text_background: textBackground,
         text_style: textStyle,
+        image_scale: imageScaleRef.current,
+        image_offset_x: imageOffsetRef.current.x / stageSize.width,
+        image_offset_y: imageOffsetRef.current.y / stageSize.height,
+        text_offset_x: textOffsetRef.current.x / stageSize.width,
+        text_offset_y: textOffsetRef.current.y / stageSize.height,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       });
       if (result.error) throw result.error;
@@ -252,7 +376,23 @@ export default function StoryCreateScreen() {
               }}
             />
           ) : capturedUri ? (
-            <Image localPreview source={{ uri: capturedUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <View style={StyleSheet.absoluteFill} {...imagePanResponder.panHandlers}>
+              <Image
+                localPreview
+                source={{ uri: capturedUri }}
+                style={[
+                  StyleSheet.absoluteFill,
+                  {
+                    transform: [
+                      { translateX: imageOffset.x },
+                      { translateY: imageOffset.y },
+                      { scale: imageScale },
+                    ],
+                  },
+                ]}
+                resizeMode="cover"
+              />
+            </View>
           ) : (
             <View style={styles.blankStage} />
           )}
@@ -379,7 +519,15 @@ export default function StoryCreateScreen() {
           ) : null}
 
           {showTextEditor ? (
-            <View style={[styles.textEditorWrap, textMode && styles.textEditorTextOnly]} pointerEvents="box-none">
+            <View
+              style={[
+                styles.textEditorWrap,
+                textMode && styles.textEditorTextOnly,
+                { transform: [{ translateX: textOffset.x }, { translateY: textOffset.y }] },
+              ]}
+              pointerEvents="box-none"
+              {...(!textEditing ? textPanResponder.panHandlers : {})}
+            >
               <TextInput
                 ref={textInputRef}
                 value={storyText}
@@ -394,6 +542,7 @@ export default function StoryCreateScreen() {
                 textAlign={textAlign}
                 textAlignVertical="center"
                 selectionColor={textColor}
+                editable={textEditing}
                 style={[
                   styles.storyTextInput,
                   textMode && styles.storyTextInputLarge,
@@ -402,6 +551,21 @@ export default function StoryCreateScreen() {
                   { color: textColor, textAlign },
                 ]}
               />
+              {!!storyText.trim() && !textEditing ? (
+                <View style={styles.dragHint} pointerEvents="none">
+                  <Feather name="move" size={13} color="#FFF" />
+                  <Text style={styles.dragHintText}>Sürükleyerek taşı</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {capturedUri && !textEditing ? (
+            <View style={styles.zoomHint} pointerEvents="none">
+              <Feather name="maximize-2" size={12} color="#FFF" />
+              <Text style={styles.zoomHintText}>
+                {imageScale > 1.01 ? 'Sürükle · iki parmakla yakınlaştır' : 'İki parmakla yakınlaştır'}
+              </Text>
             </View>
           ) : null}
 
@@ -565,6 +729,10 @@ const styles = StyleSheet.create({
   storyTextInputBackground: { backgroundColor: 'rgba(0,0,0,0.58)', borderRadius: 8, paddingHorizontal: 12, textShadowColor: 'transparent' },
   storyTextInputStrong: { fontWeight: '900', fontSize: 27, lineHeight: 34 },
   storyTextInputLarge: { maxHeight: '72%', backgroundColor: 'transparent', fontSize: 32, lineHeight: 41, fontWeight: '800' },
+  dragHint: { alignSelf: 'center', marginTop: 6, minHeight: 28, borderRadius: 14, paddingHorizontal: 10, backgroundColor: 'rgba(8,8,12,0.54)', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dragHintText: { color: '#FFF', fontSize: 9.5, fontWeight: '700' },
+  zoomHint: { position: 'absolute', left: 0, right: 0, bottom: 80, zIndex: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  zoomHintText: { color: 'rgba(255,255,255,0.82)', fontSize: 9.5, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   editFooter: { position: 'absolute', left: 14, right: 14, bottom: 18, flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 22 },
   retake: { height: 48, paddingHorizontal: 18, borderRadius: 24, backgroundColor: 'rgba(14,15,20,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   retakeText: { color: '#FFF', fontSize: 13, fontWeight: '800' },
