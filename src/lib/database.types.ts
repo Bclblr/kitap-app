@@ -356,6 +356,63 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_campaigns: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string
+          ends_at: string | null
+          feed_interval: number
+          id: string
+          media_type: string
+          media_url: string
+          placement: string
+          priority: number
+          starts_at: string
+          storage_path: string | null
+          subtitle: string | null
+          target_url: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by: string
+          ends_at?: string | null
+          feed_interval?: number
+          id?: string
+          media_type: string
+          media_url: string
+          placement?: string
+          priority?: number
+          starts_at?: string
+          storage_path?: string | null
+          subtitle?: string | null
+          target_url: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string
+          ends_at?: string | null
+          feed_interval?: number
+          id?: string
+          media_type?: string
+          media_url?: string
+          placement?: string
+          priority?: number
+          starts_at?: string
+          storage_path?: string | null
+          subtitle?: string | null
+          target_url?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admin_audit_logs: {
         Row: {
           action: string
@@ -3323,6 +3380,7 @@ export type Database = {
         Args: { p_label?: string }
         Returns: string
       }
+      admin_delete_ad_campaign: { Args: { p_id: string }; Returns: undefined }
       admin_delete_announcement: { Args: { p_id: string }; Returns: undefined }
       admin_delete_content: {
         Args: { p_reason?: string; p_target_id: string; p_target_type: string }
@@ -3376,6 +3434,33 @@ export type Database = {
           to: "verified_accounts"
           isOneToOne: true
           isSetofReturn: false
+        }
+      }
+      admin_list_ad_campaigns: {
+        Args: { p_limit?: number }
+        Returns: {
+          active: boolean
+          created_at: string
+          created_by: string
+          ends_at: string | null
+          feed_interval: number
+          id: string
+          media_type: string
+          media_url: string
+          placement: string
+          priority: number
+          starts_at: string
+          storage_path: string | null
+          subtitle: string | null
+          target_url: string
+          title: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ad_campaigns"
+          isOneToOne: false
+          isSetofReturn: true
         }
       }
       admin_list_admin_accounts: {
@@ -3742,6 +3827,24 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      admin_save_ad_campaign: {
+        Args: {
+          p_active?: boolean
+          p_ends_at?: string
+          p_feed_interval?: number
+          p_id?: string
+          p_media_type?: string
+          p_media_url?: string
+          p_placement?: string
+          p_priority?: number
+          p_starts_at?: string
+          p_storage_path?: string
+          p_subtitle?: string
+          p_target_url?: string
+          p_title?: string
+        }
+        Returns: string
       }
       admin_save_announcement: {
         Args: {
