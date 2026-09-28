@@ -5,7 +5,7 @@ import BookCover from '@/components/BookCover';
 import RetryNotice from '@/components/RetryNotice';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/lib/supabase';
@@ -41,6 +41,7 @@ export default function ShelvesScreen() {
 
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -282,6 +283,17 @@ export default function ShelvesScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={lightColor('primary', '#A985FF')}
+            colors={[lightColor('primary', '#A985FF')]}
+            onRefresh={() => {
+              setRefreshing(true);
+              void loadBooks(true).finally(() => setRefreshing(false));
+            }}
+          />
+        }
       >
         <Text style={styles.title}>
           Raflarım
