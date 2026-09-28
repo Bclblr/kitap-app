@@ -549,7 +549,7 @@ export default function HomeScreen() {
       const buildQuoteQuery = () => {
         let query = supabase
           .from('quotes')
-          .select('id,user_id,book_key,book_title,text,title,topic,page_number,note,card_template_key,created_at,view_count')
+          .select('id,user_id,book_key,book_title,text,title,topic,page_number,note,card_template_key,created_at,view_count,content_kind,academic_work_id,academic_work_type,academic_author_summary')
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
           .limit(FEED_PAGE_SIZE);
@@ -757,6 +757,10 @@ export default function HomeScreen() {
           reposts: reposts.length,
           reposted: !!userId && reposts.some((item: any) => item.user_id === userId),
           view_count: Number(review.view_count) || 0,
+          contentKind: review.content_kind === 'academic' ? 'academic' : 'book',
+          academicWorkId: review.academic_work_id ?? null,
+          academicWorkType: review.academic_work_type ?? null,
+          academicAuthorSummary: review.academic_author_summary ?? null,
         };
       });
 
@@ -794,6 +798,10 @@ export default function HomeScreen() {
         reposted: review.reposted,
         view_count: review.view_count ?? 0,
         isReview: true,
+        contentKind: review.contentKind,
+        academicWorkId: review.academicWorkId,
+        academicWorkType: review.academicWorkType,
+        academicAuthorSummary: review.academicAuthorSummary,
       }));
 
       const quotePosts: Post[] = visibleQuoteRows.map((quote: any) => {
@@ -835,6 +843,10 @@ export default function HomeScreen() {
           })),
           view_count: Number(quote.view_count) || 0,
           isQuote: true,
+          contentKind: quote.content_kind === 'academic' ? 'academic' : 'book',
+          academicWorkId: quote.academic_work_id ?? null,
+          academicWorkType: quote.academic_work_type ?? null,
+          academicAuthorSummary: quote.academic_author_summary ?? null,
         };
       });
 
@@ -1352,6 +1364,11 @@ export default function HomeScreen() {
   function openBook(bookKey: string) {
     const post = posts.find(item => item.book_key === bookKey);
     const review = reviews.find(item => item.bookKey === bookKey);
+    const academicWorkId = post?.academicWorkId ?? review?.academicWorkId;
+    if (post?.contentKind === 'academic' || review?.contentKind === 'academic') {
+      router.push({ pathname: '/academic-work' as any, params: { id: academicWorkId || bookKey } });
+      return;
+    }
     router.push({ pathname: '/book', params: { key: bookKey, title: post?.book_title ?? review?.bookTitle, coverUrl: bookCoverUrls[bookKey] ?? existingBookCover(post ?? review ?? {}) ?? undefined } });
   }
 
@@ -1465,7 +1482,7 @@ export default function HomeScreen() {
                     <Pressable onPress={() => openFeedContentMenu(post)} accessibilityLabel="İçerik seçenekleri"><Text style={styles.moreButton}>•••</Text></Pressable>
                   </View>
 
-                  {(post.isQuote || post.rating > 0) && <Text style={styles.feedTypeLabel}>{post.isQuote ? 'ALINTI' : 'KİTAP İNCELEMESİ'}</Text>}
+                  {(post.isQuote || post.rating > 0) && <Text style={styles.feedTypeLabel}>{post.isQuote ? (post.contentKind === 'academic' ? 'AKADEMİK ALINTI' : 'ALINTI') : (post.contentKind === 'academic' ? 'AKADEMİK İNCELEME' : 'KİTAP İNCELEMESİ')}</Text>}
                   {postImageUrls(post).length > 0 && <FeedImageGallery urls={postImageUrls(post)} />}
                   {post.text ? (
                     post.isReview ? (
@@ -1493,8 +1510,8 @@ export default function HomeScreen() {
                   ) : null}
                   {post.book_title && (
                     <Pressable onPress={() => { if (post.book_key) openBook(post.book_key); }} style={styles.bookAttachment}>
-                      <View style={styles.bookAttachmentIcon}><BookCover uri={existingBookCover(post) ?? bookCoverUrls[post.book_key || post.key || post.workKey || ''] ?? null} style={styles.bookAttachmentCover}><Text style={styles.bookAttachmentEmoji}>▥</Text></BookCover></View>
-                      <View style={styles.bookAttachmentInfo}><Text style={styles.bookAttachmentLabel}>KİTAP</Text><Text style={styles.bookTitle} numberOfLines={2}>{post.book_title}</Text></View>
+                      <View style={styles.bookAttachmentIcon}>{post.contentKind === 'academic' ? <View style={styles.bookAttachmentCover}><Feather name="file-text" size={20} color={colors.primary} /></View> : <BookCover uri={existingBookCover(post) ?? bookCoverUrls[post.book_key || post.key || post.workKey || ''] ?? null} style={styles.bookAttachmentCover}><Text style={styles.bookAttachmentEmoji}>▥</Text></BookCover>}</View>
+                      <View style={styles.bookAttachmentInfo}><Text style={styles.bookAttachmentLabel}>{post.contentKind === 'academic' ? 'AKADEMİK ÇALIŞMA' : 'KİTAP'}</Text><Text style={styles.bookTitle} numberOfLines={2}>{post.book_title}</Text>{post.contentKind === 'academic' && post.academicAuthorSummary ? <Text style={styles.date} numberOfLines={1}>{post.academicAuthorSummary}</Text> : null}</View>
                       <Text style={styles.bookAttachmentArrow}>›</Text>
                     </Pressable>
                   )}
