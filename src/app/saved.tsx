@@ -35,6 +35,7 @@ export default function SavedScreen() {
   const [posts, setPosts] = useState<SavedPost[]>([]);
   const [works, setWorks] = useState<SavedWork[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [errorText, setErrorText] = useState('');
   const [removingId, setRemovingId] = useState<string | null>(null);
 
@@ -235,6 +236,11 @@ export default function SavedScreen() {
           data={rows}
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.content}
+          refreshing={refreshing}
+          onRefresh={() => {
+            setRefreshing(true);
+            void loadSaved().finally(() => setRefreshing(false));
+          }}
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={7}
