@@ -11,11 +11,11 @@ alter table public.stories add constraint stories_image_scale_check
 
 alter table public.stories drop constraint if exists stories_image_offset_x_check;
 alter table public.stories add constraint stories_image_offset_x_check
-  check (image_offset_x between -1 and 1);
+  check (image_offset_x between -2 and 2);
 
 alter table public.stories drop constraint if exists stories_image_offset_y_check;
 alter table public.stories add constraint stories_image_offset_y_check
-  check (image_offset_y between -1 and 1);
+  check (image_offset_y between -2 and 2);
 
 alter table public.stories drop constraint if exists stories_text_offset_x_check;
 alter table public.stories add constraint stories_text_offset_x_check
