@@ -21,10 +21,9 @@ import { safeBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 
-const PLACEMENTS: { key: HouseAdPlacement; label: string }[] = [
-  { key: 'story_top', label: 'Hikâye üstü' },
-  { key: 'feed', label: 'Akış içi' },
-  { key: 'both', label: 'İkisi de' },
+const PLACEMENTS: { key: Extract<HouseAdPlacement, 'story_top' | 'feed'>; label: string }[] = [
+  { key: 'story_top', label: 'Hikâye üstü tek reklam' },
+  { key: 'feed', label: 'Akış içi reklamlar' },
 ];
 
 function fileExtension(fileName: string | null | undefined, mimeType: string | null | undefined, mediaType: HouseAdMediaType) {
@@ -81,6 +80,11 @@ export default function AdminAdsScreen() {
 
   useFocusEffect(useCallback(() => { void loadItems(); }, [loadItems]));
 
+  const storyTopSlot = useMemo(
+    () => items.find((item) => item.placement === 'story_top' || item.placement === 'both') ?? null,
+    [items]
+  );
+
   const preview = useMemo<HouseAdCampaign | null>(() => {
     if (!mediaUrl) return null;
     return {
@@ -124,7 +128,7 @@ export default function AdminAdsScreen() {
     setTitle(item.title);
     setSubtitle(item.subtitle ?? '');
     setTargetUrl(item.target_url);
-    setPlacement(item.placement);
+    setPlacement(item.placement === 'both' ? 'story_top' : item.placement);
     setActive(item.active);
     setStartsAt(item.starts_at ? item.starts_at.slice(0, 16) : '');
     setEndsAt(item.ends_at ? item.ends_at.slice(0, 16) : '');
@@ -134,6 +138,16 @@ export default function AdminAdsScreen() {
     setMediaUrl(item.media_url);
     setStoragePath(item.storage_path);
     setPickedAsset(null);
+  }
+
+  function choosePlacement(next: Extract<HouseAdPlacement, 'story_top' | 'feed'>) {
+    if (next === 'story_top' && storyTopSlot) {
+      edit(storyTopSlot);
+      setPlacement('story_top');
+      return;
+    }
+    resetForm();
+    setPlacement(next);
   }
 
   async function pickMedia() {
@@ -199,13 +213,13 @@ export default function AdminAdsScreen() {
       Alert.alert('Geçersiz bağlantı', 'Reklam hedef bağlantısı https:// ile başlamalı.');
       return;
     }
-    const interval = Number(feedInterval);
-    const priorityNumber = Number(priority);
-    if (!Number.isInteger(interval) || interval < 3 || interval > 20) {
+    const interval = placement === 'feed' ? Number(feedInterval) : 6;
+    const priorityNumber = placement === 'feed' ? Number(priority) : 0;
+    if (placement === 'feed' && (!Number.isInteger(interval) || interval < 3 || interval > 20)) {
       Alert.alert('Geçersiz sıklık', 'Akış reklam aralığı 3 ile 20 gönderi arasında olmalı.');
       return;
     }
-    if (!Number.isInteger(priorityNumber) || priorityNumber < -100 || priorityNumber > 100) {
+    if (placement === 'feed' && (!Number.isInteger(priorityNumber) || priorityNumber < -100 || priorityNumber > 100)) {
       Alert.alert('Geçersiz öncelik', 'Öncelik -100 ile 100 arasında olmalı.');
       return;
     }
@@ -219,12 +233,14 @@ export default function AdminAdsScreen() {
         throw new Error('Bitiş tarihi başlangıç tarihinden sonra olmalı.');
       }
 
-      const previous = editingId ? items.find((item) => item.id === editingId) : null;
+      const effectiveEditingId =
+        editingId ?? (placement === 'story_top' ? storyTopSlot?.id ?? null : null);
+      const previous = effectiveEditingId ? items.find((item) => item.id === effectiveEditingId) : null;
       const uploaded = await uploadPickedAsset();
       newUploadedPath = uploaded.uploadedPath;
 
       const { error } = await supabase.rpc('admin_save_ad_campaign', {
-        ...(editingId ? { p_id: editingId } : {}),
+        ...(effectiveEditingId ? { p_id: effectiveEditingId } : {}),
         p_title: title.trim(),
         ...(subtitle.trim() ? { p_subtitle: subtitle.trim() } : {}),
         p_media_type: mediaType,
@@ -319,11 +335,11 @@ export default function AdminAdsScreen() {
 
         <View style={styles.infoCard}>
           <Feather name="monitor" size={20} color={colors.primary} />
-          <Text style={styles.infoText}>Hikâye üstü banner ve akış içi sponsorlu reklamları buradan yönet. Pasife alınan kampanya uygulamada görünmez.</Text>
+          <Text style={styles.infoText}>Hikâyelerin üstünde tek bir sabit reklam alanı vardır. Bu alanı buradan değiştirip açıp kapatabilirsin. Akış içi reklamlar ise ayrı kampanyalar olarak belirlediğin gönderi aralığında gösterilir.</Text>
         </View>
 
         <View style={styles.formCard}>
-          <Text style={styles.formTitle}>{editingId ? 'Reklamı düzenle' : 'Yeni reklam'}</Text>
+          <Text style={styles.formTitle}>{placement === 'story_top' ? (storyTopSlot ? 'Üst reklamı düzenle' : 'Üst reklamı oluştur') : (editingId ? 'Akış reklamını düzenle' : 'Yeni akış reklamı')}</Text>
           <TextInput value={title} onChangeText={setTitle} placeholder="Reklam / marka başlığı" placeholderTextColor={lightColor('textMuted','#747483')} style={styles.input} maxLength={120} />
           <TextInput value={subtitle} onChangeText={setSubtitle} placeholder="Kısa açıklama (isteğe bağlı)" placeholderTextColor={lightColor('textMuted','#747483')} style={styles.input} maxLength={240} />
           <TextInput value={targetUrl} onChangeText={setTargetUrl} placeholder="https://hedef-sayfa.com" placeholderTextColor={lightColor('textMuted','#747483')} style={styles.input} autoCapitalize="none" keyboardType="url" />
@@ -331,7 +347,7 @@ export default function AdminAdsScreen() {
           <Text style={styles.label}>Gösterim alanı</Text>
           <View style={styles.chips}>
             {PLACEMENTS.map((item) => (
-              <Pressable key={item.key} onPress={() => setPlacement(item.key)} style={[styles.chip, placement === item.key && styles.chipActive]}>
+              <Pressable key={item.key} onPress={() => choosePlacement(item.key)} style={[styles.chip, placement === item.key && styles.chipActive]}>
                 <Text style={[styles.chipText, placement === item.key && styles.chipTextActive]}>{item.label}</Text>
               </Pressable>
             ))}
@@ -350,10 +366,17 @@ export default function AdminAdsScreen() {
             </View>
           ) : null}
 
-          <View style={styles.twoColumns}>
-            <View style={styles.column}><Text style={styles.label}>Akış aralığı</Text><TextInput value={feedInterval} onChangeText={setFeedInterval} style={styles.input} keyboardType="number-pad" placeholder="6" placeholderTextColor={lightColor('textMuted','#747483')} /></View>
-            <View style={styles.column}><Text style={styles.label}>Öncelik</Text><TextInput value={priority} onChangeText={setPriority} style={styles.input} keyboardType="numbers-and-punctuation" placeholder="0" placeholderTextColor={lightColor('textMuted','#747483')} /></View>
-          </View>
+          {placement === 'feed' ? (
+            <View style={styles.twoColumns}>
+              <View style={styles.column}><Text style={styles.label}>Kaç gönderide bir?</Text><TextInput value={feedInterval} onChangeText={setFeedInterval} style={styles.input} keyboardType="number-pad" placeholder="6" placeholderTextColor={lightColor('textMuted','#747483')} /></View>
+              <View style={styles.column}><Text style={styles.label}>Öncelik</Text><TextInput value={priority} onChangeText={setPriority} style={styles.input} keyboardType="numbers-and-punctuation" placeholder="0" placeholderTextColor={lightColor('textMuted','#747483')} /></View>
+            </View>
+          ) : (
+            <View style={styles.slotNotice}>
+              <Feather name="layout" size={17} color={colors.primary} />
+              <Text style={styles.slotNoticeText}>Bu tek reklam slotudur. Yeni bir üst reklam kaydettiğinde mevcut üst reklam güncellenir; ikinci bir üst reklam oluşturulmaz.</Text>
+            </View>
+          )}
 
           <TextInput value={startsAt} onChangeText={setStartsAt} placeholder="Başlangıç: 2026-09-29T12:00 (boş = şimdi)" placeholderTextColor={lightColor('textMuted','#747483')} style={styles.input} autoCapitalize="none" />
           <TextInput value={endsAt} onChangeText={setEndsAt} placeholder="Bitiş (isteğe bağlı)" placeholderTextColor={lightColor('textMuted','#747483')} style={styles.input} autoCapitalize="none" />
@@ -422,6 +445,8 @@ const baseStyles = StyleSheet.create({
   previewLabel:{color:'#858593',fontSize:10,fontWeight:'800',paddingHorizontal:12,marginBottom:6},
   twoColumns:{flexDirection:'row',gap:10},
   column:{flex:1,minWidth:0},
+  slotNotice:{minHeight:58,borderRadius:14,backgroundColor:'#111017',borderWidth:1,borderColor:'#342A43',padding:13,flexDirection:'row',alignItems:'center',gap:10,marginBottom:10},
+  slotNoticeText:{flex:1,color:'#9B93A5',fontSize:11,lineHeight:16},
   switchRow:{minHeight:60,borderRadius:14,backgroundColor:'#101016',borderWidth:1,borderColor:'#292934',padding:13,flexDirection:'row',alignItems:'center',marginTop:2},
   switchTitle:{color:'#F3F3F6',fontSize:13,fontWeight:'800'},
   switchText:{color:'#777784',fontSize:10,marginTop:3},
