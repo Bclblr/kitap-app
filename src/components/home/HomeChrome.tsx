@@ -19,6 +19,10 @@ export type HomeStory = {
   expires_at: string;
   allow_likes?: boolean;
   allow_replies?: boolean;
+  text_color?: string | null;
+  text_align?: 'left' | 'center' | 'right' | null;
+  text_background?: boolean | null;
+  text_style?: 'classic' | 'strong' | null;
 };
 
 export type HomeStoryGroup = {
@@ -286,8 +290,24 @@ export function HomeStoryViewer({
                 </View>
               )}
               {selectedStory?.text ? (
-                <View style={styles.storyTextOverlay}>
-                  <Text style={styles.storyViewerText}>{selectedStory.text}</Text>
+                <View
+                  style={[
+                    styles.storyTextOverlay,
+                    selectedStory.text_background && styles.storyTextOverlayBackground,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.storyViewerText,
+                      selectedStory.text_style === 'strong' && styles.storyViewerTextStrong,
+                      {
+                        color: selectedStory.text_color || '#FFFFFF',
+                        textAlign: selectedStory.text_align || 'center',
+                      },
+                    ]}
+                  >
+                    {selectedStory.text}
+                  </Text>
                 </View>
               ) : null}
             </StoryTransition>
