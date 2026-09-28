@@ -3,6 +3,7 @@ import BookCover from '@/components/BookCover';
 import Image from '@/components/SafeImage';
 import { safeBack } from '@/lib/navigation';
 import { existingBookCover } from '@/lib/open-library-cover';
+import { getOpenLibraryRecord, searchOpenLibraryBooksByAuthor } from '@/lib/open-library-api';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -142,8 +143,8 @@ export default function AuthorScreen() {
         if (authorKey) {
           const normalized = authorKey.startsWith('/') ? authorKey : `/authors/${authorKey}`;
           try {
-            const response = await fetch(`https://openlibrary.org${normalized}.json`);
-            if (response.ok) info = await response.json();
+            const row = await getOpenLibraryRecord(normalized);
+            if (row) info = row;
           } catch {
             // Wikipedia ve arama sonuçlarıyla sayfayı yine de aç.
           }
@@ -152,11 +153,9 @@ export default function AuthorScreen() {
         const name = info.name || fallbackName || 'Yazar';
 
         const [bookResult, wikipediaResult] = await Promise.all([
-          fetch(
-            `https://openlibrary.org/search.json?author=${encodeURIComponent(name)}&limit=60&fields=key,title,author_name,cover_i,edition_key,isbn,first_publish_year`
-          )
-            .then(async (response) => (response.ok ? await response.json() : { docs: [] }))
-            .catch(() => ({ docs: [] })),
+          searchOpenLibraryBooksByAuthor(name, 50)
+            .then((docs) => ({ docs }))
+            .catch(() => ({ docs: [] as AuthorBook[] })),
           fetchWikipediaAuthorInfo(name),
         ]);
 
