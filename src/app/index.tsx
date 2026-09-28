@@ -1399,7 +1399,7 @@ export default function HomeScreen() {
   }
 
   async function recordStoryView(story: Story) {
-    const viewerId = social.userId;
+    const viewerId = currentUserId;
     if (!viewerId || !story.user_id || viewerId === story.user_id) return;
     const { error } = await supabase.from('story_views').upsert({
       story_id: story.id,
@@ -1901,7 +1901,7 @@ export default function HomeScreen() {
           styles={styles}
           colors={colors}
           profileImage={storyProfileImage}
-          currentUserId={social.userId}
+          currentUserId={currentUserId}
           loading={loadingStories}
           groups={storyGroups}
           onCreate={() => router.push('/story-create')}
