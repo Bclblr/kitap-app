@@ -1,4 +1,5 @@
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 
 import Image from '@/components/SafeImage';
@@ -23,6 +24,11 @@ export type HomeStory = {
   text_align?: 'left' | 'center' | 'right' | null;
   text_background?: boolean | null;
   text_style?: 'classic' | 'strong' | null;
+  image_scale?: number | null;
+  image_offset_x?: number | null;
+  image_offset_y?: number | null;
+  text_offset_x?: number | null;
+  text_offset_y?: number | null;
 };
 
 export type HomeStoryGroup = {
@@ -56,6 +62,8 @@ export function HomeDrawer({
   onProfileSettings: () => void;
   onSignOut: () => void;
 }) {
+  const [mediaSize, setMediaSize] = useState({ width: 0, height: 0 });
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.drawerOverlay}>
@@ -280,10 +288,29 @@ export function HomeStoryViewer({
             </Pressable>
           </View>
 
-          <View style={styles.storyMediaArea}>
+          <View
+            style={styles.storyMediaArea}
+            onLayout={(event) => {
+              const { width, height } = event.nativeEvent.layout;
+              setMediaSize({ width, height });
+            }}
+          >
             <StoryTransition key={selectedStory?.id}>
               {selectedStory?.image_url ? (
-                <Image source={{ uri: selectedStory.image_url }} style={styles.storyViewerImage} resizeMode="cover" />
+                <Image
+                  source={{ uri: selectedStory.image_url }}
+                  style={[
+                    styles.storyViewerImage,
+                    {
+                      transform: [
+                        { translateX: (selectedStory.image_offset_x ?? 0) * mediaSize.width },
+                        { translateY: (selectedStory.image_offset_y ?? 0) * mediaSize.height },
+                        { scale: selectedStory.image_scale ?? 1 },
+                      ],
+                    },
+                  ]}
+                  resizeMode="cover"
+                />
               ) : (
                 <View style={styles.storyTextOnlyCard}>
                   <View style={styles.storyTextOnlyIcon}><Feather name="book-open" size={34} color="#D8C8FF" /></View>
@@ -294,6 +321,12 @@ export function HomeStoryViewer({
                   style={[
                     styles.storyTextOverlay,
                     selectedStory.text_background && styles.storyTextOverlayBackground,
+                    {
+                      transform: [
+                        { translateX: (selectedStory.text_offset_x ?? 0) * mediaSize.width },
+                        { translateY: (selectedStory.text_offset_y ?? 0) * mediaSize.height },
+                      ],
+                    },
                   ]}
                 >
                   <Text
