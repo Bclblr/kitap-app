@@ -119,9 +119,9 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   banner: {
-    width: '75%',
-    maxWidth: 430,
-    minWidth: 240,
+    width: '90%',
+    maxWidth: 560,
+    minWidth: 280,
     height: 92,
     borderRadius: 30,
     overflow: 'hidden',
