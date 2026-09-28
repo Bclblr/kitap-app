@@ -192,8 +192,9 @@ export default function AcademicWorkScreen() {
     return <View style={styles.center}><Text style={styles.errorTitle}>Çalışma bulunamadı</Text><Pressable onPress={() => safeBack(router, '/academic-search' as any)}><Text style={styles.linkText}>Akademik aramaya dön</Text></Pressable></View>;
   }
 
-  const thesis = kind === 'thesis' || isAcademicThesis(work);
-  const workLabel = thesis ? 'Tez' : academicWorkTypeLabel(work);
+  const thesis = kind === 'thesis' || (kind !== 'article' && isAcademicThesis(work));
+  const article = kind === 'article' || (!thesis && work.type?.toLowerCase() === 'article');
+  const workLabel = thesis ? 'Tez' : article ? 'Makale' : academicWorkTypeLabel(work);
 
   return (
     <View style={styles.container}>
