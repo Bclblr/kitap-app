@@ -18,6 +18,7 @@ import ReviewSpoilerText from '@/components/ReviewSpoilerText';
 import QuoteMetadata from '@/components/QuoteMetadata';
 import RetryNotice from '@/components/RetryNotice';
 import AdSlot from '@/components/AdSlot';
+import HouseAd from '@/components/HouseAd';
 import {
   HomeDrawer,
   HomeStories,
@@ -27,6 +28,7 @@ import {
 import { Action, useReaderStyles } from '@/components/ReaderUI';
 import { useReaderSocial } from '@/hooks/use-reader-social';
 import { supabase } from '@/lib/supabase';
+import { loadActiveHouseAds, pickFeedAd, pickStoryTopAd, type HouseAdCampaign } from '@/lib/house-ads';
 import { existingBookCover, loadBookCover, openLibraryWorkUrl } from '@/lib/open-library-cover';
 import type { BookCoverData } from '@/lib/open-library-cover';
 import { normalizeQuoteCardTemplate, quoteCardPalette } from '@/lib/quote-card';
@@ -276,6 +278,7 @@ export default function HomeScreen() {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
+  const [houseAds, setHouseAds] = useState<HouseAdCampaign[]>([]);
   const [bookCoverUrls, setBookCoverUrls] =
     useState<Record<string, string | null>>({});
 
@@ -297,6 +300,16 @@ export default function HomeScreen() {
     }),
     []
   );
+
+  const loadHouseAds = useCallback(async () => {
+    try {
+      const ads = await loadActiveHouseAds();
+      setHouseAds(ads);
+    } catch (error) {
+      console.warn('Kendi reklamları yüklenemedi:', error);
+      setHouseAds([]);
+    }
+  }, []);
 
   const [commentingReviewId, setCommentingReviewId] =
     useState<string | null>(null);
@@ -853,6 +866,8 @@ export default function HomeScreen() {
       const pageItems = [...preparedPosts, ...reviewPosts, ...quotePosts]
         .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
+  const storyTopAd = pickStoryTopAd(houseAds);
+
       const postRows = (postResult.data ?? []) as any[];
       const reviewRows = (reviewResult.data ?? []) as any[];
       const quoteRows = (quoteResult.data ?? []) as any[];
@@ -1012,12 +1027,12 @@ export default function HomeScreen() {
         setLoading(true);
         const userId = await getCurrentUserId();
         if (active) setCurrentUserId(userId);
-        await Promise.all([loadPosts(true), loadStories()]);
+        await Promise.all([loadPosts(true), loadStories(), loadHouseAds()]);
         if (active) setLoading(false);
       }
       loadAll();
       return () => { active = false; };
-    }, [loadPosts, loadStories])
+    }, [loadHouseAds, loadPosts, loadStories])
   );
 
   async function toggleSavePost(post: Post) {
@@ -1476,9 +1491,11 @@ export default function HomeScreen() {
             const feedReposts = post.isReview ? reviewForPost?.reposts : post.reposts;
 
             const quoteCard = post.isQuote ? quoteCardPalette(normalizeQuoteCardTemplate(post.card_template_key), colors) : null;
+            const houseAd = pickFeedAd(houseAds, feedIndex);
 
             return (
               <Fragment key={post.id}>
+                {houseAd ? <HouseAd ad={houseAd} variant="feed" /> : null}
                 {feedIndex === 5 && <ReadersList limit={10} />}
                 <View key={post.id} style={[styles.postCard, post.isQuote && styles.quotePostCard, post.rating > 0 && styles.reviewPostCard, quoteCard ? { backgroundColor: quoteCard.background, borderColor: quoteCard.border } : null]}>
                   {feedIndex > 0 && feedIndex % 9 === 0 && <AdSlot />}
@@ -1902,6 +1919,8 @@ export default function HomeScreen() {
         <View style={styles.headerDivider} />
         <View style={styles.headerActions}></View>
         <View style={styles.readerHighlights}></View>
+
+        {storyTopAd ? <HouseAd ad={storyTopAd} variant="banner" /> : null}
 
         <HomeStories
           styles={styles}
