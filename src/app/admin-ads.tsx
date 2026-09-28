@@ -44,6 +44,7 @@ export default function AdminAdsScreen() {
   const [items, setItems] = useState<HouseAdCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
@@ -297,27 +298,49 @@ export default function AdminAdsScreen() {
     await loadItems();
   }
 
+  async function performDelete(item: HouseAdCampaign) {
+    if (deletingId) return;
+    setDeletingId(item.id);
+    try {
+      const { error } = await supabase.rpc('admin_delete_ad_campaign', { p_id: item.id });
+      if (error) throw error;
+
+      setItems((current) => current.filter((campaign) => campaign.id !== item.id));
+      if (editingId === item.id) resetForm();
+
+      if (item.storage_path) {
+        const { error: storageError } = await supabase.storage.from('ad-media').remove([item.storage_path]);
+        if (storageError) {
+          console.warn('Reklam silindi ancak medya dosyası temizlenemedi:', storageError);
+        }
+      }
+
+      await loadItems();
+    } catch (error) {
+      console.error('Reklam silinemedi:', error);
+      Alert.alert(
+        'Reklam silinemedi',
+        error instanceof Error ? error.message : 'Lütfen tekrar dene.'
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   function remove(item: HouseAdCampaign) {
-    Alert.alert('Reklamı sil', `“${item.title}” kalıcı olarak silinsin mi?`, [
-      { text: 'Vazgeç', style: 'cancel' },
-      {
-        text: 'Sil',
-        style: 'destructive',
-        onPress: async () => {
-          const { error } = await supabase.rpc('admin_delete_ad_campaign', { p_id: item.id });
-          if (error) {
-            Alert.alert('Hata', 'Reklam silinemedi.');
-            return;
-          }
-          if (item.storage_path) {
-            const { error: storageError } = await supabase.storage.from('ad-media').remove([item.storage_path]);
-            if (storageError) console.warn('Reklam medyası silinemedi:', storageError);
-          }
-          if (editingId === item.id) resetForm();
-          await loadItems();
+    if (deletingId) return;
+    Alert.alert(
+      'Reklamı sil',
+      `“${item.title}” kalıcı olarak silinsin mi?`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: () => { void performDelete(item); },
         },
-      },
-    ]);
+      ]
+    );
   }
 
   if (loading) {
@@ -406,7 +429,7 @@ export default function AdminAdsScreen() {
               <View style={styles.actions}>
                 <Pressable onPress={() => edit(item)} style={styles.actionButton}><Text style={styles.actionText}>Düzenle</Text></Pressable>
                 <Pressable onPress={() => void toggle(item)} style={styles.actionButton}><Text style={styles.actionText}>{item.active ? 'Pasife al' : 'Aktifleştir'}</Text></Pressable>
-                <Pressable onPress={() => remove(item)} style={[styles.actionButton, styles.deleteButton]}><Text style={styles.deleteText}>Sil</Text></Pressable>
+                <Pressable disabled={deletingId === item.id} onPress={() => remove(item)} style={[styles.actionButton, styles.deleteButton, deletingId === item.id && { opacity: 0.55 }]}>{deletingId === item.id ? <ActivityIndicator size="small" color="#FF8F9B" /> : <Text style={styles.deleteText}>Sil</Text>}</Pressable>
               </View>
             </View>
           ))}
