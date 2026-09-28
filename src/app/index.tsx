@@ -1398,6 +1398,17 @@ export default function HomeScreen() {
     });
   }
 
+  async function recordStoryView(story: Story) {
+    const viewerId = social.userId;
+    if (!viewerId || !story.user_id || viewerId === story.user_id) return;
+    const { error } = await supabase.from('story_views').upsert({
+      story_id: story.id,
+      viewer_id: viewerId,
+      viewed_at: new Date().toISOString(),
+    }, { onConflict: 'story_id,viewer_id' });
+    if (error) console.error('Hikâye görüntülenmesi kaydedilemedi:', error);
+  }
+
   function showStoryAt(groupIndex: number, itemIndex: number) {
     const group = storyGroups[groupIndex];
     const story = group?.stories[itemIndex];
@@ -1408,6 +1419,7 @@ export default function HomeScreen() {
     const upcoming = group.stories[itemIndex + 1] ?? storyGroups[groupIndex + 1]?.stories[0];
     if (upcoming?.image_url) Image.prefetch(upcoming.image_url).catch(() => {});
     markStorySeen(story.id);
+    void recordStoryView(story);
   }
 
   function openStoryGroup(groupIndex: number) {
@@ -1889,6 +1901,7 @@ export default function HomeScreen() {
           styles={styles}
           colors={colors}
           profileImage={storyProfileImage}
+          currentUserId={social.userId}
           loading={loadingStories}
           groups={storyGroups}
           onCreate={() => router.push('/story-create')}
