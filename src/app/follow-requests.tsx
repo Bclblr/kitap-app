@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type FollowRequest = {
   requester_id: string;
@@ -18,6 +18,7 @@ export default function FollowRequestsScreen() {
   const router = useRouter();
   const [requests, setRequests] = useState<FollowRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const loadRequests = useCallback(async () => {
@@ -108,7 +109,20 @@ export default function FollowRequestsScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor="#A985FF"
+            colors={['#A985FF']}
+            onRefresh={() => {
+              setRefreshing(true);
+              void loadRequests().finally(() => setRefreshing(false));
+            }}
+          />
+        }
+      >
         <View style={styles.header}>
           <Pressable onPress={() => safeBack(router, '/profile')} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Geri dön">
             <Text style={styles.backText}>‹</Text>
