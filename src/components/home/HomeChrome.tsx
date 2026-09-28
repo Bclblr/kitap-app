@@ -252,15 +252,6 @@ export function HomeStoryViewer({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={[styles.storyModalOverlay, { paddingTop: topInset, paddingBottom: bottomInset }]}>
         <View style={styles.storyViewer} {...panHandlers}>
-          <View style={[styles.storyProgressRow, { opacity: 0 }]}>
-            {(activeGroup?.stories ?? []).map((story, index) => (
-              <View
-                key={story.id}
-                style={[styles.storyProgressTrack, index <= storyIndex && styles.storyProgressActive]}
-              />
-            ))}
-          </View>
-
           <View style={styles.storyViewerHeader}>
             <View style={styles.storyViewerIdentity}>
               {activeGroup?.profile_image ? (
@@ -280,18 +271,18 @@ export function HomeStoryViewer({
                 </Text>
               </View>
             </View>
-            <Pressable onPress={onClose} style={styles.storyCloseButton}>
-              <Text style={styles.storyCloseText}>×</Text>
+            <Pressable onPress={onClose} style={styles.storyCloseButton} accessibilityLabel="Hikâyeyi kapat">
+              <Feather name="x" size={22} color="#FFF" />
             </Pressable>
           </View>
 
           <View style={styles.storyMediaArea}>
             <StoryTransition key={selectedStory?.id}>
               {selectedStory?.image_url ? (
-                <Image source={{ uri: selectedStory.image_url }} style={styles.storyViewerImage} resizeMode="contain" />
+                <Image source={{ uri: selectedStory.image_url }} style={styles.storyViewerImage} resizeMode="cover" />
               ) : (
                 <View style={styles.storyTextOnlyCard}>
-                  <Text style={styles.storyTextOnlyIcon}>📚</Text>
+                  <View style={styles.storyTextOnlyIcon}><Feather name="book-open" size={34} color="#D8C8FF" /></View>
                 </View>
               )}
               {selectedStory?.text ? (
