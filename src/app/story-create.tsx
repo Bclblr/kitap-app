@@ -179,7 +179,8 @@ export default function StoryCreateScreen() {
   }
 
   const readyToShare = !!capturedUri || !!storyText.trim();
-  const editing = !!capturedUri || textMode;
+  const hasDraft = !!capturedUri || textMode;
+  const showTextEditor = textMode || (!!capturedUri && (textEditing || !!storyText));
 
   return (
     <Pressable style={styles.root} onPress={dismissKeyboard}>
@@ -279,7 +280,7 @@ export default function StoryCreateScreen() {
             </View>
           ) : null}
 
-          {editing ? (
+          {showTextEditor ? (
             <View style={[styles.textEditorWrap, textMode && styles.textEditorTextOnly]}>
               <TextInput
                 ref={textInputRef}
@@ -329,7 +330,7 @@ export default function StoryCreateScreen() {
             </View>
           ) : null}
 
-          {editing ? (
+          {hasDraft ? (
             <View style={styles.editFooter}>
               <Pressable
                 onPress={(event) => { event.stopPropagation(); resetDraft(); }}
