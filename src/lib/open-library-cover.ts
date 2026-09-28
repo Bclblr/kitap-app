@@ -1,3 +1,5 @@
+import { getOpenLibraryRecord } from '@/lib/open-library-api';
+
 const BOOK_COVER_CACHE_MS = 10 * 60 * 1000;
 
 const bookCoverCache = new Map<string, { value: string | null; expiresAt: number }>();
@@ -65,35 +67,17 @@ export async function loadBookCover(bookKey: string, fallback: string | null): P
   const existingRequest = bookCoverRequests.get(normalizedKey);
   if (existingRequest) return existingRequest;
 
-  const url = openLibraryWorkUrl(normalizedKey);
-  if (!url) return null;
+  if (!openLibraryWorkUrl(normalizedKey)) return null;
 
   const request = (async () => {
-    let response: Response;
     try {
-      response = await fetch(url);
+      const data = await getOpenLibraryRecord(normalizedKey) as BookCoverData | null;
+      return data ? existingBookCover(data) : null;
     } catch {
-      // React Native / Expo native fetch failures (including TLS failures) are not
-      // guaranteed to be TypeError instances. A missing remote cover must never
-      // crash or surface as a feed error; callers can render their fallback.
-      console.warn('Kitap kapağı isteği tamamlanamadı:', url);
+      // Remote metadata failures must never crash feed rendering.
+      console.warn('Kitap kapağı metadata isteği tamamlanamadı:', normalizedKey);
       return null;
     }
-
-    if (!response.ok) {
-      console.warn('Kitap kapağı alınamadı:', url, `HTTP ${response.status}`);
-      return null;
-    }
-
-    let data: BookCoverData | null;
-    try {
-      data = await response.json();
-    } catch {
-      console.warn('Kitap kapağı yanıtı okunamadı:', url);
-      return null;
-    }
-
-    return data ? existingBookCover(data) : null;
   })()
     .then((value) => {
       bookCoverCache.set(normalizedKey, {
@@ -147,9 +131,9 @@ function normalizedOpenLibraryKey(value?: string | null): string | null {
 
 async function fetchOpenLibraryJson(url: string): Promise<any | null> {
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    return await response.json();
+    const parsed = new URL(url);
+    if (parsed.hostname !== 'openlibrary.org') return null;
+    return await getOpenLibraryRecord(parsed.pathname.replace(/\.json$/i, ''));
   } catch {
     return null;
   }
