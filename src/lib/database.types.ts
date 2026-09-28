@@ -2706,6 +2706,10 @@ export type Database = {
           image_url: string | null
           storage_path: string | null
           text: string | null
+          text_align: string
+          text_background: boolean
+          text_color: string
+          text_style: string
           user_id: string
           username: string
         }
@@ -2718,6 +2722,10 @@ export type Database = {
           image_url?: string | null
           storage_path?: string | null
           text?: string | null
+          text_align?: string
+          text_background?: boolean
+          text_color?: string
+          text_style?: string
           user_id: string
           username: string
         }
@@ -2730,6 +2738,10 @@ export type Database = {
           image_url?: string | null
           storage_path?: string | null
           text?: string | null
+          text_align?: string
+          text_background?: boolean
+          text_color?: string
+          text_style?: string
           user_id?: string
           username?: string
         }
