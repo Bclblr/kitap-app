@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  RefreshControl,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -45,6 +46,7 @@ export default function MessagesScreen() {
   const [query, setQuery] = useState('');
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const currentUserIdRef = useRef<string | null>(null);
   const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -376,6 +378,17 @@ export default function MessagesScreen() {
         <ScrollView
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.searchContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              tintColor={lightColor('primary', '#A985FF')}
+              colors={[lightColor('primary', '#A985FF')]}
+              onRefresh={() => {
+                setRefreshing(true);
+                void loadConversations(true).finally(() => setRefreshing(false));
+              }}
+            />
+          }
         >
           {matchingConversations.map((item) => (
             <View key={item.id}>{renderConversation({ item })}</View>
@@ -404,6 +417,11 @@ export default function MessagesScreen() {
           renderItem={renderConversation}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={() => {
+            setRefreshing(true);
+            void loadConversations(true).finally(() => setRefreshing(false));
+          }}
           initialNumToRender={12}
           maxToRenderPerBatch={12}
           windowSize={7}
