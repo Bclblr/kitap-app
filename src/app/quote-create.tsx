@@ -33,7 +33,8 @@ export default function QuoteCreate() {
   const premium = usePremium();
   const { session } = useAuth();
   const { colors } = useAppTheme();
-  const params = useLocalSearchParams<{ book?: string; key?: string; author?: string; coverUrl?: string; text?: string }>();
+  const params = useLocalSearchParams<{ book?: string; key?: string; author?: string; coverUrl?: string; text?: string; contentKind?: string; academicWorkId?: string; academicWorkType?: string }>();
+  const isAcademic = params.contentKind === 'academic' || !!params.academicWorkId;
   const lock = useRef(false);
 
   const [bookKey, setBookKey] = useState(params.key ?? '');
@@ -86,6 +87,10 @@ export default function QuoteCreate() {
         page_number: Number.isInteger(parsedPage) && parsedPage && parsedPage > 0 ? parsedPage : null,
         note: note.trim() || null,
         card_template_key: safeTemplate,
+        content_kind: isAcademic ? 'academic' : 'book',
+        academic_work_id: isAcademic ? (params.academicWorkId || bookKey) : null,
+        academic_work_type: isAcademic ? (params.academicWorkType || null) : null,
+        academic_author_summary: isAcademic ? (author.trim() || null) : null,
       });
       if (result.error) throw result.error;
       router.replace('/');
@@ -145,7 +150,7 @@ export default function QuoteCreate() {
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="Kitaptan cümleler…"
+            placeholder={isAcademic ? 'Çalışmadan alıntı…' : 'Kitaptan cümleler…'}
             placeholderTextColor={colors.textMuted}
             multiline
             maxLength={4000}
@@ -160,7 +165,7 @@ export default function QuoteCreate() {
           <Feather name="chevron-down" size={18} color={colors.textMuted} />
         </Pressable>
 
-        <Pressable onPress={() => setBookPickerOpen(true)} style={[styles.bookRow, { borderBottomColor: colors.border }]}>
+        <Pressable onPress={() => { if (!isAcademic) setBookPickerOpen(true); }} style={[styles.bookRow, { borderBottomColor: colors.border }]}>
           {coverUrl ? (
             <BookCover uri={coverUrl} style={styles.cover}><View /></BookCover>
           ) : (
@@ -168,15 +173,15 @@ export default function QuoteCreate() {
           )}
           <View style={styles.bookCopy}>
             <Text style={[styles.bookTitle, { color: book ? colors.text : colors.textMuted }]} numberOfLines={2}>
-              {book || 'Kitap seç'}
+              {book || (isAcademic ? 'Akademik çalışma' : 'Kitap seç')}
             </Text>
             <Text style={[styles.author, { color: colors.textMuted }]} numberOfLines={1}>
-              {author || 'Kitap veya yazar adıyla ara'}
+              {author || (isAcademic ? 'Yazar bilgisi yok' : 'Kitap veya yazar adıyla ara')}
             </Text>
           </View>
           <View style={styles.changeWrap}>
-            <Text style={[styles.changeText, { color: colors.primary }]}>{book ? 'Değiştir' : 'Seç'}</Text>
-            <Feather name="chevron-right" size={18} color={colors.primary} />
+            <Text style={[styles.changeText, { color: colors.primary }]}>{isAcademic ? 'Akademik' : (book ? 'Değiştir' : 'Seç')}</Text>
+            {!isAcademic ? <Feather name="chevron-right" size={18} color={colors.primary} /> : null}
           </View>
         </Pressable>
 
@@ -192,7 +197,7 @@ export default function QuoteCreate() {
         <TextInput
           value={note}
           onChangeText={setNote}
-          placeholder="Yayınevi, karakter adı veya kısa not…"
+          placeholder={isAcademic ? 'Kaynak, bölüm veya kısa not…' : 'Yayınevi, karakter adı veya kısa not…'}
           placeholderTextColor={colors.textMuted}
           maxLength={300}
           style={[styles.metaInput, { color: colors.text, borderBottomColor: colors.border }]}
@@ -217,7 +222,7 @@ export default function QuoteCreate() {
       </View>
 
       <BookPickerModal
-        visible={bookPickerOpen}
+        visible={!isAcademic && bookPickerOpen}
         onClose={() => setBookPickerOpen(false)}
         onSelect={selectBook}
         title="Alıntı için kitap seç"
