@@ -28,6 +28,7 @@ import {
 import { Action, useReaderStyles } from '@/components/ReaderUI';
 import { useReaderSocial } from '@/hooks/use-reader-social';
 import { supabase } from '@/lib/supabase';
+import { getCurrentAdminAccess } from '@/lib/admin';
 import { loadActiveHouseAds, pickFeedAd, pickStoryTopAd, type HouseAdCampaign } from '@/lib/house-ads';
 import { existingBookCover, loadBookCover, openLibraryWorkUrl } from '@/lib/open-library-cover';
 import type { BookCoverData } from '@/lib/open-library-cover';
@@ -279,6 +280,7 @@ export default function HomeScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [houseAds, setHouseAds] = useState<HouseAdCampaign[]>([]);
+  const [canManageAds, setCanManageAds] = useState(false);
   const [bookCoverUrls, setBookCoverUrls] =
     useState<Record<string, string | null>>({});
 
@@ -1039,8 +1041,14 @@ export default function HomeScreen() {
       let active = true;
       async function loadAll() {
         setLoading(true);
-        const userId = await getCurrentUserId();
-        if (active) setCurrentUserId(userId);
+        const [userId, adminAccess] = await Promise.all([
+          getCurrentUserId(),
+          getCurrentAdminAccess(),
+        ]);
+        if (active) {
+          setCurrentUserId(userId);
+          setCanManageAds(adminAccess.canManageSystem);
+        }
         await Promise.all([loadPosts(true), loadStories(), loadHouseAds()]);
         if (active) setLoading(false);
       }
@@ -1510,7 +1518,7 @@ export default function HomeScreen() {
 
             return (
               <Fragment key={post.id}>
-                {houseAd ? <HouseAd ad={houseAd} variant="feed" /> : null}
+                {houseAd ? <HouseAd ad={houseAd} variant="feed" ignorePremium={canManageAds} /> : null}
                 {feedIndex === 5 && <ReadersList limit={10} />}
                 <View key={post.id} style={[styles.postCard, post.isQuote && styles.quotePostCard, post.rating > 0 && styles.reviewPostCard, quoteCard ? { backgroundColor: quoteCard.background, borderColor: quoteCard.border } : null]}>
                   {feedIndex > 0 && feedIndex % 9 === 0 && <AdSlot />}
@@ -1935,7 +1943,7 @@ export default function HomeScreen() {
         <View style={styles.headerActions}></View>
         <View style={styles.readerHighlights}></View>
 
-        {storyTopAd ? <HouseAd ad={storyTopAd} variant="banner" /> : null}
+        {storyTopAd ? <HouseAd ad={storyTopAd} variant="banner" ignorePremium={canManageAds} /> : null}
 
         <HomeStories
           styles={styles}
