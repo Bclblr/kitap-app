@@ -346,7 +346,7 @@ export default function AdminAdsScreen() {
           {preview ? (
             <View style={styles.previewBox}>
               <Text style={styles.previewLabel}>Önizleme</Text>
-              <HouseAd ad={preview} variant={placement === 'story_top' ? 'banner' : 'feed'} />
+              <HouseAd ad={preview} variant={placement === 'story_top' ? 'banner' : 'feed'} ignorePremium />
             </View>
           ) : null}
 
@@ -379,7 +379,7 @@ export default function AdminAdsScreen() {
                 <View style={{ flex: 1, minWidth: 0 }}><Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text><Text style={styles.meta}>{PLACEMENTS.find((x) => x.key === item.placement)?.label} · {item.media_type === 'video' ? 'Video' : 'Fotoğraf'} · {item.active ? 'Aktif' : 'Pasif'}</Text></View>
                 <Feather name={item.active ? 'eye' : 'eye-off'} size={18} color={item.active ? colors.primary : colors.textMuted} />
               </View>
-              <HouseAd ad={item} variant={item.placement === 'story_top' ? 'banner' : 'feed'} />
+              <HouseAd ad={item} variant={item.placement === 'story_top' ? 'banner' : 'feed'} ignorePremium />
               <View style={styles.actions}>
                 <Pressable onPress={() => edit(item)} style={styles.actionButton}><Text style={styles.actionText}>Düzenle</Text></Pressable>
                 <Pressable onPress={() => void toggle(item)} style={styles.actionButton}><Text style={styles.actionText}>{item.active ? 'Pasife al' : 'Aktifleştir'}</Text></Pressable>
