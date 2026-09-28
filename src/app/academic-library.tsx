@@ -14,6 +14,7 @@ type SavedWork = {
   journal_name: string | null;
   publication_year: number | null;
   created_at: string;
+  work_type?: string | null;
 };
 
 type StatusWork = {
@@ -24,6 +25,7 @@ type StatusWork = {
   publication_year: number | null;
   status: 'want' | 'reading' | 'read' | 'abandoned';
   updated_at: string;
+  work_type?: string | null;
 };
 
 type FollowedEntity = {
@@ -60,11 +62,11 @@ export default function AcademicLibraryScreen() {
       const db = supabase as any;
       const [savedResult, statusResult, followResult] = await Promise.all([
         db.from('saved_academic_works')
-          .select('work_openalex_id,title,author_summary,journal_name,publication_year,created_at')
+          .select('work_openalex_id,title,author_summary,journal_name,publication_year,work_type,created_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         db.from('academic_reading_status')
-          .select('work_openalex_id,title,author_summary,journal_name,publication_year,status,updated_at')
+          .select('work_openalex_id,title,author_summary,journal_name,publication_year,work_type,status,updated_at')
           .eq('user_id', user.id)
           .order('updated_at', { ascending: false }),
         db.from('followed_academic_entities')
@@ -104,7 +106,7 @@ export default function AcademicLibraryScreen() {
   }
 
   const renderWork = (item: SavedWork | StatusWork) => (
-    <Pressable key={item.work_openalex_id} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: item.work_openalex_id } })} style={styles.card}>
+    <Pressable key={item.work_openalex_id} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: item.work_openalex_id, ...(item.work_type === 'dissertation' ? { kind: 'thesis' } : item.work_type === 'article' ? { kind: 'article' } : {}) } })} style={styles.card}>
       <View style={styles.cardIcon}><Feather name="file-text" size={17} color={colors.primary} /></View>
       <View style={styles.cardCopy}>
         <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
