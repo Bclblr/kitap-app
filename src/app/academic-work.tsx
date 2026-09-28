@@ -18,7 +18,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-type AcademicStatus = 'want' | 'reading' | 'read';
+type AcademicStatus = 'want' | 'reading' | 'read' | 'abandoned';
 
 type Note = {
   id: string;
@@ -124,6 +124,7 @@ export default function AcademicWorkScreen() {
       journal_name: work.journal?.name ?? null,
       publication_year: work.publicationYear,
       doi: work.doi,
+      work_type: work.type ?? null,
     }, { onConflict: 'user_id,work_openalex_id' });
     if (error) return Alert.alert('Hata', error.message);
     setSaved(true);
@@ -140,6 +141,7 @@ export default function AcademicWorkScreen() {
       author_summary: academicAuthorLine(work),
       journal_name: work.journal?.name ?? null,
       publication_year: work.publicationYear,
+      work_type: work.type ?? null,
       status: next,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,work_openalex_id' });
@@ -230,12 +232,54 @@ export default function AcademicWorkScreen() {
               ['want', 'Okuyacağım', 'bookmark'],
               ['reading', 'Okuyorum', 'book-open'],
               ['read', 'Okudum', 'check-circle'],
+              ['abandoned', 'Yarım bıraktım', 'pause-circle'],
             ] as const).map(([value, label, icon]) => (
               <Pressable key={value} onPress={() => void changeStatus(value)} style={[styles.statusButton, status === value && styles.statusSelected]}>
                 <Feather name={icon} size={16} color={status === value ? colors.primary : colors.textMuted} />
                 <Text style={[styles.statusText, status === value && styles.statusTextSelected]}>{label}</Text>
               </Pressable>
             ))}
+          </View>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Paylaş</Text>
+          <Text style={styles.infoText}>Bu {thesis ? 'tez' : 'akademik çalışma'} hakkında kitaplarda olduğu gibi inceleme veya alıntı paylaşabilirsin.</Text>
+          <View style={styles.actionRow}>
+            <Pressable
+              onPress={() => router.push({
+                pathname: '/review' as any,
+                params: {
+                  key: work.id,
+                  title: work.title,
+                  author: academicAuthorLine(work),
+                  contentKind: 'academic',
+                  academicWorkId: work.id,
+                  academicWorkType: work.type ?? '',
+                },
+              })}
+              style={styles.primaryButton}
+            >
+              <Feather name="edit-3" size={16} color="#FFF" />
+              <Text style={styles.primaryButtonText}>İnceleme Yaz</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push({
+                pathname: '/quote-create' as any,
+                params: {
+                  key: work.id,
+                  book: work.title,
+                  author: academicAuthorLine(work),
+                  contentKind: 'academic',
+                  academicWorkId: work.id,
+                  academicWorkType: work.type ?? '',
+                },
+              })}
+              style={styles.secondaryButton}
+            >
+              <Feather name="message-square" size={16} color={colors.primary} />
+              <Text style={styles.secondaryButtonText}>Alıntı Ekle</Text>
+            </Pressable>
           </View>
         </View>
 
