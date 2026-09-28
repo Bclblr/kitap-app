@@ -318,14 +318,55 @@ export async function searchAcademicTheses(query: string, limit = 20, signal?: A
   return works.map((work) => ({ ...work, type: 'dissertation' }));
 }
 
-export function isAcademicThesis(work: Pick<AcademicWork, 'type'>) {
-  return work.type?.toLowerCase() === 'dissertation';
+export function isAcademicThesis(work: Pick<AcademicWork, 'type' | 'title'>) {
+  const type = work.type?.trim().toLowerCase() ?? '';
+  if (type === 'dissertation') return true;
+
+  // Some repository records arrive as "other" even when their title clearly
+  // identifies a thesis/dissertation. Only use the title fallback for
+  // unclassified records so normal articles are never re-labelled.
+  if (!type || type === 'other') {
+    return /(^|[\\s:–—-])(tez|tezi|tezinin|thesis|dissertation)([\\s:–—-]|$)/i.test(work.title);
+  }
+  return false;
 }
 
-export function academicWorkTypeLabel(work: Pick<AcademicWork, 'type'>) {
+export function academicWorkRouteKind(work: Pick<AcademicWork, 'type' | 'title'>): 'article' | 'thesis' | undefined {
+  if (isAcademicThesis(work)) return 'thesis';
+  const type = work.type?.trim().toLowerCase() ?? '';
+  if (['article', 'review', 'preprint', 'data-paper', 'software-paper'].includes(type)) return 'article';
+  return undefined;
+}
+
+export function academicWorkTypeLabel(work: Pick<AcademicWork, 'type' | 'title'>) {
   if (isAcademicThesis(work)) return 'Tez';
-  if (work.type?.toLowerCase() === 'article') return 'Makale';
-  return 'Akademik çalışma';
+
+  const type = work.type?.trim().toLowerCase() ?? '';
+  const labels: Record<string, string> = {
+    article: 'Makale',
+    review: 'Derleme',
+    preprint: 'Ön baskı',
+    'data-paper': 'Veri makalesi',
+    'software-paper': 'Yazılım makalesi',
+    book: 'Kitap',
+    'book-chapter': 'Kitap bölümü',
+    'book-review': 'Kitap incelemesi',
+    'conference-paper': 'Bildiri',
+    'conference-abstract': 'Bildiri özeti',
+    report: 'Rapor',
+    dataset: 'Veri seti',
+    editorial: 'Editoryal',
+    letter: 'Mektup',
+    standard: 'Standart',
+    'peer-review': 'Hakem değerlendirmesi',
+    'reference-entry': 'Referans maddesi',
+    software: 'Yazılım',
+    erratum: 'Düzeltme',
+    retraction: 'Geri çekme bildirimi',
+    other: 'Diğer akademik çalışma',
+  };
+
+  return labels[type] ?? 'Akademik çalışma';
 }
 
 export async function searchAcademicAuthors(query: string, limit = 20, signal?: AbortSignal): Promise<AcademicAuthorSummary[]> {
