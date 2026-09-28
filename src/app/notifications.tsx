@@ -22,6 +22,7 @@ type SocialType = 'follow_request' | 'follow_accepted' | 'follow_rejected';
 type InteractionNotification = {
   source: 'interaction'; id: string; actor_id: string | null; type: InteractionType; message: string;
   read: boolean; created_at: string; post_id: string | null; review_id: string | null;
+  target_type: 'post' | 'review' | 'quote' | null; target_id: string | null; target_preview: string | null;
   username: string; profile_image: string | null;
 };
 type SocialNotification = {
@@ -97,8 +98,8 @@ export default function NotificationsScreen() {
       };
 
       const [interactionResult, socialResult, adminResult] = await Promise.all([
-        supabase.from('notifications').select(`id, actor_id, type, message, read, created_at, post_id, review_id, profiles:actor_id(username, profile_image)`)
-          .eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
+        supabase.from('notifications').select(`id, actor_id, type, message, read, created_at, post_id, review_id, target_type, target_id, target_preview, profiles:actor_id(username, profile_image)`)
+          .eq('user_id', userId).eq('active', true).order('created_at', { ascending: false }).limit(100),
         supabase.from('social_notifications').select('id, actor_id, type, message, read, created_at')
           .eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
         supabase.rpc('get_my_admin_notifications', { p_limit: 100 }),
@@ -150,7 +151,11 @@ export default function NotificationsScreen() {
         .map((n: any) => ({ source: 'interaction', id: String(n.id), actor_id: n.actor_id ? String(n.actor_id) : null,
           type: n.type as InteractionType, message: String(n.message ?? ''), read: n.read === true,
           created_at: String(n.created_at ?? ''), post_id: n.post_id ? String(n.post_id) : null,
-          review_id: n.review_id ? String(n.review_id) : null, username: String(n.profiles?.username ?? 'Kullanıcı'),
+          review_id: n.review_id ? String(n.review_id) : null,
+          target_type: ['post','review','quote'].includes(String(n.target_type)) ? n.target_type as 'post' | 'review' | 'quote' : null,
+          target_id: n.target_id ? String(n.target_id) : null,
+          target_preview: typeof n.target_preview === 'string' && n.target_preview.trim() ? n.target_preview.trim() : null,
+          username: String(n.profiles?.username ?? 'Kullanıcı'),
           profile_image: typeof n.profiles?.profile_image === 'string' ? n.profiles.profile_image : null }));
 
       const socials: SocialNotification[] = prefs.follows ? socialRows.map((n: any) => {
@@ -202,6 +207,46 @@ export default function NotificationsScreen() {
   );
 
   useEffect(() => {
+    if (!userId || !backendReachable) return;
+
+    const channelName = `notifications-live-${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const channel = supabase.channel(channelName);
+    const reload = () => { void loadNotifications(); };
+
+    channel
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        reload
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        reload
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'social_notifications', filter: `user_id=eq.${userId}` },
+        reload
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'social_notifications', filter: `user_id=eq.${userId}` },
+        reload
+      );
+
+    channel.subscribe((status, error) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Bildirim Realtime bağlantısı kurulamadı:', status, error);
+      }
+    });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [backendReachable, loadNotifications, userId]);
+
+  useEffect(() => {
     if (!backendReachable || retrySignal === 0 || !userId) return;
 
     void (async () => {
@@ -217,8 +262,13 @@ export default function NotificationsScreen() {
       else if (item.actor_id) router.push({ pathname: '/profile', params: { userId: item.actor_id } } as never);
       return;
     }
-    if (item.post_id) router.push({ pathname: '/content', params: { type: 'post', id: item.post_id } } as never);
-    else if (item.review_id) router.push({ pathname: '/content', params: { type: 'review', id: item.review_id } } as never);
+    if (item.target_type && item.target_id) {
+      router.push({ pathname: '/content', params: { type: item.target_type, id: item.target_id } } as never);
+    } else if (item.post_id) {
+      router.push({ pathname: '/content', params: { type: 'post', id: item.post_id } } as never);
+    } else if (item.review_id) {
+      router.push({ pathname: '/content', params: { type: 'review', id: item.review_id } } as never);
+    }
   }
 
   function updateNotificationsLocally(
@@ -371,6 +421,8 @@ export default function NotificationsScreen() {
   const icon = (item: NotificationItem) => item.source === 'admin' ? 'bell' : item.source === 'social' ? 'user-plus' : item.type === 'like' ? 'heart' : item.type === 'comment' ? 'message-circle' : 'repeat';
   const title = (item: NotificationItem) => item.source === 'admin' ? item.title : item.source === 'social' ? item.type === 'follow_request' ? 'Takip isteği' : item.type === 'follow_accepted' ? 'Takip isteği kabul edildi' : 'Takip isteği reddedildi' : item.type === 'like' ? 'Beğeni' : item.type === 'comment' ? 'Yorum' : 'Yeniden paylaşım';
   const message = (item: NotificationItem) => item.source === 'admin' ? item.message : `${item.username} ${item.message || (item.source === 'interaction' ? 'etkileşimde bulundu' : '')}`;
+  const targetLabel = (item: InteractionNotification) =>
+    item.target_type === 'review' ? 'İnceleme' : item.target_type === 'quote' ? 'Alıntı' : 'Gönderi';
 
   return (
     <View style={styles.container}>
@@ -403,7 +455,7 @@ export default function NotificationsScreen() {
         {notifications.length === 0 ? <View style={styles.empty}><Feather name="bell" size={30} color={colors.primary} /><Text style={styles.emptyTitle}>Henüz bildirim yok</Text><Text style={styles.muted}>Etkileşimlerin, takip isteklerin ve duyurular burada görünecek.</Text></View> :
           notifications.map((item) => <Pressable key={`${item.source}:${item.id}`} onPress={() => void markAsRead(item)} style={[styles.card, !item.read && styles.unreadCard]}>
             {item.source !== 'admin' && item.profile_image ? <Image source={{ uri: item.profile_image }} style={styles.avatar} /> : <View style={styles.iconCircle}><Feather name={icon(item) as any} size={19} color={colors.primary} /></View>}
-            <View style={styles.cardBody}><View style={styles.row}><Text style={styles.type}>{title(item)}</Text>{!item.read ? <View style={[styles.dot, { backgroundColor: colors.primary }]} /> : null}</View><Text style={styles.message}>{message(item)}</Text><Text style={styles.date}>{new Date(item.created_at).toLocaleDateString('tr-TR')}</Text></View>
+            <View style={styles.cardBody}><View style={styles.row}><Text style={styles.type}>{title(item)}</Text>{!item.read ? <View style={[styles.dot, { backgroundColor: colors.primary }]} /> : null}</View><Text style={styles.message}>{message(item)}</Text>{item.source === 'interaction' && item.target_preview ? <View style={styles.targetCard}><Text style={styles.targetLabel}>{targetLabel(item)}</Text><Text numberOfLines={2} style={styles.targetPreview}>{item.target_preview}</Text></View> : null}<Text style={styles.date}>{new Date(item.created_at).toLocaleDateString('tr-TR')}</Text></View>
           </Pressable>)}
       </ScrollView>}
       <BottomNav />
@@ -435,5 +487,8 @@ const baseStyles = StyleSheet.create({
   type: { color: '#F5F5F8', fontSize: 13, fontWeight: '800' },
   dot: { width: 7, height: 7, borderRadius: 4 },
   message: { color: '#D5D5DC', fontSize: 14, lineHeight: 20, marginTop: 5 },
+  targetCard: { marginTop: 9, borderRadius: 11, borderWidth: 1, borderColor: '#302A3B', backgroundColor: '#101016', paddingHorizontal: 10, paddingVertical: 8 },
+  targetLabel: { color: '#A985FF', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
+  targetPreview: { color: '#B8B8C2', fontSize: 12, lineHeight: 17 },
   date: { color: '#777783', fontSize: 11, marginTop: 8 },
 });
