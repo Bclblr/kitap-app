@@ -187,7 +187,7 @@ export default function AcademicSearchScreen() {
 
         {!loading && searched && tab === 'works' ? (
           works.length ? works.map((work) => (
-            <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })} />
+            <AcademicWorkCard key={work.id} work={work} onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id, kind: 'article' } })} />
           )) : <Text style={styles.empty}>Makale bulunamadı.</Text>
         ) : null}
 
