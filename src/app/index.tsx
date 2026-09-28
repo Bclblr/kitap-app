@@ -1380,11 +1380,17 @@ export default function HomeScreen() {
       if (existing) existing.stories.push(story);
       else groups.set(key, { key, username: story.username || CURRENT_USERNAME, profile_image: story.profile_image ?? null, stories: [story] });
     });
-    return Array.from(groups.values()).map((group) => ({
-      ...group,
-      stories: [...group.stories].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
-      hasUnseen: group.stories.some((story) => !seenStoryIds.includes(story.id)),
-    }));
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        stories: [...group.stories].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+        hasUnseen: group.stories.some((story) => !seenStoryIds.includes(story.id)),
+      }))
+      .sort((a, b) => {
+        if (a.key === currentUserId) return -1;
+        if (b.key === currentUserId) return 1;
+        return 0;
+      });
   })();
 
   const activeStoryGroup = storyGroupIndex === null ? null : storyGroups[storyGroupIndex] ?? null;
