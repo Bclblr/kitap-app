@@ -43,6 +43,7 @@ export default function StoryCreateScreen() {
   const [allowReplies, setAllowReplies] = useState(true);
   const [busy, setBusy] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [capturing, setCapturing] = useState(false);
 
   const stageSize = useMemo(() => {
     const stageWidth = Math.min(Math.max(280, width - 16), 520);
@@ -79,20 +80,45 @@ export default function StoryCreateScreen() {
   }
 
   async function takePhoto() {
+    if (capturing) return;
+
     if (!(await ensureCamera())) {
       Alert.alert('Kamera izni gerekli', 'Hikâye çekebilmek için kamera izni vermelisin.');
       return;
     }
-    if (!cameraReady) return;
+
+    const camera = cameraRef.current;
+    if (!camera) {
+      Alert.alert('Kamera hazırlanıyor', 'Kamera henüz hazır değil. Birkaç saniye sonra tekrar dene.');
+      return;
+    }
+
+    if (!cameraReady) {
+      Alert.alert('Kamera hazırlanıyor', 'Kamera henüz hazır değil. Birkaç saniye sonra tekrar dene.');
+      return;
+    }
+
+    setCapturing(true);
     try {
-      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.86 });
-      if (photo?.uri) {
-        setCapturedUri(photo.uri);
-        setTextMode(false);
-        setTextEditing(false);
-      }
-    } catch {
-      Alert.alert('Fotoğraf çekilemedi', 'Kamerayı tekrar açıp yeniden deneyebilirsin.');
+      const photo = await camera.takePictureAsync({
+        quality: 0.86,
+        skipProcessing: false,
+      });
+
+      if (!photo?.uri) throw new Error('Fotoğraf dosyası oluşturulamadı.');
+
+      setCapturedUri(photo.uri);
+      setTextMode(false);
+      setTextEditing(false);
+      Keyboard.dismiss();
+    } catch (error) {
+      console.error('Hikâye kamera çekim hatası:', error);
+      Alert.alert(
+        'Fotoğraf çekilemedi',
+        error instanceof Error ? error.message : 'Kamerayı tekrar açıp yeniden deneyebilirsin.'
+      );
+    } finally {
+      setCapturing(false);
     }
   }
 
@@ -201,12 +227,18 @@ export default function StoryCreateScreen() {
         >
           {!capturedUri && !textMode && permission?.granted ? (
             <CameraView
+              key={facing}
               ref={cameraRef}
               style={StyleSheet.absoluteFill}
               facing={facing}
               flash={flash}
               mirror={facing === 'front'}
               onCameraReady={() => setCameraReady(true)}
+              onMountError={(error) => {
+                setCameraReady(false);
+                console.error('Hikâye kamerası açılamadı:', error);
+                Alert.alert('Kamera açılamadı', error.message || 'Kamerayı tekrar açmayı dene.');
+              }}
             />
           ) : capturedUri ? (
             <Image localPreview source={{ uri: capturedUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
@@ -311,10 +343,15 @@ export default function StoryCreateScreen() {
               </Pressable>
               <Pressable
                 onPress={(event) => { event.stopPropagation(); void takePhoto(); }}
-                style={styles.shutterOuter}
+                disabled={capturing}
+                style={[styles.shutterOuter, capturing && styles.shutterBusy]}
                 accessibilityLabel="Fotoğraf çek"
               >
-                <View style={styles.shutterInner} />
+                {capturing ? (
+                  <ActivityIndicator size="small" color="#111218" />
+                ) : (
+                  <View style={styles.shutterInner} pointerEvents="none" />
+                )}
               </Pressable>
               <Pressable
                 onPress={(event) => {
@@ -434,6 +471,7 @@ const styles = StyleSheet.create({
   captureRow: { position: 'absolute', left: 22, right: 22, bottom: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 },
   shutterOuter: { width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: '#FFF', padding: 5, alignItems: 'center', justifyContent: 'center' },
   shutterInner: { width: '100%', height: '100%', borderRadius: 32, backgroundColor: '#FFF' },
+  shutterBusy: { backgroundColor: '#FFF', opacity: 0.9 },
   galleryButton: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(16,17,22,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   flipButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(16,17,22,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   textEditorWrap: { position: 'absolute', left: 18, right: 18, bottom: 92, zIndex: 16, alignItems: 'center' },
