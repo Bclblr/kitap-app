@@ -525,7 +525,7 @@ export default function StoryCreateScreen() {
                 textMode && styles.textEditorTextOnly,
                 { transform: [{ translateX: textOffset.x }, { translateY: textOffset.y }] },
               ]}
-              pointerEvents="box-none"
+              pointerEvents="auto"
               {...(!textEditing ? textPanResponder.panHandlers : {})}
             >
               <TextInput
@@ -543,6 +543,7 @@ export default function StoryCreateScreen() {
                 textAlignVertical="center"
                 selectionColor={textColor}
                 editable={textEditing}
+                pointerEvents={textEditing ? 'auto' : 'none'}
                 style={[
                   styles.storyTextInput,
                   textMode && styles.storyTextInputLarge,
