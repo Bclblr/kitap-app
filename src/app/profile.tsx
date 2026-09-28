@@ -741,6 +741,10 @@ export default function ProfileScreen() {
           containsSpoiler: item.contains_spoiler === true,
           createdAt: item.created_at || new Date().toISOString(),
           viewCount: Number(item.view_count) || 0,
+          contentKind: item.content_kind === 'academic' ? 'academic' : 'book',
+          academicWorkId: item.academic_work_id ? String(item.academic_work_id) : null,
+          academicWorkType: item.academic_work_type ? String(item.academic_work_type) : null,
+          academicAuthorSummary: item.academic_author_summary ? String(item.academic_author_summary) : null,
         }));
         pageLength = page.length;
         pageCursorRows = (data ?? []) as { id?: string | null; created_at?: string | null }[];
@@ -774,6 +778,10 @@ export default function ProfileScreen() {
           note: item.note ? String(item.note) : null,
           createdAt: item.created_at || new Date().toISOString(),
           viewCount: Number(item.view_count) || 0,
+          contentKind: item.content_kind === 'academic' ? 'academic' : 'book',
+          academicWorkId: item.academic_work_id ? String(item.academic_work_id) : null,
+          academicWorkType: item.academic_work_type ? String(item.academic_work_type) : null,
+          academicAuthorSummary: item.academic_author_summary ? String(item.academic_author_summary) : null,
         }));
         pageLength = page.length;
         pageCursorRows = (data ?? []) as { id?: string | null; created_at?: string | null }[];
@@ -908,7 +916,7 @@ export default function ProfileScreen() {
       const [{ data, error }, { count, error: countError }] = await Promise.all([
         supabase
           .from('quotes')
-          .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at, view_count')
+          .select('id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at, view_count, content_kind, academic_work_id, academic_work_type, academic_author_summary')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
@@ -934,6 +942,10 @@ export default function ProfileScreen() {
         note: item.note ? String(item.note) : null,
         createdAt: item.created_at || new Date().toISOString(),
           viewCount: Number(item.view_count) || 0,
+        contentKind: item.content_kind === 'academic' ? 'academic' : 'book',
+        academicWorkId: item.academic_work_id ? String(item.academic_work_id) : null,
+        academicWorkType: item.academic_work_type ? String(item.academic_work_type) : null,
+        academicAuthorSummary: item.academic_author_summary ? String(item.academic_author_summary) : null,
       }));
 
       setQuotes(loadedQuotes);
@@ -1009,7 +1021,7 @@ export default function ProfileScreen() {
         supabase
           .from('reviews')
           .select(
-            'id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at, view_count'
+            'id, user_id, book_key, book_title, rating, text, title, topic, tags, contains_spoiler, created_at, view_count, content_kind, academic_work_id, academic_work_type, academic_author_summary'
           )
           .eq(
             'user_id',
@@ -1027,7 +1039,7 @@ export default function ProfileScreen() {
         supabase
           .from('quotes')
           .select(
-            'id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at, view_count'
+            'id, user_id, book_key, book_title, text, title, topic, page_number, note, created_at, view_count, content_kind, academic_work_id, academic_work_type, academic_author_summary'
           )
           .eq(
             'user_id',
