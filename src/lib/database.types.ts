@@ -2703,12 +2703,17 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          image_offset_x: number
+          image_offset_y: number
+          image_scale: number
           image_url: string | null
           storage_path: string | null
           text: string | null
           text_align: string
           text_background: boolean
           text_color: string
+          text_offset_x: number
+          text_offset_y: number
           text_style: string
           user_id: string
           username: string
@@ -2719,12 +2724,17 @@ export type Database = {
           created_at?: string
           expires_at: string
           id?: string
+          image_offset_x?: number
+          image_offset_y?: number
+          image_scale?: number
           image_url?: string | null
           storage_path?: string | null
           text?: string | null
           text_align?: string
           text_background?: boolean
           text_color?: string
+          text_offset_x?: number
+          text_offset_y?: number
           text_style?: string
           user_id: string
           username: string
@@ -2735,12 +2745,17 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          image_offset_x?: number
+          image_offset_y?: number
+          image_scale?: number
           image_url?: string | null
           storage_path?: string | null
           text?: string | null
           text_align?: string
           text_background?: boolean
           text_color?: string
+          text_offset_x?: number
+          text_offset_y?: number
           text_style?: string
           user_id?: string
           username?: string
