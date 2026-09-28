@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { useThemedStyles } from '@/theme/use-themed-styles';
 
-type ContentType = 'post' | 'review';
+type ContentType = 'post' | 'review' | 'quote';
 
 type ContentRow = {
   id: string;
@@ -48,7 +48,7 @@ export default function ContentScreen() {
       setContent(null);
 
       const id = typeof params.id === 'string' ? params.id.trim() : '';
-      const type: ContentType = params.type === 'review' ? 'review' : 'post';
+      const type: ContentType = params.type === 'review' ? 'review' : params.type === 'quote' ? 'quote' : 'post';
 
       if (!id) {
         if (active) {
@@ -60,7 +60,9 @@ export default function ContentScreen() {
 
       const result = type === 'review'
         ? await supabase.from('reviews').select('*').eq('id', id).maybeSingle()
-        : await supabase.from('posts').select('*').eq('id', id).maybeSingle();
+        : type === 'quote'
+          ? await supabase.from('quotes').select('*').eq('id', id).maybeSingle()
+          : await supabase.from('posts').select('*').eq('id', id).maybeSingle();
       const { data, error } = result;
       const row = data as ContentRow | null;
 
