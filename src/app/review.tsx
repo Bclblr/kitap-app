@@ -49,12 +49,16 @@ export default function ReviewScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const { key, title, author, coverUrl } = useLocalSearchParams<{
+  const { key, title, author, coverUrl, contentKind, academicWorkId, academicWorkType } = useLocalSearchParams<{
     key?: string;
     title?: string;
     author?: string;
     coverUrl?: string;
+    contentKind?: string;
+    academicWorkId?: string;
+    academicWorkType?: string;
   }>();
+  const isAcademic = contentKind === 'academic' || !!academicWorkId;
 
   const [selectedBookKey, setSelectedBookKey] = useState(key ?? '');
   const [selectedBookTitle, setSelectedBookTitle] = useState(title ?? '');
@@ -144,16 +148,16 @@ export default function ReviewScreen() {
     const cleanTitle = reviewTitle.trim();
 
     if (!selectedBookKey) {
-      Alert.alert('Kitap gerekli', 'İnceleme için önce bir kitap seçmelisin.');
-      setBookPickerOpen(true);
+      Alert.alert(isAcademic ? 'Çalışma gerekli' : 'Kitap gerekli', isAcademic ? 'Akademik çalışma bilgisi bulunamadı.' : 'İnceleme için önce bir kitap seçmelisin.');
+      if (!isAcademic) setBookPickerOpen(true);
       return;
     }
     if (rating === 0) {
-      Alert.alert('Puan gerekli', 'Yayınlamadan önce kitaba 1 ile 5 arasında bir puan ver.');
+      Alert.alert('Puan gerekli', `Yayınlamadan önce ${isAcademic ? 'çalışmaya' : 'kitaba'} 1 ile 5 arasında bir puan ver.`);
       return;
     }
     if (!cleanText) {
-      Alert.alert('İnceleme gerekli', 'Kitap hakkındaki düşüncelerini yazmalısın.');
+      Alert.alert('İnceleme gerekli', `${isAcademic ? 'Çalışma' : 'Kitap'} hakkındaki düşüncelerini yazmalısın.`);
       return;
     }
 
@@ -177,6 +181,10 @@ export default function ReviewScreen() {
         topic: topic || null,
         tags,
         contains_spoiler: containsSpoiler,
+        content_kind: isAcademic ? 'academic' : 'book',
+        academic_work_id: isAcademic ? (academicWorkId || selectedBookKey) : null,
+        academic_work_type: isAcademic ? (academicWorkType || null) : null,
+        academic_author_summary: isAcademic ? (selectedBookAuthor || null) : null,
       });
 
       if (error) throw error;
@@ -218,7 +226,7 @@ export default function ReviewScreen() {
               <Feather name="star" size={18} color={lightColor('primary', '#D9CBFF')} />
             </View>
             <View style={styles.ratingCopy}>
-              <Text style={styles.ratingTitle}>{rating ? `${rating}/5 puan verdin` : 'Kitabı puanla'}</Text>
+              <Text style={styles.ratingTitle}>{rating ? `${rating}/5 puan verdin` : (isAcademic ? 'Çalışmayı puanla' : 'Kitabı puanla')}</Text>
               <Text style={styles.ratingHint}>{rating ? 'Puanını değiştirmek için yıldızlara dokun' : 'İncelemenin yanında görünecek'}</Text>
             </View>
           </View>
@@ -260,7 +268,7 @@ export default function ReviewScreen() {
           <TextInput
             value={reviewText}
             onChangeText={setReviewText}
-            placeholder="Bu kitap sende ne bıraktı? Beğendiğin, eleştirdiğin veya üzerinde düşündüğün noktaları yaz..."
+            placeholder={isAcademic ? 'Bu çalışma hakkında değerlendirmelerini, güçlü ve zayıf yönlerini veya üzerinde düşündüğün noktaları yaz...' : 'Bu kitap sende ne bıraktı? Beğendiğin, eleştirdiğin veya üzerinde düşündüğün noktaları yaz...'}
             placeholderTextColor={lightColor('textMuted', '#656B76')}
             multiline
             maxLength={4000}
@@ -300,16 +308,16 @@ export default function ReviewScreen() {
           <Feather name="chevron-right" size={20} color={lightColor('textSecondary', '#717784')} />
         </Pressable>
 
-        <Pressable onPress={() => setBookPickerOpen(true)} style={styles.bookCard}>
+        <Pressable onPress={() => { if (!isAcademic) setBookPickerOpen(true); }} style={styles.bookCard}>
           <BookCover uri={selectedBookCover || null} style={styles.bookCover}>
             <View style={styles.bookCoverFallback}><Feather name="book-open" size={22} color={lightColor('textSecondary', '#797F8B')} /></View>
           </BookCover>
           <View style={styles.bookCopy}>
-            <Text style={styles.bookEyebrow}>İNCELEME YAPILAN KİTAP</Text>
-            <Text style={styles.bookTitle} numberOfLines={2}>{selectedBookTitle || 'Kitap seç'}</Text>
-            <Text style={styles.bookAuthor} numberOfLines={1}>{selectedBookAuthor || 'Kitap veya yazar adıyla ara'}</Text>
+            <Text style={styles.bookEyebrow}>{isAcademic ? 'İNCELEME YAPILAN AKADEMİK ÇALIŞMA' : 'İNCELEME YAPILAN KİTAP'}</Text>
+            <Text style={styles.bookTitle} numberOfLines={2}>{selectedBookTitle || (isAcademic ? 'Akademik çalışma' : 'Kitap seç')}</Text>
+            <Text style={styles.bookAuthor} numberOfLines={1}>{selectedBookAuthor || (isAcademic ? 'Yazar bilgisi yok' : 'Kitap veya yazar adıyla ara')}</Text>
           </View>
-          <Feather name={selectedBookKey ? "check-circle" : "plus-circle"} size={20} color={lightColor('primary', '#8C70E8')} />
+          <Feather name={isAcademic || selectedBookKey ? "check-circle" : "plus-circle"} size={20} color={lightColor('primary', '#8C70E8')} />
         </Pressable>
 
         {containsSpoiler ? (
@@ -335,7 +343,7 @@ export default function ReviewScreen() {
       </View>
 
       <BookPickerModal
-        visible={bookPickerOpen}
+        visible={!isAcademic && bookPickerOpen}
         onClose={() => setBookPickerOpen(false)}
         title="İnceleme için kitap seç"
         onSelect={(selected: ComposerBook) => {
