@@ -25,6 +25,7 @@ const MODULES:AdminModule[]=[
 {key:'events',title:'Etkinlikler',subtitle:'Etkinlik, katılımcı ve öne çıkarma',icon:'calendar',route:'/admin-events'},
 {key:'notifications',title:'Bildirimler',subtitle:'Tek kullanıcıya, role veya herkese gönderim',icon:'bell',route:'/admin-notifications',minimumRole:'admin'},
 {key:'announcements',title:'Duyurular',subtitle:'Banner, bakım ve özellik duyuruları',icon:'volume-2',route:'/admin-announcements',minimumRole:'admin'},
+{key:'ads',title:'Reklam Yönetimi',subtitle:'Hikâye üstü ve akış içi kendi sponsorlu reklamların',icon:'monitor',route:'/admin-ads',minimumRole:'admin'},
 {key:'files',title:'Dosyalar',subtitle:'Storage görselleri ve sahipsiz dosyalar',icon:'image',route:'/admin-storage',minimumRole:'admin'},
 {key:'analytics',title:'Analitik',subtitle:'Büyüme ve içerik hareketi metrikleri',icon:'bar-chart-2',route:'/admin-analytics',minimumRole:'admin'},
 {key:'system',title:'Sistem',subtitle:'Feature flags, sürüm ve bakım modu',icon:'settings',route:'/admin-system',minimumRole:'admin'},
