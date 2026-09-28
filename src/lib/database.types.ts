@@ -265,6 +265,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          page_number: number | null
           updated_at: string
           user_id: string
           work_openalex_id: string
@@ -274,6 +275,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          page_number?: number | null
           updated_at?: string
           user_id: string
           work_openalex_id: string
@@ -283,6 +285,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          page_number?: number | null
           updated_at?: string
           user_id?: string
           work_openalex_id?: string
