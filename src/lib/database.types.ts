@@ -1532,6 +1532,7 @@ export type Database = {
       }
       notifications: {
         Row: {
+          active: boolean
           actor_id: string | null
           created_at: string
           id: string
@@ -1539,10 +1540,15 @@ export type Database = {
           post_id: string | null
           read: boolean
           review_id: string | null
+          source_id: string | null
+          target_id: string | null
+          target_preview: string | null
+          target_type: string | null
           type: string
           user_id: string
         }
         Insert: {
+          active?: boolean
           actor_id?: string | null
           created_at?: string
           id?: string
@@ -1550,10 +1556,15 @@ export type Database = {
           post_id?: string | null
           read?: boolean
           review_id?: string | null
+          source_id?: string | null
+          target_id?: string | null
+          target_preview?: string | null
+          target_type?: string | null
           type: string
           user_id: string
         }
         Update: {
+          active?: boolean
           actor_id?: string | null
           created_at?: string
           id?: string
@@ -1561,6 +1572,10 @@ export type Database = {
           post_id?: string | null
           read?: boolean
           review_id?: string | null
+          source_id?: string | null
+          target_id?: string | null
+          target_preview?: string | null
+          target_type?: string | null
           type?: string
           user_id?: string
         }
