@@ -5,6 +5,7 @@ import BookCover from '@/components/BookCover';
 import {
   AcademicAuthorSummary,
   AcademicWork,
+  academicWorkRouteKind,
   getAcademicAuthor,
   getAuthorWorks,
   searchAcademicAuthors,
@@ -336,7 +337,10 @@ export default function PersonScreen() {
               <AcademicWorkCard
                 key={work.id}
                 work={work}
-                onPress={() => router.push({ pathname: '/academic-work' as any, params: { id: work.id } })}
+                onPress={() => {
+                  const kind = academicWorkRouteKind(work);
+                  router.push({ pathname: '/academic-work' as any, params: { id: work.id, ...(kind ? { kind } : {}) } });
+                }}
               />
             ))}
           </View>
