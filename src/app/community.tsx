@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -83,6 +84,7 @@ export default function CommunityScreen() {
   const [isMember, setIsMember] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [membershipUpdating, setMembershipUpdating] = useState(false);
 
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
@@ -599,7 +601,20 @@ export default function CommunityScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+            onRefresh={() => {
+              setRefreshing(true);
+              void loadCommunityPosts(true).finally(() => setRefreshing(false));
+            }}
+          />
+        }
+      >
         <Pressable onPress={goBack} accessibilityRole="button" accessibilityLabel="Geri dön">
           <Text style={styles.back}>‹ Geri</Text>
         </Pressable>
