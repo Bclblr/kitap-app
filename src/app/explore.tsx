@@ -15,7 +15,7 @@ import { useThemedStyles } from '@/theme/use-themed-styles';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 type Book = BookCoverData & {
   key: string;
@@ -103,6 +103,7 @@ export default function ExploreScreen() {
   const [journals, setJournals] = useState<AcademicJournalSummary[]>([]);
   const [institutions, setInstitutions] = useState<AcademicInstitutionSummary[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [academicLoading, setAcademicLoading] = useState(false);
   const [secondaryAcademicLoading, setSecondaryAcademicLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -570,6 +571,27 @@ export default function ExploreScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              tintColor="#9B72F2"
+              colors={['#9B72F2']}
+              onRefresh={() => {
+                setRefreshing(true);
+                const normalized = query.trim().toLocaleLowerCase('tr-TR');
+                if (normalized) searchCacheRef.current.delete(normalized);
+                const task = normalized
+                  ? searchAll()
+                  : Promise.all([
+                      loadPopularBooks(),
+                      loadUpcomingEvents(),
+                      loadDiscoverCommunities(),
+                      loadTrendingHashtags(),
+                    ]).then(() => undefined);
+                void task.finally(() => setRefreshing(false));
+              }}
+            />
+          }
           contentContainerStyle={styles.content}
         >
           <View style={styles.header}>
