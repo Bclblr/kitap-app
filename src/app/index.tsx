@@ -281,6 +281,7 @@ export default function HomeScreen() {
   const [stories, setStories] = useState<Story[]>([]);
   const [houseAds, setHouseAds] = useState<HouseAdCampaign[]>([]);
   const [canManageAds, setCanManageAds] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [bookCoverUrls, setBookCoverUrls] =
     useState<Record<string, string | null>>({});
 
@@ -313,6 +314,121 @@ export default function HomeScreen() {
       setHouseAds([]);
     }
   }, []);
+
+  const loadUnreadNotifications = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setUnreadNotifications(0);
+      return;
+    }
+
+    const [preferenceResult, interactionResult, socialResult, adminResult] = await Promise.all([
+      supabase
+        .from('notification_preferences')
+        .select('likes_enabled, comments_enabled, reposts_enabled, follows_enabled, system_enabled')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+      supabase
+        .from('notifications')
+        .select('type')
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .eq('read', false)
+        .limit(100),
+      supabase
+        .from('social_notifications')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('read', false)
+        .limit(100),
+      supabase.rpc('get_my_admin_notifications', { p_limit: 100 }),
+    ]);
+
+    if (interactionResult.error || socialResult.error || adminResult.error) {
+      console.warn(
+        'Okunmamış bildirim sayısı alınamadı:',
+        interactionResult.error ?? socialResult.error ?? adminResult.error
+      );
+      return;
+    }
+
+    const prefs = {
+      likes: preferenceResult.data?.likes_enabled ?? true,
+      comments: preferenceResult.data?.comments_enabled ?? true,
+      reposts: preferenceResult.data?.reposts_enabled ?? true,
+      follows: preferenceResult.data?.follows_enabled ?? true,
+      system: preferenceResult.data?.system_enabled ?? true,
+    };
+
+    const interactionCount = (interactionResult.data ?? []).filter((row: any) =>
+      row.type === 'like'
+        ? prefs.likes
+        : row.type === 'comment'
+          ? prefs.comments
+          : row.type === 'repost'
+            ? prefs.reposts
+            : true
+    ).length;
+    const socialCount = prefs.follows ? (socialResult.data ?? []).length : 0;
+    const adminCount = prefs.system
+      ? (adminResult.data ?? []).filter((row: any) => row.read !== true).length
+      : 0;
+
+    setUnreadNotifications(interactionCount + socialCount + adminCount);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadUnreadNotifications();
+    }, [loadUnreadNotifications])
+  );
+
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let active = true;
+
+    const setup = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!active || !user) return;
+
+      const refresh = () => { void loadUnreadNotifications(); };
+      channel = supabase
+        .channel(`home-notification-badge-${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          refresh
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          refresh
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'social_notifications', filter: `user_id=eq.${user.id}` },
+          refresh
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'social_notifications', filter: `user_id=eq.${user.id}` },
+          refresh
+        );
+
+      channel.subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Bildirim rozeti Realtime bağlantısı kurulamadı:', status, error);
+        }
+      });
+    };
+
+    void setup();
+
+    return () => {
+      active = false;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [loadUnreadNotifications]);
 
   useEffect(() => {
     // Realtime channel names must be unique for each effect lifecycle. During
@@ -1943,8 +2059,19 @@ export default function HomeScreen() {
           </Pressable>
           <Text style={styles.brandTitle}>Kitap</Text>
           <View style={styles.headerRightActions}>
-            <Pressable onPress={() => router.push('/notifications')} style={styles.headerIconButton} accessibilityLabel="Bildirimler">
+            <Pressable
+              onPress={() => router.push('/notifications')}
+              style={styles.headerIconButton}
+              accessibilityLabel={unreadNotifications > 0 ? `Bildirimler, ${unreadNotifications} okunmamış` : 'Bildirimler'}
+            >
               <Feather name="bell" size={22} color={colors.text} />
+              {unreadNotifications > 0 ? (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
           </View>
         </View>
@@ -2048,6 +2175,8 @@ const baseStyles = StyleSheet.create({
   brandTitle: { position: 'absolute', left: 70, right: 70, textAlign: 'center', color: '#F8F8FA', fontSize: 21, fontWeight: '900', letterSpacing: -0.6 },
   headerRightActions: { marginLeft: 'auto', flexDirection: 'row', gap: 7, maxWidth: '100%', minWidth: 0, flexShrink: 1 },
   headerIconButton: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+  notificationBadge: { position: 'absolute', top: -4, right: -7, minWidth: 19, height: 19, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF4D67', borderWidth: 2, borderColor: '#0A0A0E' },
+  notificationBadgeText: { color: '#FFFFFF', fontSize: 9, lineHeight: 11, fontWeight: '900' },
   headerIcon: { color: '#F6F6F8', fontSize: 29, lineHeight: 31, transform: [{ rotate: '-15deg' }] },
   headerSmallIcon: { color: '#F6F6F8', fontSize: 20 },
   homeHeaderText: { flex: 1, minWidth: 0 },
