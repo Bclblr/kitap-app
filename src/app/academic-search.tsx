@@ -36,33 +36,42 @@ export default function AcademicSearchScreen() {
   const [searched, setSearched] = useState(false);
   const requestRef = useRef(0);
 
-  async function search(term = query) {
+  async function search(targetTab: Tab = tab, term = query) {
     const clean = term.trim();
     if (!clean) return;
+
     const requestId = ++requestRef.current;
     setLoading(true);
     setSearched(true);
+
     try {
-      const [workResult, thesisResult, authorResult, journalResult, institutionResult] = await Promise.allSettled([
-        searchAcademicArticles(clean, 24),
-        searchAcademicTheses(clean, 24),
-        searchAcademicAuthors(clean, 24),
-        searchAcademicJournals(clean, 24),
-        searchAcademicInstitutions(clean, 24),
-      ]);
-      if (requestId !== requestRef.current) return;
-
-      setWorks(workResult.status === 'fulfilled' ? workResult.value : []);
-      setTheses(thesisResult.status === 'fulfilled' ? thesisResult.value : []);
-      setAuthors(authorResult.status === 'fulfilled' ? authorResult.value : []);
-      setJournals(journalResult.status === 'fulfilled' ? journalResult.value : []);
-      setInstitutions(institutionResult.status === 'fulfilled' ? institutionResult.value : []);
-
-      const failed = [workResult, thesisResult, authorResult, journalResult, institutionResult]
-        .filter((result) => result.status === 'rejected');
-      if (failed.length) {
-        console.warn(`Akademik aramada ${failed.length} kaynak geçici olarak yanıt vermedi.`);
+      if (targetTab === 'works') {
+        const rows = await searchAcademicArticles(clean, 24);
+        if (requestId === requestRef.current) setWorks(rows);
+      } else if (targetTab === 'theses') {
+        const rows = await searchAcademicTheses(clean, 24);
+        if (requestId === requestRef.current) setTheses(rows);
+      } else if (targetTab === 'authors') {
+        const rows = await searchAcademicAuthors(clean, 24);
+        if (requestId === requestRef.current) setAuthors(rows);
+      } else if (targetTab === 'journals') {
+        const rows = await searchAcademicJournals(clean, 24);
+        if (requestId === requestRef.current) setJournals(rows);
+      } else {
+        const rows = await searchAcademicInstitutions(clean, 24);
+        if (requestId === requestRef.current) setInstitutions(rows);
       }
+    } catch (error) {
+      if (requestId !== requestRef.current) return;
+      if ((error as Error)?.name !== 'AbortError') {
+        console.warn('Akademik arama yüklenemedi:', error);
+      }
+
+      if (targetTab === 'works') setWorks([]);
+      else if (targetTab === 'theses') setTheses([]);
+      else if (targetTab === 'authors') setAuthors([]);
+      else if (targetTab === 'journals') setJournals([]);
+      else setInstitutions([]);
     } finally {
       if (requestId === requestRef.current) setLoading(false);
     }
@@ -72,46 +81,14 @@ export default function AcademicSearchScreen() {
     const initial = typeof params.q === 'string' ? params.q.trim() : '';
     if (!initial) return;
 
-    const requestId = ++requestRef.current;
-    let active = true;
-    const controller = new AbortController();
-
+    setQuery(initial);
     const timer = setTimeout(() => {
-      setQuery(initial);
-      setLoading(true);
-      setSearched(true);
-      void Promise.allSettled([
-        searchAcademicArticles(initial, 24, controller.signal),
-        searchAcademicTheses(initial, 24, controller.signal),
-        searchAcademicAuthors(initial, 24, controller.signal),
-        searchAcademicJournals(initial, 24, controller.signal),
-        searchAcademicInstitutions(initial, 24, controller.signal),
-      ])
-        .then(([workResult, thesisResult, authorResult, journalResult, institutionResult]) => {
-          if (!active || requestId !== requestRef.current) return;
-
-          setWorks(workResult.status === 'fulfilled' ? workResult.value : []);
-          setTheses(thesisResult.status === 'fulfilled' ? thesisResult.value : []);
-          setAuthors(authorResult.status === 'fulfilled' ? authorResult.value : []);
-          setJournals(journalResult.status === 'fulfilled' ? journalResult.value : []);
-          setInstitutions(institutionResult.status === 'fulfilled' ? institutionResult.value : []);
-
-          const failed = [workResult, thesisResult, authorResult, journalResult, institutionResult]
-            .filter((result) => result.status === 'rejected' && (result.reason as Error)?.name !== 'AbortError');
-          if (failed.length) {
-            console.warn(`Akademik aramada ${failed.length} kaynak geçici olarak yanıt vermedi.`);
-          }
-        })
-        .finally(() => {
-          if (active && requestId === requestRef.current) setLoading(false);
-        });
+      void search('works', initial);
     }, 0);
 
-    return () => {
-      active = false;
-      clearTimeout(timer);
-      controller.abort();
-    };
+    return () => clearTimeout(timer);
+    // Search only when the route query changes. Tab changes are user-driven below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.q]);
 
   const counts: Record<Tab, number> = {
@@ -162,9 +139,16 @@ export default function AcademicSearchScreen() {
             ['journals', 'Dergiler'],
             ['institutions', 'Kurumlar'],
           ] as const).map(([key, label]) => (
-            <Pressable key={key} onPress={() => setTab(key)} style={[styles.tab, tab === key && styles.activeTab]}>
+            <Pressable
+              key={key}
+              onPress={() => {
+                setTab(key);
+                if (searched && query.trim()) void search(key, query);
+              }}
+              style={[styles.tab, tab === key && styles.activeTab]}
+            >
               <Text style={[styles.tabText, tab === key && styles.activeTabText]}>
-                {label}{searched ? ` (${counts[key]})` : ''}
+                {label}
               </Text>
             </Pressable>
           ))}
