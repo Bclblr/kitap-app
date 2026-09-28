@@ -345,7 +345,7 @@ export function isAcademicThesis(work: Pick<AcademicWork, 'type' | 'title'>) {
   // identifies a thesis/dissertation. Only use the title fallback for
   // unclassified records so normal articles are never re-labelled.
   if (!type || type === 'other') {
-    return /(^|[\\s:–—-])(tez|tezi|tezinin|thesis|dissertation)([\\s:–—-]|$)/i.test(work.title);
+    return /(^|[\s:–—-])(tez|tezi|tezinin|thesis|dissertation)([\s:–—-]|$)/i.test(work.title);
   }
   return false;
 }
