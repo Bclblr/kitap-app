@@ -304,8 +304,11 @@ export async function searchAcademicWorks(query: string, limit = 20, signal?: Ab
   return (data.results ?? []).map(normalizeAcademicWork);
 }
 
-export function searchAcademicArticles(query: string, limit = 20, signal?: AbortSignal) {
-  return searchAcademicWorksByType(query, 'article', limit, signal);
+export async function searchAcademicArticles(query: string, limit = 20, signal?: AbortSignal) {
+  const works = await searchAcademicWorksByType(query, 'article', limit, signal);
+  // The dedicated Articles tab owns the presentation type. Do not let
+  // incomplete upstream metadata fall back to "Akademik çalışma".
+  return works.map((work) => ({ ...work, type: 'article' }));
 }
 
 export async function searchAcademicTheses(query: string, limit = 20, signal?: AbortSignal) {
