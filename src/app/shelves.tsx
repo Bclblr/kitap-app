@@ -291,6 +291,17 @@ export default function ShelvesScreen() {
           Kitaplarını ve okuma durumlarını yönet
         </Text>
 
+        <Pressable onPress={() => router.push('/academic-library' as any)} style={styles.academicShelfButton}>
+          <View style={styles.academicShelfIcon}>
+            <Feather name="file-text" size={18} color={lightColor('primary', '#A985FF')} />
+          </View>
+          <View style={styles.academicShelfCopy}>
+            <Text style={styles.academicShelfTitle}>Akademik Çalışmalarım</Text>
+            <Text style={styles.academicShelfText}>Makaleler, tezler ve diğer çalışmalar · Okuyacağım, Okuyorum, Okudum, Yarım bıraktım</Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={lightColor('textSecondary', '#A0A0AA')} />
+        </Pressable>
+
         {premium.isPremium ? (
           <Pressable
             onPress={() => router.push('/premium-shelf-customization')}
@@ -1014,6 +1025,31 @@ const baseStyles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  academicShelfButton: {
+    minHeight: 78,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#2A2634',
+    backgroundColor: '#15121C',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  academicShelfIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#21182F',
+  },
+  academicShelfCopy: { flex: 1 },
+  academicShelfTitle: { color: '#F0EDF7', fontSize: 14, fontWeight: '800' },
+  academicShelfText: { color: '#8E8998', fontSize: 10.5, lineHeight: 15, marginTop: 3 },
   premiumShelfButton: {
     marginTop: 14,
     minHeight: 46,
