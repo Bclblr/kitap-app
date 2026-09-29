@@ -1,4 +1,4 @@
-import { getOpenLibraryRecord } from '@/lib/open-library-api';
+import { getOpenLibraryRecord, searchOpenLibraryBooks } from '@/lib/open-library-api';
 
 const BOOK_COVER_CACHE_MS = 10 * 60 * 1000;
 
@@ -54,7 +54,11 @@ function resolveBookCover(data: BookCoverData): string | null {
 
 }
 
-export async function loadBookCover(bookKey: string, fallback: string | null): Promise<string | null> {
+export async function loadBookCover(
+  bookKey: string,
+  fallback: string | null,
+  metadata?: BookCoverData | null
+): Promise<string | null> {
   if (fallback) return fallback;
 
   const normalizedKey = bookKey.trim();
@@ -71,7 +75,7 @@ export async function loadBookCover(bookKey: string, fallback: string | null): P
 
   const request = (async () => {
     try {
-      const data = await getOpenLibraryRecord(normalizedKey) as BookCoverData | null;
+      const data = await loadOpenLibraryBookMetadata(normalizedKey, metadata ?? null);
       return data ? existingBookCover(data) : null;
     } catch {
       // Remote metadata failures must never crash feed rendering.
@@ -209,7 +213,7 @@ export async function loadOpenLibraryBookMetadata(
     }
 
     const authorNames = await resolveAuthorNames(source.authors);
-    const metadata: OpenLibraryMetadata = {
+    let metadata: OpenLibraryMetadata = {
       key: normalizedKey,
       title: typeof source.title === 'string' ? source.title : undefined,
       authors: authorNames,
@@ -224,6 +228,45 @@ export async function loadOpenLibraryBookMetadata(
         ? Number(source.first_publish_year)
         : undefined,
     };
+
+    // Work records do not always carry a cover even when one of their editions
+    // does. In that case, use the Search API (which includes edition-level
+    // cover identifiers) and prefer the exact work before falling back to an
+    // exact title match.
+    if (!existingBookCover(metadata)) {
+      const searchTitle =
+        (typeof fallback?.title === 'string' && fallback.title.trim()) ||
+        (typeof metadata.title === 'string' && metadata.title.trim()) ||
+        '';
+
+      if (searchTitle) {
+        try {
+          const results = await searchOpenLibraryBooks(searchTitle, 10);
+          const exactWork = results.find((item: any) =>
+            normalizedOpenLibraryKey(item?.key) === normalizedKey &&
+            !!existingBookCover(item)
+          );
+          const exactTitle = results.find((item: any) =>
+            typeof item?.title === 'string' &&
+            item.title.trim().toLocaleLowerCase('tr-TR') === searchTitle.toLocaleLowerCase('tr-TR') &&
+            !!existingBookCover(item)
+          );
+          const coverSource = exactWork ?? exactTitle;
+
+          if (coverSource) {
+            metadata = {
+              ...metadata,
+              cover_i: coverSource.cover_i ?? metadata.cover_i,
+              covers: coverSource.covers ?? metadata.covers,
+              edition_key: coverSource.edition_key ?? metadata.edition_key,
+              isbn: coverSource.isbn ?? metadata.isbn,
+            };
+          }
+        } catch {
+          // The work metadata is still useful even when cover enrichment fails.
+        }
+      }
+    }
 
     return metadata;
   })()
