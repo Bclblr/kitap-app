@@ -1,4 +1,5 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ActivityIndicator, View } from 'react-native';
@@ -10,6 +11,7 @@ import { getCurrentAdminAccess } from '@/lib/admin';
 import { installGlobalErrorMonitoring } from '@/lib/error-monitoring';
 import { configureProductionLogging } from '@/lib/production-logging';
 import { trackProductEvent } from '@/lib/product-analytics';
+import { notificationUrl, registerPushNotifications } from '@/lib/push-notifications';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { ContentFilterProvider } from '@/providers/ContentFilterProvider';
 import { NetworkProvider, NetworkStatusBanner } from '@/providers/NetworkProvider';
@@ -129,6 +131,7 @@ function GuardedLayout() {
   const segments = useSegments();
   const trackedUserRef = useRef<string | null>(null);
   const bookRouteActiveRef = useRef(false);
+  const handledNotificationRef = useRef<string | null>(null);
   const [adminReady, setAdminReady] = useState(false);
   const [canOpenAdmin, setCanOpenAdmin] = useState(false);
   const onboardingPending = session?.user?.user_metadata?.onboarding_pending === true;
@@ -140,6 +143,37 @@ function GuardedLayout() {
     trackedUserRef.current = userId;
     void trackProductEvent('app_open', { source: 'authenticated_session' });
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!sessionUserId) return;
+    void registerPushNotifications(sessionUserId);
+  }, [sessionUserId]);
+
+  useEffect(() => {
+    if (!sessionUserId) return;
+
+    const openNotification = (notification: Notifications.Notification) => {
+      const identifier = notification.request.identifier;
+      if (handledNotificationRef.current === identifier) return;
+
+      const url = notificationUrl(notification);
+      if (!url) return;
+
+      handledNotificationRef.current = identifier;
+      router.push(url as any);
+    };
+
+    const initialResponse = Notifications.getLastNotificationResponse();
+    if (initialResponse?.notification) {
+      openNotification(initialResponse.notification);
+    }
+
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      openNotification(response.notification);
+    });
+
+    return () => subscription.remove();
+  }, [router, sessionUserId]);
 
   useEffect(() => {
     const onBookRoute = segments[0] === 'book';
