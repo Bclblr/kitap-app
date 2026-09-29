@@ -2102,6 +2102,39 @@ export type Database = {
         }
         Relationships: []
       }
+      push_tokens: {
+        Row: {
+          created_at: string
+          device_name: string | null
+          expo_push_token: string
+          id: string
+          last_seen_at: string
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_name?: string | null
+          expo_push_token: string
+          id?: string
+          last_seen_at?: string
+          platform: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_name?: string | null
+          expo_push_token?: string
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       quote_comments: {
         Row: {
           created_at: string
@@ -4053,6 +4086,17 @@ export type Database = {
       community_access: { Args: { cid: string }; Returns: boolean }
       community_admin: { Args: { cid: string }; Returns: boolean }
       current_app_role: { Args: never; Returns: string }
+      dispatch_expo_push: {
+        Args: {
+          p_body: string
+          p_data?: Json
+          p_preference?: string
+          p_title: string
+          p_url?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       filter_discoverable_reader_candidates: {
         Args: { p_ids: string[] }
         Returns: {
@@ -4408,6 +4452,10 @@ export type Database = {
         Args: { p_content_id: string; p_content_type: string }
         Returns: number
       }
+      register_push_token: {
+        Args: { p_device_name?: string; p_platform: string; p_token: string }
+        Returns: undefined
+      }
       remove_community_member: {
         Args: { p_community_id: string; p_user_id: string }
         Returns: undefined
@@ -4574,6 +4622,7 @@ export type Database = {
         Args: { p_event_name: string; p_metadata?: Json }
         Returns: undefined
       }
+      unregister_push_token: { Args: { p_token: string }; Returns: undefined }
       update_reading_progress: {
         Args: {
           p_book_key: string
