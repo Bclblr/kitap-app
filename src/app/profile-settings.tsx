@@ -6,6 +6,7 @@ import { getCurrentAdminAccess } from '@/lib/admin';
 import { permanentImageUrl } from '@/lib/image-policy';
 import { clearSignedImageUrlCache } from '@/lib/image-cache';
 import { supabase } from '@/lib/supabase';
+import { unregisterPushNotifications } from '@/lib/push-notifications';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
