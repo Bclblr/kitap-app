@@ -160,6 +160,7 @@ function GuardedLayout() {
       if (!url) return;
 
       handledNotificationRef.current = identifier;
+      Notifications.clearLastNotificationResponse();
       router.push(url as any);
     };
 
