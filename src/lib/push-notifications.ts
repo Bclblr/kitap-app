@@ -108,6 +108,7 @@ export function notificationUrl(notification: Notifications.Notification): strin
 
   const allowedRoots = new Set([
     'notifications',
+    'content',
     'messages',
     'chat',
     'book',
