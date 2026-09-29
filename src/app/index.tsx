@@ -1140,7 +1140,7 @@ export default function HomeScreen() {
         const metadata = existingBookCover(book) ? book : available.get(normalizedKey(key)) ?? book;
         let finalCoverUrl = existingBookCover(metadata);
         if (!finalCoverUrl && key && openLibraryWorkUrl(key)) {
-          if (!requests.has(key)) requests.set(key, loadBookCover(key, null));
+          if (!requests.has(key)) requests.set(key, loadBookCover(key, null, metadata));
           try { finalCoverUrl = await requests.get(key) ?? null; }
           catch { finalCoverUrl = null; }
         }
