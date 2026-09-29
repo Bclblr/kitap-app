@@ -100,6 +100,16 @@ module.exports = ({ config }) => {
     plugins.push('expo-video');
   }
 
+  if (!plugins.some((plugin) => plugin === 'expo-notifications' || (Array.isArray(plugin) && plugin[0] === 'expo-notifications'))) {
+    plugins.push([
+      'expo-notifications',
+      {
+        color: '#6232B5',
+        defaultChannel: 'kitap-social',
+      },
+    ]);
+  }
+
   plugins.push([
     'expo-build-properties',
     {
