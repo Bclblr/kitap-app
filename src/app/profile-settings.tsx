@@ -200,6 +200,7 @@ export default function ProfileSettingsScreen() {
     const { data: authData } = await supabase.auth.getUser();
     const userId = authData.user?.id ?? null;
 
+    await unregisterPushNotifications();
     const { error } = await supabase.auth.signOut();
 
     if (error) {
@@ -267,6 +268,7 @@ export default function ProfileSettingsScreen() {
       }
 
       try {
+        await unregisterPushNotifications();
         await supabase.auth.signOut();
       } catch {
         // Auth user has already been deleted server-side; local cleanup below is authoritative.
