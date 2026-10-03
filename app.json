@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Kitap",
-    "slug": "kitap-app",
+    "name": "CROOVA",
+    "slug": "croova",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "kitapapp",
+    "scheme": "croova",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
@@ -35,7 +35,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#6232B5",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
