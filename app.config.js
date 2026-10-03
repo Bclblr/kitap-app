@@ -105,7 +105,7 @@ module.exports = ({ config }) => {
       'expo-notifications',
       {
         color: '#6232B5',
-        defaultChannel: 'kitap-social',
+        defaultChannel: 'croova-social',
       },
     ]);
   }
