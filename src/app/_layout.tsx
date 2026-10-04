@@ -250,6 +250,7 @@ function GuardedLayout() {
           <Stack.Screen name="reset-password" />
           <Stack.Screen name="verify-email" />
           <Stack.Screen name="account-deletion" />
+          <Stack.Screen name="privacy-policy" />
 
           <Stack.Protected guard={!!session}>
             {AUTHENTICATED_ROUTES.map((name) => (
