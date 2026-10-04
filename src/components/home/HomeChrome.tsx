@@ -79,7 +79,7 @@ export function HomeDrawer({
           ]}
         >
           <View style={styles.drawerHeader}>
-            <Text style={styles.drawerBrand}>CROOVA</Text>
+            <View style={styles.drawerBrandLogo} accessibilityLabel="CROOVA"><Text style={styles.drawerBrandLetters}>CR</Text><View style={[styles.drawerBrandO, { borderColor: colors.primary }]}><View style={[styles.drawerBrandPupil, { backgroundColor: colors.primary }]} /></View><View style={[styles.drawerBrandO, { borderColor: colors.primary }]}><View style={[styles.drawerBrandPupil, { backgroundColor: colors.primary }]} /></View><Text style={styles.drawerBrandLetters}>VA</Text></View>
             <Pressable onPress={onClose} style={styles.drawerCloseButton} accessibilityLabel="Menüyü kapat">
               <Feather name="x" size={24} color={colors.text} />
             </Pressable>
