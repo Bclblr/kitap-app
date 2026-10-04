@@ -2063,9 +2063,7 @@ export default function HomeScreen() {
               <View style={[styles.brandEye, { backgroundColor: colors.primary }]} />
             </View>
             <View style={[styles.brandO, { borderColor: colors.primary }]}>
-              <View style={[styles.brandEye, { backgroundColor: colors.primary }]}>
-                <View style={styles.brandPupil} />
-              </View>
+              <View style={[styles.brandEye, { backgroundColor: colors.primary }]} />
             </View>
             <Text style={styles.brandLetter}>VA</Text>
           </View>
