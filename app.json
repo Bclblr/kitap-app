@@ -21,7 +21,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.burukancelebiler.kitapapp",
+      "package": "com.croova.app",
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
