@@ -2057,7 +2057,20 @@ export default function HomeScreen() {
           <Pressable onPress={() => setShowAuthMenu(true)} style={styles.headerIconButton} accessibilityLabel="Menü">
             <Feather name="menu" size={24} color={colors.text} />
           </Pressable>
-          <Text style={styles.brandTitle}>CROOVA</Text>
+          <View style={styles.brandTitle} accessibilityLabel="CROOVA">
+            <Text style={styles.brandLetter}>CR</Text>
+            <View style={[styles.brandO, { borderColor: colors.primary }]}>
+              <View style={[styles.brandEye, { backgroundColor: colors.primary }]}>
+                <View style={styles.brandPupil} />
+              </View>
+            </View>
+            <View style={[styles.brandO, { borderColor: colors.primary }]}>
+              <View style={[styles.brandEye, { backgroundColor: colors.primary }]}>
+                <View style={styles.brandPupil} />
+              </View>
+            </View>
+            <Text style={styles.brandLetter}>VA</Text>
+          </View>
           <View style={styles.headerRightActions}>
             <Pressable
               onPress={() => router.push('/notifications')}
@@ -2172,7 +2185,11 @@ const baseStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#08090D', width: '100%', maxWidth: '100%', minWidth: 0 },
   content: { paddingTop: 12, paddingHorizontal: 14, paddingBottom: 132, width: '100%', maxWidth: '100%', minWidth: 0, alignSelf: 'stretch' },
   homeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 48, marginBottom: 6, maxWidth: '100%', minWidth: 0 },
-  brandTitle: { position: 'absolute', left: 70, right: 70, textAlign: 'center', color: '#F8F8FA', fontSize: 21, fontWeight: '900', letterSpacing: -0.6 },
+  brandTitle: { position: 'absolute', left: 70, right: 70, height: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
+  brandLetter: { color: '#F8F8FA', fontSize: 21, lineHeight: 25, fontWeight: '900', letterSpacing: -0.8 },
+  brandO: { width: 19, height: 23, borderWidth: 3, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginHorizontal: 0.5 },
+  brandEye: { width: 11, height: 6, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  brandPupil: { width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: '#FFFFFF' },
   headerRightActions: { marginLeft: 'auto', flexDirection: 'row', gap: 7, maxWidth: '100%', minWidth: 0, flexShrink: 1 },
   headerIconButton: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
   notificationBadge: { position: 'absolute', top: -4, right: -7, minWidth: 19, height: 19, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF4D67', borderWidth: 2, borderColor: '#0A0A0E' },
