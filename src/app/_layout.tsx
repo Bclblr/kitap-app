@@ -17,7 +17,6 @@ import { ContentFilterProvider } from '@/providers/ContentFilterProvider';
 import { NetworkProvider, NetworkStatusBanner } from '@/providers/NetworkProvider';
 import { PremiumProvider } from '@/providers/PremiumProvider';
 import { ThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
-import CroovaLaunchSplash from '@/components/CroovaLaunchSplash';
 
 configureProductionLogging();
 installGlobalErrorMonitoring();
@@ -120,7 +119,6 @@ export default function RootLayout() {
           </NetworkProvider>
         </ThemeProvider>
       </SafeAreaProvider>
-      <CroovaLaunchSplash />
     </AppErrorBoundary>
   );
 }
