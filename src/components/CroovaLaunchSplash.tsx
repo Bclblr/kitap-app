@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Modal, StyleSheet, Text, View } from 'react-native';
 
 export default function CroovaLaunchSplash() {
   const opacity = useRef(new Animated.Value(1)).current;
