@@ -29,7 +29,8 @@ export default function OnboardingScreen() {
   const { colors } = useAppTheme();
   const usernameRef = useRef<TextInput>(null);
   const bioRef = useRef<TextInput>(null);
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [goal, setGoal] = useState(20);
@@ -62,7 +63,18 @@ export default function OnboardingScreen() {
         if (!active) return;
 
         setUsername(data?.username?.trim() || metadataUsername || fallbackUsername);
-        setFullName(data?.full_name?.trim() || '');
+        const metadataFirstName =
+          typeof user.user_metadata?.first_name === 'string'
+            ? user.user_metadata.first_name.trim()
+            : '';
+        const metadataLastName =
+          typeof user.user_metadata?.last_name === 'string'
+            ? user.user_metadata.last_name.trim()
+            : '';
+        const existingFullName = data?.full_name?.trim() || '';
+        const nameParts = existingFullName.split(/\s+/).filter(Boolean);
+        setFirstName(metadataFirstName || nameParts.shift() || '');
+        setLastName(metadataLastName || nameParts.join(' ') || '');
         setBio(data?.bio?.trim() || '');
       } catch (error) {
         console.error('Onboarding profil bilgileri yüklenemedi:', error);
@@ -77,7 +89,7 @@ export default function OnboardingScreen() {
     };
   }, []);
 
-  async function finish(skipDetails = false) {
+  async function finish() {
     setSaving(true);
     try {
       const { data, error: userError } = await supabase.auth.getUser();
@@ -95,20 +107,25 @@ export default function OnboardingScreen() {
       const fallbackUsername = user.email?.split('@')[0] || 'kitapokuru';
       const cleanUsername = username.trim() || metadataUsername || fallbackUsername;
 
-      if (!skipDetails && (cleanUsername.length < 3 || cleanUsername.length > 30)) {
+      if (cleanUsername.length < 3 || cleanUsername.length > 30) {
         Alert.alert('Kullanıcı adı', 'Kullanıcı adın 3 ile 30 karakter arasında olmalı.');
+        return;
+      }
+
+      const cleanFirstName = firstName.trim();
+      const cleanLastName = lastName.trim();
+
+      if (!cleanFirstName || !cleanLastName) {
+        Alert.alert('Ad soyad gerekli', 'Devam etmek için adını ve soyadını doldurmalısın.');
         return;
       }
 
       const profilePayload: TablesInsert<'profiles'> = {
         id: user.id,
         username: cleanUsername,
+        full_name: cleanFirstName + ' ' + cleanLastName,
+        bio: bio.trim() || 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚',
       };
-
-      if (!skipDetails) {
-        profilePayload.full_name = fullName.trim() || null;
-        profilePayload.bio = bio.trim() || 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚';
-      }
 
       const { error: profileError } = await supabase
         .from('profiles')
@@ -143,12 +160,15 @@ export default function OnboardingScreen() {
         data: {
           onboarding_pending: false,
           username: cleanUsername,
+          first_name: cleanFirstName,
+          last_name: cleanLastName,
+          full_name: cleanFirstName + ' ' + cleanLastName,
         },
       });
       if (metadataError) throw metadataError;
 
-      await trackProductEvent('onboarding_completed', { skip_details: skipDetails });
-      router.replace(skipDetails ? '/' : '/explore');
+      await trackProductEvent('onboarding_completed', { skip_details: false });
+      router.replace('/explore');
     } catch (error) {
       console.error('Onboarding kaydedilemedi:', error);
       Alert.alert('Kaydedilemedi', 'Başlangıç ayarların kaydedilirken bir hata oluştu.');
@@ -194,20 +214,36 @@ export default function OnboardingScreen() {
 
         <View style={styles.card}>
           <Text style={styles.step}>1 / 3</Text>
-          <Text style={styles.cardTitle} accessibilityRole="header">Sana nasıl hitap edelim?</Text>
-          <Text style={styles.cardDescription}>Adını veya görünen adını ekleyebilirsin. Bu alan isteğe bağlıdır.</Text>
+          <Text style={styles.cardTitle} accessibilityRole="header">Adını ve soyadını ekle</Text>
+          <Text style={styles.cardDescription}>Profilini oluşturmak için adın ve soyadın gereklidir.</Text>
+          <Text style={styles.fieldLabel}>Ad</Text>
           <TextInput
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder="Adın veya görünen adın"
+            value={firstName}
+            onChangeText={setFirstName}
+            placeholder="Adın"
             placeholderTextColor={lightColor('textMuted', '#6E6E7A')}
+            style={styles.input}
+            maxLength={40}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            onSubmitEditing={() => bioRef.current?.focus()}
+            accessibilityLabel="Ad"
+            accessibilityHint="Profilinde görünecek adını yaz."
+          />
+          <Text style={styles.fieldLabel}>Soyad</Text>
+          <TextInput
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="Soyadın"
+            placeholderTextColor={lightColor('textMuted', '#6E6E7A')}
+            autoCapitalize="words"
             style={styles.input}
             maxLength={60}
             returnKeyType="next"
             blurOnSubmit={false}
             onSubmitEditing={() => usernameRef.current?.focus()}
-            accessibilityLabel="Ad veya görünen ad"
-            accessibilityHint="Profilinde görünecek adını yazabilirsin. Bu alan isteğe bağlıdır."
+            accessibilityLabel="Soyad"
+            accessibilityHint="Profilinde görünecek soyadını yaz."
           />
         </View>
 
@@ -276,7 +312,7 @@ export default function OnboardingScreen() {
 
         <Pressable
           disabled={saving}
-          onPress={() => void finish(false)}
+          onPress={() => void finish()}
           accessibilityRole="button"
           accessibilityLabel="Profilimi tamamla"
           accessibilityHint="Profil bilgilerini ve okuma hedefini kaydeder."
@@ -293,17 +329,7 @@ export default function OnboardingScreen() {
           )}
         </Pressable>
 
-        <Pressable
-          disabled={saving}
-          onPress={() => void finish(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Şimdilik geç"
-          accessibilityHint="Profil ayrıntılarını tamamlamadan ana sayfaya geçer."
-          accessibilityState={{ disabled: saving }}
-          style={styles.skipButton}
-        >
-          <Text style={styles.skipText}>Şimdilik geç</Text>
-        </Pressable>
+essable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
