@@ -133,7 +133,11 @@ export default function ShelvesScreen() {
         status: row.status,
       }));
 
-      const academicBooks: Book[] = ((academicData ?? []) as AcademicStatusRow[]).map((row) => ({
+      const visibleAcademicData = filter === 'all'
+        ? (academicData ?? [])
+        : (academicData ?? []).filter((row) => row.status === filter);
+
+      const academicBooks: Book[] = (visibleAcademicData as AcademicStatusRow[]).map((row) => ({
         key: `academic:${row.work_openalex_id}`,
         academicId: row.work_openalex_id,
         title: row.title,
