@@ -2057,7 +2057,7 @@ export default function HomeScreen() {
           <Pressable onPress={() => setShowAuthMenu(true)} style={styles.headerIconButton} accessibilityLabel="Menü">
             <Feather name="menu" size={24} color={colors.text} />
           </Pressable>
-          <Text style={styles.brandTitle}>Kitap</Text>
+          <Text style={styles.brandTitle}>CROOVA</Text>
           <View style={styles.headerRightActions}>
             <Pressable
               onPress={() => router.push('/notifications')}
