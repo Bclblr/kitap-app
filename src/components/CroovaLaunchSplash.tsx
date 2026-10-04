@@ -7,16 +7,16 @@ export default function CroovaLaunchSplash() {
 
   useEffect(() => {
     const blink = Animated.sequence([
-      Animated.delay(420),
+      Animated.delay(300),
       Animated.timing(eyeScale, { toValue: 0.08, duration: 110, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       Animated.timing(eyeScale, { toValue: 1, duration: 130, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.delay(260),
+      Animated.delay(220),
       Animated.timing(eyeScale, { toValue: 0.08, duration: 100, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       Animated.timing(eyeScale, { toValue: 1, duration: 120, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
     ]);
 
     const exit = Animated.sequence([
-      Animated.delay(1150),
+      Animated.delay(2600),
       Animated.timing(opacity, { toValue: 0, duration: 350, easing: Easing.out(Easing.ease), useNativeDriver: true }),
     ]);
 
