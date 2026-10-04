@@ -25,6 +25,8 @@ export default function RegisterScreen() {
   const { colors, scheme } = useAppTheme();
   const router = useRouter();
   const [username, setUsername] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,14 +34,18 @@ export default function RegisterScreen() {
 
   const canSubmit =
     username.trim().length > 0 &&
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
     email.trim().length > 0 &&
     password.length >= 8;
 
   async function handleRegister() {
     const cleanUsername = username.trim();
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
     const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanUsername || !cleanEmail || !password) {
+    if (!cleanUsername || !cleanFirstName || !cleanLastName || !cleanEmail || !password) {
       Alert.alert('Eksik bilgi', 'Lütfen tüm alanları doldur.');
       return;
     }
@@ -62,6 +68,9 @@ export default function RegisterScreen() {
           emailRedirectTo,
           data: {
             username: cleanUsername,
+            first_name: cleanFirstName,
+            last_name: cleanLastName,
+            full_name: `${cleanFirstName} ${cleanLastName}`,
             onboarding_pending: true,
           },
         },
@@ -82,6 +91,7 @@ export default function RegisterScreen() {
           {
             id: data.user.id,
             username: cleanUsername,
+            full_name: `${cleanFirstName} ${cleanLastName}`,
             bio: 'Kitaplar, hikâyeler ve keşfedilecek yeni dünyalar 📚',
           },
           { onConflict: 'id' }
@@ -186,6 +196,34 @@ export default function RegisterScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>Hesap Oluştur</Text>
           <Text style={styles.subtitle}>Sana en uygun kayıt yöntemini seç.</Text>
+
+          <Text style={styles.label}>Ad</Text>
+          <View style={styles.inputWrap}>
+            <Feather name="user" size={18} color={lightColor('textSecondary', '#777783')} />
+            <TextInput
+              value={firstName}
+              keyboardAppearance={scheme}
+              onChangeText={setFirstName}
+              placeholder="Adın"
+              placeholderTextColor={lightColor('textMuted', '#686873')}
+              autoCapitalize="words"
+              style={styles.input}
+            />
+          </View>
+
+          <Text style={styles.label}>Soyad</Text>
+          <View style={styles.inputWrap}>
+            <Feather name="user" size={18} color={lightColor('textSecondary', '#777783')} />
+            <TextInput
+              value={lastName}
+              keyboardAppearance={scheme}
+              onChangeText={setLastName}
+              placeholder="Soyadın"
+              placeholderTextColor={lightColor('textMuted', '#686873')}
+              autoCapitalize="words"
+              style={styles.input}
+            />
+          </View>
 
           <Text style={styles.label}>Kullanıcı adı</Text>
           <View style={styles.inputWrap}>
