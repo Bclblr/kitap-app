@@ -79,7 +79,7 @@ export function HomeDrawer({
           ]}
         >
           <View style={styles.drawerHeader}>
-            <Text style={styles.drawerBrand}>Kitap</Text>
+            <Text style={styles.drawerBrand}>CROOVA</Text>
             <Pressable onPress={onClose} style={styles.drawerCloseButton} accessibilityLabel="Menüyü kapat">
               <Feather name="x" size={24} color={colors.text} />
             </Pressable>
@@ -87,7 +87,7 @@ export function HomeDrawer({
           <View style={styles.drawerDivider} />
           <View style={styles.drawerSection}>
             <DrawerItem styles={styles} colors={colors} icon="bookmark" label="Kaydedilenler" onPress={onSaved} />
-            <DrawerItem styles={styles} colors={colors} icon="star" label="Kitap Premium" onPress={onPremium} accent />
+            <DrawerItem styles={styles} colors={colors} icon="star" label="Premium" onPress={onPremium} accent />
             <DrawerItem styles={styles} colors={colors} icon="settings" label="Profil ayarları" onPress={onProfileSettings} />
             <DrawerItem styles={styles} colors={colors} icon="log-out" label="Çıkış yap" onPress={onSignOut} />
           </View>
