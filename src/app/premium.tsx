@@ -270,7 +270,6 @@ export default function PremiumScreen() {
           >
             <Feather name="chevron-left" size={22} color={colors.text} />
           </Pressable>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Kitap Premium</Text>
           <View style={styles.headerSpacer} />
         </View>
 
