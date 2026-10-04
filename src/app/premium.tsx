@@ -299,19 +299,6 @@ export default function PremiumScreen() {
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Premium avantajları</Text>
-        <View style={styles.benefitsList}>
-          {BENEFITS.map(([icon, title, description]) => (
-            <View key={title} style={[styles.benefitCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-              <View style={[styles.benefitIcon, { backgroundColor: colors.background }]}> 
-                <Feather name={icon} size={19} color={colors.primary} />
-              </View>
-              <View style={styles.benefitText}>
-                <Text style={[styles.benefitTitle, { color: colors.text }]}>{title}</Text>
-                <Text style={[styles.benefitBody, { color: colors.textSecondary }]}>{description}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
 
         <Pressable
           accessibilityRole="button"
@@ -559,12 +546,6 @@ const styles = StyleSheet.create({
   statusPillText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
   statusBody: { fontSize: 13, lineHeight: 18 },
   sectionTitle: { marginTop: 26, marginBottom: 12, fontSize: 18, fontWeight: '900' },
-  benefitsList: { gap: 10 },
-  benefitCard: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  benefitIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  benefitText: { flex: 1, gap: 3 },
-  benefitTitle: { fontSize: 14, fontWeight: '800' },
-  benefitBody: { fontSize: 13, lineHeight: 18 },
   featureAction: { marginTop: 12, borderWidth: 1, borderRadius: 18, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   featureActionIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   featureActionText: { flex: 1, gap: 3 },
