@@ -34,7 +34,6 @@ const AUTHENTICATED_ROUTES = [
   'academic-work',
   'academic-author',
   'academic-institution',
-  'academic-library',
   'journal',
   'blocked-users',
   'author',
