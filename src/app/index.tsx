@@ -2060,9 +2060,7 @@ export default function HomeScreen() {
           <View style={styles.brandTitle} accessibilityLabel="CROOVA">
             <Text style={styles.brandLetter}>CR</Text>
             <View style={[styles.brandO, { borderColor: colors.primary }]}>
-              <View style={[styles.brandEye, { backgroundColor: colors.primary }]}>
-                <View style={styles.brandPupil} />
-              </View>
+              <View style={[styles.brandEye, { backgroundColor: colors.primary }]} />
             </View>
             <View style={[styles.brandO, { borderColor: colors.primary }]}>
               <View style={[styles.brandEye, { backgroundColor: colors.primary }]}>
@@ -2188,7 +2186,7 @@ const baseStyles = StyleSheet.create({
   brandTitle: { position: 'absolute', left: 70, right: 70, height: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
   brandLetter: { color: '#F8F8FA', fontSize: 21, lineHeight: 25, fontWeight: '900', letterSpacing: -0.8 },
   brandO: { width: 17, height: 22, borderWidth: 1.8, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginHorizontal: 0.5 },
-  brandEye: { width: 9, height: 4.5, borderRadius: 5, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '0deg' }] },
+  brandEye: { width: 2.5, height: 2.5, borderRadius: 1.5, backgroundColor: '#FFFFFF' },
   brandPupil: { width: 2.5, height: 2.5, borderRadius: 1.5, backgroundColor: '#FFFFFF' },
   headerRightActions: { marginLeft: 'auto', flexDirection: 'row', gap: 7, maxWidth: '100%', minWidth: 0, flexShrink: 1 },
   headerIconButton: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
