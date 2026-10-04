@@ -1,8 +1,8 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import RuntimeGate from '@/components/RuntimeGate';
@@ -22,85 +22,22 @@ configureProductionLogging();
 installGlobalErrorMonitoring();
 
 const AUTHENTICATED_ROUTES = [
-  'index',
-  'onboarding',
-  'explore',
-  'shelves',
-  'profile',
-  'notifications',
-  'review',
-  'appearance-settings',
-  'academic-search',
-  'academic-work',
-  'academic-author',
-  'academic-institution',
-  'journal',
-  'blocked-users',
-  'author',
-  'person',
-  'book',
-  'chat',
-  'community',
-  'community-editor',
-  'community-invites',
-  'community-members',
-  'content',
-  'event',
-  'event-editor',
-  'event-attendees',
-  'follow-requests',
-  'hashtag',
-  'messages',
-  'my-works',
-  'notification-settings',
-  'premium',
-  'premium-profile-customization',
-  'premium-quote-cards',
-  'premium-shelf-customization',
-  'premium-reading-goals',
-  'premium-reading-plan',
-  'premium-reading-stats',
-  'premium-reading-wrapped',
-  'premium-year-report',
-  'post-create',
-  'privacy-data',
-  'privacy-settings',
-  'profile-settings',
-  'quote-create',
-  'read',
-  'readers',
-  'saved',
-  'story-create',
-  'stories',
-  'story-editor',
-  'work',
-  'work-editor',
+  'index','onboarding','explore','shelves','profile','notifications','review','appearance-settings',
+  'academic-search','academic-work','academic-author','academic-institution','journal','blocked-users',
+  'author','person','book','chat','community','community-editor','community-invites','community-members',
+  'content','event','event-editor','event-attendees','follow-requests','hashtag','messages','my-works',
+  'notification-settings','premium','premium-profile-customization','premium-quote-cards',
+  'premium-shelf-customization','premium-reading-goals','premium-reading-plan','premium-reading-stats',
+  'premium-reading-wrapped','premium-year-report','post-create','privacy-data','privacy-settings',
+  'profile-settings','quote-create','read','readers','saved','story-create','stories','story-editor',
+  'work','work-editor',
 ] as const;
 
 const ADMIN_ROUTES = [
-  'admin',
-  'admin-admins',
-  'admin-ads',
-  'admin-analytics',
-  'admin-announcements',
-  'admin-audit',
-  'admin-authors',
-  'admin-books',
-  'admin-communities',
-  'admin-content',
-  'admin-control-center',
-  'admin-events',
-  'admin-explore',
-  'admin-hashtags',
-  'admin-moderation',
-  'admin-notifications',
-  'admin-premium-history',
-  'admin-premium',
-  'admin-storage',
-  'admin-system',
-  'admin-trash',
-  'admin-users',
-  'admin-verification-history',
+  'admin','admin-admins','admin-ads','admin-analytics','admin-announcements','admin-audit','admin-authors',
+  'admin-books','admin-communities','admin-content','admin-control-center','admin-events','admin-explore',
+  'admin-hashtags','admin-moderation','admin-notifications','admin-premium-history','admin-premium',
+  'admin-storage','admin-system','admin-trash','admin-users','admin-verification-history',
 ] as const;
 
 export default function RootLayout() {
@@ -149,7 +86,7 @@ function GuardedLayout() {
   }, [sessionUserId]);
 
   useEffect(() => {
-    if (!sessionUserId) return;
+    if (!sessionUserId || Platform.OS === 'web') return;
 
     const openNotification = (notification: Notifications.Notification) => {
       const identifier = notification.request.identifier;
@@ -214,7 +151,6 @@ function GuardedLayout() {
       clearTimeout(timer);
     };
   }, [sessionUserId]);
-
 
   useEffect(() => {
     if (loading || !ready || !session || !onboardingPending) return;
