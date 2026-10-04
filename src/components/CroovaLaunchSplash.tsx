@@ -6,21 +6,29 @@ export default function CroovaLaunchSplash() {
   const eyeScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const blink = Animated.sequence([
-      Animated.delay(300),
-      Animated.timing(eyeScale, { toValue: 0.08, duration: 110, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(eyeScale, { toValue: 1, duration: 130, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.delay(220),
-      Animated.timing(eyeScale, { toValue: 0.08, duration: 100, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(eyeScale, { toValue: 1, duration: 120, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    ]);
+    let mounted = true;
 
-    const exit = Animated.sequence([
-      Animated.delay(2600),
-      Animated.timing(opacity, { toValue: 0, duration: 350, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-    ]);
+    const runAnimation = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      if (!mounted) return;
 
-    Animated.parallel([blink, exit]).start();
+      Animated.sequence([
+        Animated.delay(250),
+        Animated.timing(eyeScale, { toValue: 0.08, duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(eyeScale, { toValue: 1, duration: 150, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.delay(350),
+        Animated.timing(eyeScale, { toValue: 0.08, duration: 140, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(eyeScale, { toValue: 1, duration: 150, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.delay(1800),
+        Animated.timing(opacity, { toValue: 0, duration: 450, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+      ]).start();
+    };
+
+    void runAnimation();
+
+    return () => {
+      mounted = false;
+    };
   }, [eyeScale, opacity]);
 
   return (
