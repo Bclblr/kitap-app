@@ -21,6 +21,8 @@ type Book = BookCoverData & {
   covers?: number[];
   first_publish_year?: number;
   status?: 'reading' | 'read' | 'want' | 'abandoned';
+  isAcademic?: boolean;
+  academicId?: string;
 };
 
 type Filter = 'all' | 'reading' | 'read' | 'want' | 'abandoned';
@@ -29,6 +31,14 @@ const SHELF_PAGE_SIZE = 30;
 type UserBookStatusRow = {
   book_key: string;
   book_title: string | null;
+  status: 'reading' | 'read' | 'want' | 'abandoned';
+};
+
+type AcademicStatusRow = {
+  work_openalex_id: string;
+  title: string;
+  author_summary: string | null;
+  publication_year: number | null;
   status: 'reading' | 'read' | 'want' | 'abandoned';
 };
 
@@ -109,15 +119,35 @@ export default function ShelvesScreen() {
       const { data, error } = await request;
       if (error) throw error;
 
+      const { data: academicData, error: academicError } = await supabase
+        .from('academic_reading_status')
+        .select('work_openalex_id,title,author_summary,publication_year,status')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (academicError) throw academicError;
+
       const serverBooks: Book[] = ((data ?? []) as UserBookStatusRow[]).map((row) => ({
         key: row.book_key,
         title: row.book_title ?? 'Bilinmeyen kitap',
         status: row.status,
       }));
 
+      const academicBooks: Book[] = ((academicData ?? []) as AcademicStatusRow[]).map((row) => ({
+        key: `academic:${row.work_openalex_id}`,
+        academicId: row.work_openalex_id,
+        title: row.title,
+        authors: row.author_summary ? [row.author_summary] : [],
+        first_publish_year: row.publication_year ?? undefined,
+        status: row.status,
+        isAcademic: true,
+      }));
+
+      const combinedBooks = [...serverBooks, ...academicBooks];
+
       const enrichedBooks = await Promise.all(
-        serverBooks.map(async (book) => {
-          if (!book.key) return book;
+        combinedBooks.map(async (book) => {
+          if (!book.key || book.isAcademic) return book;
 
           const metadata = await loadOpenLibraryBookMetadata(book.key, book);
           if (!metadata) return book;
@@ -165,13 +195,31 @@ export default function ShelvesScreen() {
     if (!currentBook) return;
 
     try {
-      const { error } = await supabase.rpc('set_user_book_status', {
-        p_book_key: key,
-        p_book_title: currentBook.title ?? '',
-        p_status: newStatus,
-      });
+      if (currentBook.isAcademic && currentBook.academicId) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user) throw new Error('Giriş gerekli');
 
-      if (error) throw error;
+        const { error } = await supabase
+          .from('academic_reading_status')
+          .upsert({
+            user_id: authData.user.id,
+            work_openalex_id: currentBook.academicId,
+            title: currentBook.title ?? 'Akademik çalışma',
+            author_summary: getAuthorName(currentBook),
+            publication_year: currentBook.first_publish_year ?? null,
+            status: newStatus,
+          }, { onConflict: 'user_id,work_openalex_id' });
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.rpc('set_user_book_status', {
+          p_book_key: key,
+          p_book_title: currentBook.title ?? '',
+          p_status: newStatus,
+        });
+
+        if (error) throw error;
+      }
 
       setBooks((current) =>
         current.map((book) =>
@@ -200,11 +248,17 @@ export default function ShelvesScreen() {
         return;
       }
 
-      const { error } = await supabase
-        .from('user_book_status')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('book_key', key);
+      const { error } = key.startsWith('academic:')
+        ? await supabase
+            .from('academic_reading_status')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('work_openalex_id', key.slice('academic:'.length))
+        : await supabase
+            .from('user_book_status')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('book_key', key);
 
       if (error) throw error;
 
@@ -302,17 +356,6 @@ export default function ShelvesScreen() {
         <Text style={styles.subtitle}>
           Kitaplarını ve okuma durumlarını yönet
         </Text>
-
-        <Pressable onPress={() => router.push('/academic-library' as any)} style={styles.academicShelfButton}>
-          <View style={styles.academicShelfIcon}>
-            <Feather name="file-text" size={18} color={lightColor('primary', '#A985FF')} />
-          </View>
-          <View style={styles.academicShelfCopy}>
-            <Text style={styles.academicShelfTitle}>Akademik Çalışmalarım</Text>
-            <Text style={styles.academicShelfText}>Makaleler, tezler ve diğer çalışmalar · Okuyacağım, Okuyorum, Okudum, Yarım bıraktım</Text>
-          </View>
-          <Feather name="chevron-right" size={20} color={lightColor('textSecondary', '#A0A0AA')} />
-        </Pressable>
 
         {premium.isPremium ? (
           <Pressable
@@ -478,11 +521,11 @@ export default function ShelvesScreen() {
         ) : (
           <>
             <Text style={styles.count}>
-              {activeShelfCount} kitap
+              {activeShelfCount} öğe
             </Text>
 
             {filteredBooks.map((book, index) => {
-              const coverUrl = existingBookCover(book);
+              const coverUrl = book.isAcademic ? null : existingBookCover(book);
 
               const bookKey =
                 book.key ??
@@ -497,6 +540,14 @@ export default function ShelvesScreen() {
                     style={styles.bookPressable}
                     onPress={() => {
                       if (!book.key) {
+                        return;
+                      }
+
+                      if (book.isAcademic && book.academicId) {
+                        router.push({
+                          pathname: '/academic-work',
+                          params: { id: book.academicId },
+                        });
                         return;
                       }
 
